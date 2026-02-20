@@ -270,6 +270,12 @@ export class BookmarkService {
             this.looseBookmarks.set([]);
           }
 
+          // Auto-create "Harian" folder for new users (first login)
+          if (folders.length === 0 && loose.length === 0) {
+            this.createHarianDefault();
+            return; // fetchCloud will be called again after creation
+          }
+
           this.folders.set(folders);
         }),
         catchError(err => {
@@ -278,6 +284,19 @@ export class BookmarkService {
         })
       ).subscribe();
   }
+
+  /** Creates the default "Harian" folder on the backend for new users */
+  private createHarianDefault() {
+    this.http.post<any>(`${this.apiUrl}/folders`, { name: 'Harian' })
+      .pipe(catchError(err => { console.error('Could not create Harian folder', err); return of(null); }))
+      .subscribe(created => {
+        if (created) {
+          // Show it immediately with real ID
+          this.folders.set([{ id: created.id, name: 'Harian', bookmarks: [], createdAt: new Date().toISOString() }]);
+        }
+      });
+  }
+
 
   private loadLocal(): void {
     try {

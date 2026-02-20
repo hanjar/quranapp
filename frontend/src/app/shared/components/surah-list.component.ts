@@ -676,12 +676,18 @@ export class SurahListComponent {
     }
   }
 
-  formatDate(iso: string): string {
-    return new Date(iso).toLocaleDateString('id-ID', {
+  formatDate(dateStr: string): string {
+    if (!dateStr) return '';
+    // SQLite returns "YYYY-MM-DD HH:MM:SS" — normalize to ISO 8601 for reliable parsing
+    const iso = dateStr.includes('T') ? dateStr : dateStr.replace(' ', 'T') + 'Z';
+    const d = new Date(iso);
+    if (isNaN(d.getTime())) return '';
+    return d.toLocaleDateString('id-ID', {
       day: 'numeric', month: 'short', year: 'numeric',
       hour: '2-digit', minute: '2-digit'
     });
   }
+
 
   handleImageError(event: any) {
     event.target.src = 'https://www.gravatar.com/avatar?d=mp';
