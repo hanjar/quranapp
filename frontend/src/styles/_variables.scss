@@ -1,0 +1,42 @@
+// Color Palette
+$green-dark: #0d2818;
+$green-primary: #1a3a2a;
+$bg-primary: #fdf8f0;
+$bg-secondary: #f5ece0;
+$bg-tertiary: #ede4d4;
+$gold-primary: #c4a87c;
+$gold-dark: #8b7355;
+$gold-indicator: #d4a017;
+$text-primary: #1a0e08;
+$text-secondary: #2c1810;
+$text-muted: #8b7355;
+$text-light: #e8dcc8;
+$danger: #c0392b;
+
+// CSS Custom Properties
+:root {
+  --green-dark: #{$green-dark};
+  --green-primary: #{$green-primary};
+  --bg-primary: #{$bg-primary};
+  --bg-secondary: #{$bg-secondary};
+  --bg-tertiary: #{$bg-tertiary};
+  --gold-primary: #{$gold-primary};
+  --gold-dark: #{$gold-dark};
+  --gold-indicator: #{$gold-indicator};
+  --text-primary: #{$text-primary};
+  --text-secondary: #{$text-secondary};
+  --text-muted: #{$text-muted};
+  --text-light: #{$text-light};
+  --danger: #{$danger};
+}
+
+// Theme: Classic (Beige/Greyish)
+body.theme-classic {
+  --bg-primary: #e2e0d1;
+  --bg-secondary: #dcdacb;
+  --bg-tertiary: #d6d4c5;
+  --text-primary: #2c2a29;
+  --text-secondary: #3e3c3b;
+  --gold-primary: #b0966b;
+  /* Slightly darker gold for better contrast */
+}

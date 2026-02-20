@@ -1,0 +1,114 @@
+<!-- Header -->
+<header class="app-header" [class.immersive-hidden]="immersiveMode()" (click)="onUIInteraction()">
+  <button class="header-btn" (click)="drawerOpen.set(true); $event.stopPropagation()" title="Daftar Surah">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <line x1="3" y1="6" x2="21" y2="6" />
+      <line x1="3" y1="12" x2="21" y2="12" />
+      <line x1="3" y1="18" x2="21" y2="18" />
+    </svg>
+  </button>
+
+  <div class="header-title">
+    <span class="header-name-ar arabic-ui">{{ getSurahName() }}</span>
+    <span class="header-name-en latin-ui">{{ getSurahEnglish() }}</span>
+  </div>
+
+  <div class="header-actions">
+    <!-- Go To Button (Search Icon) -->
+    <button class="header-btn" (click)="showGoToDialog.set(true)" title="Cari / Pergi Ke">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="11" cy="11" r="8"></circle>
+        <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+      </svg>
+    </button>
+
+    <div class="theme-dropdown">
+      <button class="header-btn" (click)="toggleThemeMenu()" title="Pilih Tema">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="13.5" cy="6.5" r=".5" fill="currentColor" />
+          <circle cx="17.5" cy="10.5" r=".5" fill="currentColor" />
+          <circle cx="8.5" cy="7.5" r=".5" fill="currentColor" />
+          <circle cx="6.5" cy="12.5" r=".5" fill="currentColor" />
+          <path
+            d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.55 0 1-.45 1-1 0-.28-.12-.52-.31-.71-.2-.19-.31-.48-.31-.83 0-1.25 1-2.25 2.25-2.25H18c2.21 0 4-1.79 4-4 0-4.42-3.58-8-8-8z" />
+        </svg>
+      </button>
+
+      @if (themeMenuOpen()) {
+      <div class="theme-menu-backdrop" (click)="themeMenuOpen.set(false)"></div>
+      <div class="theme-menu">
+        <div class="theme-menu-header latin-ui">Tampilan</div>
+
+        <button class="theme-option" [class.active]="themeService.currentTheme() === 'default'"
+          (click)="selectTheme('default')">
+          <div class="theme-preview default-preview">Aa</div>
+          <span class="theme-label latin-ui">Default</span>
+          @if (themeService.currentTheme() === 'default') { <span class="check-icon">✓</span> }
+        </button>
+
+        <button class="theme-option" [class.active]="themeService.currentTheme() === 'classic'"
+          (click)="selectTheme('classic')">
+          <div class="theme-preview classic-preview">Aa</div>
+          <span class="theme-label latin-ui">Classic</span>
+          @if (themeService.currentTheme() === 'classic') { <span class="check-icon">✓</span> }
+        </button>
+      </div>
+      }
+    </div>
+  </div>
+</header>
+
+<!-- Main Content -->
+<main class="app-main" appSwipe (swipeLeft)="prevPage()" (swipeRight)="nextPage()" (click)="toggleImmersive()">
+  @if (quranData.loading() || pageMappingService.loading()) {
+  <div class="loading">
+    <div class="loading-spinner"></div>
+  </div>
+  }
+  <app-mushaf (pageChanged)="onPageChanged($event)" />
+  <router-outlet></router-outlet>
+</main>
+
+<!-- Audio Bar -->
+<app-audio-bar [class.immersive-hidden-bottom]="immersiveMode()" />
+
+<!-- Bottom Navigation -->
+<nav class="bottom-nav" [class.immersive-hidden-bottom]="immersiveMode()"
+  (click)="onUIInteraction(); $event.stopPropagation()">
+
+  <!-- Centered nav controls -->
+  <div class="nav-controls">
+    <button class="nav-btn" (click)="prevPage()">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <polyline points="15 18 9 12 15 6" />
+      </svg>
+    </button>
+
+    <span class="nav-position latin-ui">
+      {{ currentPage() }} / {{ totalPages() }}
+    </span>
+
+    <button class="nav-btn" (click)="nextPage()">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <polyline points="9 18 15 12 9 6" />
+      </svg>
+    </button>
+  </div>
+
+  <!-- Version badge (right-aligned) -->
+  <span class="nav-version latin-ui" title="FE v{{ versions.frontend }} · BE v{{ versions.backend }}">
+    <span class="version-tag">FE <span class="version-num">{{ versions.frontend }}</span></span>
+    <span class="version-sep">·</span>
+    <span class="version-tag">BE <span class="version-num">{{ versions.backend }}</span></span>
+  </span>
+</nav>
+
+<!-- Surah List Drawer -->
+<!-- Surah List Drawer -->
+<app-surah-list [open]="drawerOpen()" [currentSurah]="currentSurahNumber()" (close)="drawerOpen.set(false)"
+  (selectSurah)="onSelectSurah($event)" (selectBookmark)="onSelectBookmark($event)" />
+
+@if (showGoToDialog()) {
+<app-goto-dialog (close)="showGoToDialog.set(false)" (navigatePage)="onGoToPage($event)"
+  (navigateAyah)="onGoToAyah($event)" />
+}

@@ -1,0 +1,28 @@
+name = "quran-api"
+main = "src/index.ts"
+compatibility_date = "2025-01-01"
+compatibility_flags = ["nodejs_compat"]
+
+# KV Namespace — Quran data cache
+# Uncomment and fill IDs after running: wrangler kv:namespace create QURAN_CACHE
+[[kv_namespaces]]
+binding = "QURAN_CACHE"
+id = "200839b6382646bab5a953ec110476dd"
+
+
+# D1 Database — User data
+[[d1_databases]]
+binding = "DB"
+database_name = "quran-db"
+database_id = "297f0c1c-3ba3-4d00-96b6-6bd6fc3656c8" # Real D1 Database ID
+
+[vars]
+# JWT Secret (generate one using `openssl rand -hex 32`)
+JWT_SECRET = "dev-secret-key-change-in-prod"
+# Google OAuth — Set real values via `wrangler secret put` for production
+GOOGLE_CLIENT_ID = "YOUR_GOOGLE_CLIENT_ID"
+GOOGLE_CLIENT_SECRET = "YOUR_GOOGLE_CLIENT_SECRET"
+# Frontend URL for redirects
+FRONTEND_URL = "http://localhost:4200"
+
+
