@@ -33,6 +33,10 @@ CREATE TABLE IF NOT EXISTS bookmarks (
   folder_id TEXT,                -- Link to folders (nullable for root? or default folder)
   surah INTEGER NOT NULL,
   ayah INTEGER NOT NULL,
+  page INTEGER,                 -- Added page number
+  juz INTEGER,                  -- Added juz number
+  surah_name_ar TEXT,           -- Added surah name Arabic
+  surah_name_en TEXT,           -- Added surah name English
   label TEXT,                    -- User label for the bookmark
   key TEXT,                      -- Legacy key or "surah:ayah" for queries
   created_at TEXT DEFAULT (datetime('now')),

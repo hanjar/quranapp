@@ -54,6 +54,8 @@ export class BookmarkService {
     ayah: number,
     surahNameAr: string,
     surahNameEn: string,
+    page: number,
+    juz: number = 0,
     folderIdOrName = 'Harian',
     label = ''
   ): void {
@@ -64,12 +66,18 @@ export class BookmarkService {
       // Cloud add — folderIdOrName is always a real UUID from the modal (or 'Harian' string fallback for local)
       // If it's still the string 'Harian' (e.g. from direct calls), send null so backend assigns no folder_id
       const folder_id = (folderIdOrName && folderIdOrName !== 'Harian') ? folderIdOrName : null;
-      this.http.post<Bookmark>(this.apiUrl, { surah, ayah, folder_id, label })
+
+      this.http.post<Bookmark>(this.apiUrl, {
+        surah, ayah, folder_id, label,
+        page, juz,
+        surah_name_ar: surahNameAr,
+        surah_name_en: surahNameEn
+      })
         .subscribe(() => this.fetchCloud());
     } else {
       // Local add
       const bookmark: Bookmark = {
-        key, surah, ayah, surahNameAr, surahNameEn,
+        key, surah, ayah, page, juz, surahNameAr, surahNameEn,
         folder: folderIdOrName, label, createdAt: new Date().toISOString()
       };
 
@@ -254,7 +262,13 @@ export class BookmarkService {
       .pipe(
         tap(res => {
           const folders = res.folders.map(f => ({ ...f }));
-          const loose = res.bookmarks; // bookmarks without folder_id
+          const loose = res.bookmarks.map((b: any) => ({
+            ...b,
+            surahNameAr: b.surah_name_ar,
+            surahNameEn: b.surah_name_en,
+            page: b.page,
+            juz: b.juz
+          } as Bookmark));
 
           if (loose.length > 0) {
             // Attach loose bookmarks to the real "Harian" folder if it exists

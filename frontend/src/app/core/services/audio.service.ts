@@ -66,6 +66,41 @@ export class AudioService {
     this.repeatMode.update(v => !v);
   }
 
+  playPageFlipSound(): void {
+    try {
+      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+      if (!AudioCtx) return;
+      const audioCtx = new AudioCtx();
+      const dur = 0.25;
+
+      const bufferSize = audioCtx.sampleRate * dur;
+      const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+      const data = buffer.getChannelData(0);
+      for (let i = 0; i < bufferSize; i++) {
+        data[i] = Math.random() * 2 - 1;
+      }
+
+      const noise = audioCtx.createBufferSource();
+      noise.buffer = buffer;
+
+      const filter = audioCtx.createBiquadFilter();
+      filter.type = 'lowpass';
+      filter.frequency.setValueAtTime(1500, audioCtx.currentTime);
+      filter.frequency.exponentialRampToValueAtTime(150, audioCtx.currentTime + dur);
+
+      const gain = audioCtx.createGain();
+      gain.gain.setValueAtTime(0, audioCtx.currentTime);
+      gain.gain.linearRampToValueAtTime(0.3, audioCtx.currentTime + 0.03);
+      gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + dur);
+
+      noise.connect(filter);
+      filter.connect(gain);
+      gain.connect(audioCtx.destination);
+
+      noise.start();
+    } catch (e) { console.error('Audio play failed', e); }
+  }
+
   private onEnded(): void {
     const current = this.currentAyah();
     if (!current) return;

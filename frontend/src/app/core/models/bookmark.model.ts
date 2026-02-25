@@ -3,6 +3,8 @@ export interface Bookmark {
   key: string;        // "2:255" (frontend/local key)
   surah: number;
   ayah: number;
+  page?: number;      // Added page number
+  juz?: number;       // Added juz number
   surahNameAr: string;
   surahNameEn: string;
   folder?: string;    // Legacy/Local folder name (e.g. "Umum")

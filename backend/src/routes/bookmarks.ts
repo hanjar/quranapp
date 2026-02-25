@@ -105,17 +105,17 @@ bookmarkRoutes.delete('/folders/:id', async (c) => {
 // 5. POST / - Create bookmark
 bookmarkRoutes.post('/', async (c) => {
     const user = c.get('user')
-    const { surah, ayah, folder_id, label } = await c.req.json()
+    const { surah, ayah, folder_id, label, page, juz, surah_name_ar, surah_name_en } = await c.req.json()
     const id = crypto.randomUUID()
     const key = `${surah}:${ayah}` // Legacy key support or helper
 
     try {
         await c.env.DB.prepare(
-            `INSERT INTO bookmarks (id, user_id, folder_id, surah, ayah, label, key) 
-       VALUES (?, ?, ?, ?, ?, ?, ?)`
-        ).bind(id, user.id, folder_id || null, surah, ayah, label || null, key).run()
+            `INSERT INTO bookmarks (id, user_id, folder_id, surah, ayah, label, key, page, juz, surah_name_ar, surah_name_en) 
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+        ).bind(id, user.id, folder_id || null, surah, ayah, label || null, key, page || null, juz || null, surah_name_ar || null, surah_name_en || null).run()
 
-        return c.json({ id, surah, ayah, folder_id, label, key }, 201)
+        return c.json({ id, surah, ayah, folder_id, label, key, page, juz, surah_name_ar, surah_name_en }, 201)
     } catch (e: any) {
         return c.json({ error: e.message }, 500)
     }

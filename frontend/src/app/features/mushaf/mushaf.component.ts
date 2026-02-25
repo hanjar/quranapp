@@ -18,17 +18,33 @@ import { BookmarkModalComponent } from '../../shared/components/bookmark-modal.c
     <div class="mushaf-page-frame">
       <div
         class="mushaf-page"
+        [class.page-odd]="isOddPage()"
+        [class.page-even]="!isOddPage()"
         [class.centered-page]="isCenteredPage()"
         [class.font-loading]="fontLoading()"
+        [class.flip-left]="isFlipping() === 'left'"
+        [class.flip-right]="isFlipping() === 'right'"
+        [class.flip-left-in]="isFlipping() === 'left-in'"
+        [class.flip-right-in]="isFlipping() === 'right-in'"
         #pageContainer
       >
-        @if (fontLoading()) {
-          <div class="loading-overlay">
-            <div class="loading-spinner"></div>
+        @if (lines().length > 0) {
+          <div class="mushaf-header">
+             <div class="header-box juz-info">Juz {{ currentJuz() }}</div>
+             <div class="header-box page-num">{{ currentPage() }}</div>
+             <div class="header-box surah-info">{{ currentSurahInfo() }}</div>
           </div>
         }
 
-        <div class="mushaf-lines" dir="rtl">
+        <div class="mushaf-page-inner-bg">
+          <div class="mushaf-content-scroll">
+            @if (fontLoading()) {
+              <div class="loading-overlay">
+                <div class="loading-spinner"></div>
+              </div>
+            }
+
+            <div class="mushaf-lines" dir="rtl">
           @for (line of lines(); track line.line) {
             @switch (line.type) {
               @case ('surah-header') {
@@ -68,6 +84,8 @@ import { BookmarkModalComponent } from '../../shared/components/bookmark-modal.c
             <div class="translation-text latin-ui">{{ translationText() }}</div>
           </div>
         }
+          </div>
+        </div>
 
         @if (menuVisible()) {
           <app-floating-menu
@@ -86,6 +104,8 @@ import { BookmarkModalComponent } from '../../shared/components/bookmark-modal.c
               [ayah]="bookmarkingMeta()?.ayah ?? 0"
               [surahNameAr]="bookmarkingMeta()?.nameAr ?? ''"
               [surahNameEn]="bookmarkingMeta()?.nameEn ?? ''"
+              [page]="bookmarkingMeta()?.page ?? 0"
+              [juz]="bookmarkingMeta()?.juz ?? 0"
               (close)="showBookmarkModal.set(false)"
             />
         }
@@ -105,37 +125,124 @@ import { BookmarkModalComponent } from '../../shared/components/bookmark-modal.c
       display: flex;
       flex-direction: column;
     }
+
     .mushaf-page {
       flex: 1;
       position: relative;
-      overflow-y: auto;
-      background: var(--bg-primary);
-      border: 2px solid var(--gold-primary);
-      border-radius: 4px;
-      box-shadow:
-        inset 0 0 0 4px var(--bg-primary),
-        inset 0 0 0 5px rgba(196, 168, 124, 0.3),
-        0 2px 12px rgba(0, 0, 0, 0.08);
-      padding: 12px 16px 20px;
+      background: #c84b4b;
+      background-image: url('data:image/svg+xml;utf8,<svg width="40" height="40" xmlns="http://www.w3.org/2000/svg"><path d="M0 0l20 20-20 20M40 0L20 20l20 20" stroke="rgba(255,255,255,0.06)" fill="none" stroke-width="2"/></svg>');
+      background-size: 40px 40px;
       display: flex;
       flex-direction: column;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
     }
-    .mushaf-page.centered-page {
-      /* Vertical centering for Page 1 & 2 */
+    .mushaf-page.page-odd {
+      padding: 36px 24px 24px 8px;
+      border-radius: 12px 20px 20px 12px;
+    }
+    .mushaf-page.page-even {
+      padding: 36px 8px 24px 24px;
+      border-radius: 20px 12px 12px 20px;
+    }
+
+    .mushaf-page-inner-bg {
+      flex: 1;
+      background: var(--bg-primary);
+      position: relative;
+      border: 3px double var(--gold-primary);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    .mushaf-page.page-odd .mushaf-page-inner-bg { border-radius: 8px 16px 16px 8px; }
+    .mushaf-page.page-even .mushaf-page-inner-bg { border-radius: 16px 8px 8px 16px; }
+
+    .mushaf-header {
+      position: absolute;
+      top: 10px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      z-index: 10;
+    }
+    .mushaf-page.page-even .mushaf-header { left: 24px; right: 12px; }
+    .mushaf-page.page-odd .mushaf-header { left: 12px; right: 24px; }
+
+    .header-box {
+      background: var(--bg-primary);
+      border: 1.5px solid var(--gold-primary);
+      padding: 4px 12px;
+      font-size: 13px;
+      font-family: 'Inter', sans-serif;
+      font-weight: 600;
+      color: var(--text-primary);
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      display: flex;
+      align-items: center;
       justify-content: center;
-      /* Ensure horizontal centering context */
-      align-items: center; 
+      white-space: nowrap;
+    }
+    .header-box.juz-info { border-radius: 4px 16px 16px 4px; }
+    .header-box.surah-info { border-radius: 16px 4px 4px 16px; }
+    .header-box.page-num {
+      border-radius: 20px;
+      font-size: 15px;
+      padding: 4px 16px;
+      min-width: 44px;
+      background: var(--gold-primary);
+      color: var(--bg-primary);
+      font-weight: bold;
+    }
+
+    .mushaf-content-scroll {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px 16px 20px;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+    }
+
+    .mushaf-page.centered-page .mushaf-content-scroll {
+      justify-content: center;
+      align-items: center;
     }
     .mushaf-page.centered-page .mushaf-lines {
-      /* Reset justification for centered pages */
-      flex: unset; /* Don't force height stretch */
+      flex: unset;
       justify-content: center;
-      gap: 12px; /* Add some spacing between lines */
+      gap: 12px;
       width: 100%;
-      height: auto; /* Allow content to dictate height */
+      height: auto;
     }
-    .mushaf-page.font-loading {
-      .mushaf-lines { opacity: 0; }
+    .mushaf-page.font-loading .mushaf-lines { opacity: 0; }
+    
+    /* Page flip animations */
+    .mushaf-page {
+      transition: transform 0.2s ease-in-out, opacity 0.2s ease-in-out;
+      transform-origin: center center;
+    }
+    .mushaf-page.flip-left {
+      transform: perspective(1000px) rotateY(-10deg) translateX(-20px);
+      opacity: 0;
+    }
+    .mushaf-page.flip-right {
+      transform: perspective(1000px) rotateY(10deg) translateX(20px);
+      opacity: 0;
+    }
+    .mushaf-page.flip-left-in {
+      animation: flipInLeft 0.25s ease-out forwards;
+    }
+    .mushaf-page.flip-right-in {
+      animation: flipInRight 0.25s ease-out forwards;
+    }
+    
+    @keyframes flipInLeft {
+      0% { transform: perspective(1000px) rotateY(10deg) translateX(20px); opacity: 0; }
+      100% { transform: perspective(1000px) rotateY(0deg) translateX(0); opacity: 1; }
+    }
+    @keyframes flipInRight {
+      0% { transform: perspective(1000px) rotateY(-10deg) translateX(-20px); opacity: 0; }
+      100% { transform: perspective(1000px) rotateY(0deg) translateX(0); opacity: 1; }
     }
 
     /* Loading overlay */
@@ -280,6 +387,7 @@ export class MushafComponent implements OnInit {
   lines = signal<MushafLine[]>([]);
   currentPage = signal(1);
   fontLoading = signal(false);
+  isFlipping = signal<'left' | 'right' | 'left-in' | 'right-in' | null>(null);
 
   menuVisible = signal(false);
   menuTop = signal(0);
@@ -308,7 +416,29 @@ export class MushafComponent implements OnInit {
     return page === 1 || page === 2;
   }
 
-  ngOnInit() {
+  isOddPage = computed(() => this.currentPage() % 2 !== 0);
+
+  currentSurahInfo = computed(() => {
+    const lines = this.lines();
+    const firstTextLine = lines.find(l => l.type === 'text' && l.words && l.words.length > 0);
+    if (!firstTextLine || !firstTextLine.words) return '';
+    const loc = firstTextLine.words[0].location;
+    const surahNum = parseInt(loc.split(':')[0], 10);
+    const meta = this.quranData.getSurahMeta(surahNum);
+    return meta ? `${meta.number}. ${meta.englishName}` : `Surah ${surahNum}`;
+  });
+
+  currentJuz = computed(() => {
+    const lines = this.lines();
+    const firstTextLine = lines.find(l => l.type === 'text' && l.words && l.words.length > 0);
+    if (!firstTextLine || !firstTextLine.words) return '';
+    const loc = firstTextLine.words[0].location;
+    const [surah, ayah] = loc.split(':').map(Number);
+    return this.pageMappingService.getJuz(surah, ayah);
+  });
+
+  async ngOnInit() {
+    await this.quranData.loadSurahList();
     this.loadPage(1);
   }
 
@@ -316,6 +446,18 @@ export class MushafComponent implements OnInit {
     const clamped = Math.max(1, Math.min(pageNum, this.totalPages));
     this.closeMenu();
     this.translationKey.set(null);
+
+    // Check if we need to animate (don't animate on first ever load if currentPage is same)
+    let direction: 'left' | 'right' | null = null;
+    if (this.lines().length > 0 && clamped !== this.currentPage()) {
+      direction = clamped > this.currentPage() ? 'left' : 'right';
+      this.isFlipping.set(direction);
+      this.audioService.playPageFlipSound();
+
+      // Allow exit animation to run slightly
+      await new Promise(r => setTimeout(r, 150));
+    }
+
     this.fontLoading.set(true);
 
     try {
@@ -328,6 +470,19 @@ export class MushafComponent implements OnInit {
       this.lines.set(data.lines);
       this.currentPage.set(clamped);
       this.emitPageChange();
+
+      // Setup entrance animation
+      if (direction === 'left') {
+        this.isFlipping.set('left-in');
+      } else if (direction === 'right') {
+        this.isFlipping.set('right-in');
+      }
+
+      if (direction) {
+        setTimeout(() => {
+          this.isFlipping.set(null);
+        }, 250);
+      }
 
       // Preload adjacent pages' fonts
       this.qpcFont.preloadAdjacentPages(clamped);
@@ -420,7 +575,7 @@ export class MushafComponent implements OnInit {
   }
 
   showBookmarkModal = signal(false);
-  bookmarkingMeta = signal<{ surah: number; ayah: number; nameAr: string; nameEn: string } | null>(null);
+  bookmarkingMeta = signal<{ surah: number; ayah: number; nameAr: string; nameEn: string; page: number; juz: number } | null>(null);
 
   onBookmark() {
     const sel = this.selectedAyah();
@@ -435,7 +590,9 @@ export class MushafComponent implements OnInit {
         surah: sel.surah,
         ayah: sel.ayah,
         nameAr: meta?.name ?? '',
-        nameEn: meta?.englishName ?? ''
+        nameEn: meta?.englishName ?? '',
+        page: this.currentPage(),
+        juz: this.pageMappingService.getJuz(sel.surah, sel.ayah)
       });
       this.showBookmarkModal.set(true);
       // Close menu so it doesn't overlap modal (or keep open if desired, but user interaction shifts to modal)

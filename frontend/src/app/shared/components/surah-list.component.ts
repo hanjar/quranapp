@@ -125,12 +125,18 @@ import { FolderDialogComponent } from './folder-dialog.component';
                            <button class="bookmark-content" (click)="onBookmarkClick(b)">
                              <div class="bookmark-details">
                                <span class="bookmark-surah arabic-ui">{{ b.surahNameAr }}</span>
-                               <span class="bookmark-ref latin-ui">{{ b.surahNameEn }} : {{ b.ayah }}</span>
+                               <span class="bookmark-ref latin-ui">
+                                 Surah {{ b.surah }} ({{ b.surahNameEn }}) : {{ b.ayah }}
+                                 <span class="bookmark-page">Juz {{ b.juz || '-' }} &bull; Hal. {{ b.page }}</span>
+                               </span>
                                @if (b.label) { <span class="bookmark-label">📝 {{ b.label }}</span> }
                                <span class="bookmark-date">{{ formatDate(b.createdAt) }}</span>
                              </div>
                            </button>
                             <div class="item-actions">
+                              <button (click)="onBookmarkClick(b)" title="Pergi ke Penanda">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 16 16 12 12 8"></polyline><line x1="8" y1="12" x2="16" y2="12"></line></svg>
+                              </button>
                               <button (click)="editBookmark(b)" title="Edit Label/Pindah">
                                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path></svg>
                               </button>
@@ -153,13 +159,19 @@ import { FolderDialogComponent } from './folder-dialog.component';
                     <button class="bookmark-content" (click)="onBookmarkClick(b)">
                       <div class="bookmark-icon">🔖</div>
                       <div class="bookmark-details">
-                        <span class="bookmark-surah arabic-ui">{{ b.surahNameAr }}</span>
-                        <span class="bookmark-ref latin-ui">{{ b.surahNameEn }} : {{ b.ayah }}</span>
-                        @if (b.label) { <span class="bookmark-label">📝 {{ b.label }}</span> }
-                        <span class="bookmark-date">{{ formatDate(b.createdAt) }}</span>
+                         <span class="bookmark-surah arabic-ui">{{ b.surahNameAr }}</span>
+                         <span class="bookmark-ref latin-ui">
+                           Surah {{ b.surah }} ({{ b.surahNameEn }}) : {{ b.ayah }}
+                           <span class="bookmark-page">Juz {{ b.juz || '-' }} &bull; Hal. {{ b.page }}</span>
+                         </span>
+                         @if (b.label) { <span class="bookmark-label">📝 {{ b.label }}</span> }
+                         <span class="bookmark-date">{{ formatDate(b.createdAt) }}</span>
                       </div>
                     </button>
                     <div class="item-actions">
+                      <button (click)="onBookmarkClick(b)" title="Pergi ke Penanda">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 16 16 12 12 8"></polyline><line x1="8" y1="12" x2="16" y2="12"></line></svg>
+                      </button>
                       <button (click)="editBookmark(b)" title="Edit Label/Pindah">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path></svg>
                       </button>
@@ -236,9 +248,10 @@ import { FolderDialogComponent } from './folder-dialog.component';
         [bookmark]="b"
         [surah]="b.surah"
         [ayah]="b.ayah"
-        [surahNameAr]="b.surahNameAr"
-        [surahNameEn]="b.surahNameEn"
-        (close)="onEditClose()"
+         [surahNameAr]="b.surahNameAr"
+         [surahNameEn]="b.surahNameEn"
+         [page]="b.page || 0"
+         (close)="onEditClose()"
       />
     }
   `,
@@ -459,6 +472,14 @@ import { FolderDialogComponent } from './folder-dialog.component';
       font-size: 12px;
       font-weight: 500;
       color: var(--gold-dark);
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    .bookmark-page {
+      font-size: 11px;
+      color: var(--text-muted);
+      font-weight: normal;
     }
     .bookmark-date {
       font-size: 10px;
