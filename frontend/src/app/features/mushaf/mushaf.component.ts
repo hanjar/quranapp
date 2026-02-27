@@ -129,12 +129,11 @@ import { BookmarkModalComponent } from '../../shared/components/bookmark-modal.c
     .mushaf-page {
       flex: 1;
       position: relative;
-      background: #c84b4b;
-      background-image: url('data:image/svg+xml;utf8,<svg width="40" height="40" xmlns="http://www.w3.org/2000/svg"><path d="M0 0l20 20-20 20M40 0L20 20l20 20" stroke="rgba(255,255,255,0.06)" fill="none" stroke-width="2"/></svg>');
-      background-size: 40px 40px;
+      background: var(--bg-tertiary);
+      border-radius: 20px;
       display: flex;
       flex-direction: column;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+      box-shadow: var(--shadow-medium);
     }
     .mushaf-page.page-odd {
       padding: 36px 24px 24px 8px;
@@ -147,9 +146,9 @@ import { BookmarkModalComponent } from '../../shared/components/bookmark-modal.c
 
     .mushaf-page-inner-bg {
       flex: 1;
-      background: var(--bg-primary);
+      background: var(--bg-secondary);
       position: relative;
-      border: 3px double var(--gold-primary);
+      border: 1px solid var(--bg-tertiary);
       display: flex;
       flex-direction: column;
       overflow: hidden;
@@ -169,14 +168,14 @@ import { BookmarkModalComponent } from '../../shared/components/bookmark-modal.c
     .mushaf-page.page-odd .mushaf-header { left: 12px; right: 24px; }
 
     .header-box {
-      background: var(--bg-primary);
-      border: 1.5px solid var(--gold-primary);
+      background: var(--bg-secondary);
+      border: 1px solid var(--cyan-primary);
       padding: 4px 12px;
       font-size: 13px;
       font-family: 'Inter', sans-serif;
       font-weight: 600;
       color: var(--text-primary);
-      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      box-shadow: var(--shadow-soft);
       display: flex;
       align-items: center;
       justify-content: center;
@@ -189,8 +188,8 @@ import { BookmarkModalComponent } from '../../shared/components/bookmark-modal.c
       font-size: 15px;
       padding: 4px 16px;
       min-width: 44px;
-      background: var(--gold-primary);
-      color: var(--bg-primary);
+      background: var(--cyan-primary);
+      color: var(--text-primary);
       font-weight: bold;
     }
 
@@ -257,8 +256,8 @@ import { BookmarkModalComponent } from '../../shared/components/bookmark-modal.c
     .loading-spinner {
       width: 32px;
       height: 32px;
-      border: 3px solid rgba(196, 168, 124, 0.2);
-      border-top-color: var(--gold-primary);
+      border: 3px solid rgba(0, 229, 255, 0.2);
+      border-top-color: var(--cyan-primary);
       border-radius: 50%;
       animation: spin 0.8s linear infinite;
     }
@@ -307,11 +306,11 @@ import { BookmarkModalComponent } from '../../shared/components/bookmark-modal.c
     }
     .surah-header-text {
       font-size: 16px;
-      color: var(--gold-dark);
+      color: var(--cyan-dark);
       padding: 6px 24px;
-      border: 1.5px solid var(--gold-primary);
+      border: 1.5px solid var(--cyan-primary);
       border-radius: 20px;
-      background: rgba(196, 168, 124, 0.06);
+      background: rgba(0, 229, 255, 0.06);
     }
 
     .basmala-line {
@@ -330,15 +329,15 @@ import { BookmarkModalComponent } from '../../shared/components/bookmark-modal.c
       padding: 0 1px;
 
       &:hover {
-        background: rgba(196, 168, 124, 0.1);
+        background: rgba(0, 229, 255, 0.1);
       }
       &.playing {
-        background: rgba(196, 168, 124, 0.2);
-        color: var(--gold-dark);
+        background: rgba(0, 229, 255, 0.2);
+        color: var(--cyan-dark);
       }
       &.bookmarked-word {
         text-decoration: underline;
-        text-decoration-color: var(--gold-primary);
+        text-decoration-color: var(--cyan-primary);
         text-underline-offset: 4px;
         text-decoration-thickness: 2px;
       }
@@ -352,7 +351,7 @@ import { BookmarkModalComponent } from '../../shared/components/bookmark-modal.c
       border-radius: 8px;
       padding: 12px 16px;
       margin: 8px 0 12px;
-      border-left: 3px solid var(--gold-primary);
+      border-left: 3px solid var(--cyan-primary);
     }
     .translation-ref {
       color: var(--text-muted);
@@ -367,7 +366,7 @@ import { BookmarkModalComponent } from '../../shared/components/bookmark-modal.c
     
     @keyframes highlightFlash {
       0%, 100% { background: transparent; }
-      50% { background: rgba(196, 168, 124, 0.4); }
+      50% { background: rgba(0, 229, 255, 0.2); }
     }
     .highlight-flash {
       animation: highlightFlash 1s ease 2;

@@ -15,7 +15,7 @@ html {
 }
 
 body {
-  font-family: 'Noto Sans', sans-serif;
+  font-family: 'Inter', sans-serif;
   background-color: var(--bg-primary);
   color: var(--text-primary);
   min-height: 100dvh;
@@ -23,6 +23,23 @@ body {
   overscroll-behavior: contain;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+// Utility classes for Soft UI
+.card {
+  background-color: var(--bg-secondary);
+  border-radius: 20px;
+  box-shadow: var(--shadow-soft);
+  overflow: hidden;
+}
+
+.gradient-bg {
+  background: var(--gradient-card);
+  color: var(--text-light);
+}
+
+.rounded-full {
+  border-radius: 9999px;
 }
 
 // Scrollbar styling

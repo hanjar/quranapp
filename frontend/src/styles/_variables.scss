@@ -1,17 +1,23 @@
 // Color Palette
-$green-dark: #0d2818;
-$green-primary: #1a3a2a;
-$bg-primary: #fdf8f0;
-$bg-secondary: #f5ece0;
-$bg-tertiary: #ede4d4;
-$gold-primary: #c4a87c;
-$gold-dark: #8b7355;
-$gold-indicator: #d4a017;
-$text-primary: #1a0e08;
-$text-secondary: #2c1810;
-$text-muted: #8b7355;
-$text-light: #e8dcc8;
-$danger: #c0392b;
+$green-dark: #FFFFFF; // Keeping variable names to minimize breaking changes, but updating values
+$green-primary: #F4F9FF;
+$bg-primary: #F4F9FF;
+$bg-secondary: #FFFFFF;
+$bg-tertiary: #E8F0F8;
+$gold-primary: #00E5FF;
+$gold-dark: #00B8D4;
+$gold-indicator: #00E5FF;
+$text-primary: #1A1A24;
+$text-secondary: #4A4A5A;
+$text-muted: #8E8E9F;
+$text-light: #FFFFFF;
+$danger: #FF3B30;
+
+// Gradients and Shadows
+$gradient-card: linear-gradient(135deg, #00C6FF 0%, #0072FF 100%);
+$gradient-header: linear-gradient(135deg, #00C6FF 0%, #9b51e0 100%);
+$gradient-footer: linear-gradient(135deg, #E0F7FA 0%, #B2EBF2 100%); // Very light teal
+$shadow-soft: 0 4px 20px rgba(0, 0, 0, 0.03);
 
 // CSS Custom Properties
 :root {
@@ -28,15 +34,8 @@ $danger: #c0392b;
   --text-muted: #{$text-muted};
   --text-light: #{$text-light};
   --danger: #{$danger};
-}
-
-// Theme: Classic (Beige/Greyish)
-body.theme-classic {
-  --bg-primary: #e2e0d1;
-  --bg-secondary: #dcdacb;
-  --bg-tertiary: #d6d4c5;
-  --text-primary: #2c2a29;
-  --text-secondary: #3e3c3b;
-  --gold-primary: #b0966b;
-  /* Slightly darker gold for better contrast */
+  --gradient-card: #{$gradient-card};
+  --gradient-header: #{$gradient-header};
+  --gradient-footer: #{$gradient-footer};
+  --shadow-soft: #{$shadow-soft};
 }

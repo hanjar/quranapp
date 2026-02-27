@@ -61,10 +61,10 @@ import { Bookmark } from '../../core/models/bookmark.model';
     .modal-content {
       background: var(--bg-primary);
       padding: 24px;
-      border-radius: 12px;
-            width: 90%;
+      border-radius: 24px;
+      width: 90%;
       max-width: 400px;
-      box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+      box-shadow: var(--shadow-medium);
     }
     h3 { margin-bottom: 12px; color: var(--text-primary); }
     .bookmark-meta-info {
@@ -88,13 +88,13 @@ import { Bookmark } from '../../core/models/bookmark.model';
       label { display: block; margin-bottom: 6px; font-size: 13px; color: var(--text-secondary); }
       select, input {
         width: 100%;
-        padding: 10px;
+        padding: 12px;
         border: 1px solid var(--bg-tertiary);
-        border-radius: 8px;
+        border-radius: 12px;
         background: var(--bg-secondary);
         color: var(--text-primary);
         font-size: 14px;
-        &:focus { outline: 2px solid var(--green-primary); border-color: transparent; }
+        &:focus { outline: 2px solid var(--cyan-primary); border-color: transparent; }
       }
     }
     .actions {
@@ -103,15 +103,15 @@ import { Bookmark } from '../../core/models/bookmark.model';
       gap: 12px;
       margin-top: 24px;
       button {
-        padding: 10px 20px;
-        border-radius: 8px;
-        font-weight: 500;
+        padding: 12px 24px;
+        border-radius: 9999px;
+        font-weight: 600;
         cursor: pointer;
         border: none;
         font-size: 14px;
       }
       .cancel-btn { background: var(--bg-tertiary); color: var(--text-primary); }
-      .save-btn { background: var(--green-primary); color: white; &:disabled { opacity: 0.7; } }
+      .save-btn { background: var(--cyan-primary); color: var(--text-primary); &:disabled { opacity: 0.7; } }
     }
   `
 })

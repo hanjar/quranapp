@@ -33,12 +33,12 @@ import { ArabicNumberPipe } from '../../shared/pipes/arabic-number.pipe';
         content: '';
         flex: 1;
         height: 1px;
-        background: linear-gradient(90deg, transparent, var(--gold-primary), transparent);
+        background: linear-gradient(90deg, transparent, var(--cyan-primary), transparent);
       }
     }
     .surah-name {
       font-size: 28px;
-      color: var(--green-dark);
+      color: var(--cyan-dark);
     }
     .surah-info {
       color: var(--text-muted);
@@ -47,7 +47,7 @@ import { ArabicNumberPipe } from '../../shared/pipes/arabic-number.pipe';
     .bismillah {
       font-size: 22px;
       text-align: center;
-      color: var(--green-dark);
+      color: var(--text-primary);
       padding: 8px 0;
     }
   `,

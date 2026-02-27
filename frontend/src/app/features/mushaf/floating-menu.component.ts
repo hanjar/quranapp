@@ -39,10 +39,10 @@ import { Component, input, output } from '@angular/core';
       z-index: 100;
       display: flex;
       gap: 4px;
-      background: var(--green-primary);
-      border-radius: 14px;
+      background: var(--bg-secondary);
+      border-radius: 9999px;
       padding: 6px 8px;
-      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35);
+      box-shadow: var(--shadow-medium);
       transform: translateX(-50%);
     }
     .menu-btn {
@@ -53,12 +53,13 @@ import { Component, input, output } from '@angular/core';
       height: 44px;
       border: none;
       background: transparent;
-      color: var(--text-light);
-      border-radius: 10px;
+      color: var(--cyan-dark);
+      border-radius: 50%;
       cursor: pointer;
-      transition: background 0.15s;
+      transition: background 0.15s, transform 0.15s;
       &:hover, &:active {
-        background: rgba(255, 255, 255, 0.12);
+        background: rgba(0, 229, 255, 0.1);
+        transform: scale(1.05);
       }
     }
   `,

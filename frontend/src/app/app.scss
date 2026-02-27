@@ -17,9 +17,9 @@
   gap: 12px;
   padding: 10px 16px;
   padding-top: calc(10px + env(safe-area-inset-top, 0px));
-  background: var(--green-dark); // Keep solid background
-  color: var(--text-light);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  background: var(--gradient-header);
+  color: #ffffff;
+  box-shadow: var(--shadow-soft);
   transition: transform 0.3s ease, opacity 0.3s ease;
 
   &.immersive-hidden {
@@ -37,7 +37,7 @@
   height: 44px;
   border: none;
   background: transparent;
-  color: var(--text-light);
+  color: #ffffff;
   border-radius: 8px;
   cursor: pointer;
 
@@ -56,12 +56,12 @@
 
 .header-name-ar {
   font-size: clamp(16px, 4vw, 20px);
-  color: var(--text-light);
+  color: #ffffff;
 }
 
 .header-name-en {
   font-size: 12px;
-  color: var(--gold-primary);
+  color: rgba(255, 255, 255, 0.8);
 }
 
 .header-actions {
@@ -222,8 +222,9 @@
   /* Page nav stays centered */
   padding: 8px 16px;
   padding-bottom: calc(8px + env(safe-area-inset-bottom, 0px));
-  background: var(--green-dark);
-  border-top: 1px solid rgba(196, 168, 124, 0.2);
+  background: var(--gradient-footer);
+  border-top: 1px solid rgba(255, 255, 255, 0.5);
+  box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.03);
   transition: transform 0.3s ease, opacity 0.3s ease;
 
   &.immersive-hidden-bottom {
@@ -248,7 +249,7 @@
   height: 44px;
   border: none;
   background: transparent;
-  color: var(--text-light);
+  color: var(--text-muted); // Inactive state
   border-radius: 8px;
   cursor: pointer;
 
@@ -290,7 +291,7 @@
 }
 
 .version-num {
-  color: var(--text-light);
+  color: var(--text-primary);
   font-weight: 600;
 }
 

@@ -49,22 +49,39 @@ import { FolderDialogComponent } from './folder-dialog.component';
 
         <!-- Tabs -->
         <div class="tabs-container">
+          <!-- Hidden SVG for Gradient Definitions -->
+          <svg style="width:0;height:0;position:absolute;" aria-hidden="true" focusable="false">
+            <linearGradient id="tab-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stop-color="#40E0D0" /> <!-- Light cyan/teal -->
+              <stop offset="100%" stop-color="#14B8A6" /> <!-- Deeper teal -->
+            </linearGradient>
+          </svg>
+
           <div class="tabs">
             <button
               class="tab-btn"
               [class.active]="activeTab() === 'surah'"
               (click)="activeTab.set('surah')"
-            >Surah</button>
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" class="tab-icon" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"></path></svg>
+              <span>Surah</span>
+            </button>
             <button
               class="tab-btn"
               [class.active]="activeTab() === 'bookmark'"
               (click)="activeTab.set('bookmark')"
-            >Penanda</button>
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" class="tab-icon" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z"></path></svg>
+              <span>Penanda</span>
+            </button>
             <button
               class="tab-btn"
               [class.active]="activeTab() === 'offline'"
               (click)="activeTab.set('offline')"
-            >Offline</button>
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" class="tab-icon" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"></ellipse><path d="M3 5V19A9 3 0 0 0 21 19V5"></path><path d="M3 12A9 3 0 0 0 21 12"></path></svg>
+              <span>Offline</span>
+            </button>
           </div>
         </div>
 
@@ -108,7 +125,7 @@ import { FolderDialogComponent } from './folder-dialog.component';
                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path></svg>
                        </button>
                        @if (folder.name !== 'Harian') {
-                         <button (click)="removeFolder(folder.id)" title="Hapus Folder">
+                         <button class="delete-folder-btn" (click)="removeFolder(folder.id)" title="Hapus Folder">
                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
                          </button>
                        }
@@ -124,24 +141,28 @@ import { FolderDialogComponent } from './folder-dialog.component';
                          <div class="bookmark-item nested">
                            <button class="bookmark-content" (click)="onBookmarkClick(b)">
                              <div class="bookmark-details">
-                               <span class="bookmark-surah arabic-ui">{{ b.surahNameAr }}</span>
-                               <span class="bookmark-ref latin-ui">
-                                 Surah {{ b.surah }} ({{ b.surahNameEn }}) : {{ b.ayah }}
-                                 <span class="bookmark-page">Juz {{ b.juz || '-' }} &bull; Hal. {{ b.page }}</span>
-                               </span>
-                               @if (b.label) { <span class="bookmark-label">📝 {{ b.label }}</span> }
-                               <span class="bookmark-date">{{ formatDate(b.createdAt) }}</span>
+                               <div class="bookmark-header">
+                                 <span class="bookmark-surah arabic-ui">{{ b.surahNameAr }}</span>
+                                 @if (b.label) { <span class="bookmark-label">📝 {{ b.label }}</span> }
+                               </div>
+                               <div class="bookmark-ref latin-ui">
+                                 <span>Surah {{ b.surah }} ({{ b.surahNameEn }}) : {{ b.ayah }}</span>
+                                 <div class="bookmark-meta">
+                                   <span class="bookmark-page">Juz {{ b.juz || '-' }} &bull; Hal. {{ b.page }}</span>
+                                   <span class="bookmark-date">{{ formatDate(b.createdAt) }}</span>
+                                 </div>
+                               </div>
                              </div>
                            </button>
                             <div class="item-actions">
-                              <button (click)="onBookmarkClick(b)" title="Pergi ke Penanda">
-                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 16 16 12 12 8"></polyline><line x1="8" y1="12" x2="16" y2="12"></line></svg>
+                              <button class="action-btn-circle" (click)="onBookmarkClick(b)" title="Pergi ke Penanda">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 16 16 12 12 8"></polyline><line x1="8" y1="12" x2="16" y2="12"></line></svg>
                               </button>
-                              <button (click)="editBookmark(b)" title="Edit Label/Pindah">
-                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path></svg>
+                              <button class="action-btn-circle" (click)="editBookmark(b)" title="Edit Label/Pindah">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path></svg>
                               </button>
-                              <button class="delete-btn" (click)="deleteBookmark(b.key)">
-                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                              <button class="action-btn-circle delete" (click)="deleteBookmark(b.key)" title="Hapus">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
                               </button>
                             </div>
                          </div>
@@ -159,24 +180,28 @@ import { FolderDialogComponent } from './folder-dialog.component';
                     <button class="bookmark-content" (click)="onBookmarkClick(b)">
                       <div class="bookmark-icon">🔖</div>
                       <div class="bookmark-details">
-                         <span class="bookmark-surah arabic-ui">{{ b.surahNameAr }}</span>
-                         <span class="bookmark-ref latin-ui">
-                           Surah {{ b.surah }} ({{ b.surahNameEn }}) : {{ b.ayah }}
-                           <span class="bookmark-page">Juz {{ b.juz || '-' }} &bull; Hal. {{ b.page }}</span>
-                         </span>
-                         @if (b.label) { <span class="bookmark-label">📝 {{ b.label }}</span> }
-                         <span class="bookmark-date">{{ formatDate(b.createdAt) }}</span>
+                         <div class="bookmark-header">
+                           <span class="bookmark-surah arabic-ui">{{ b.surahNameAr }}</span>
+                           @if (b.label) { <span class="bookmark-label">📝 {{ b.label }}</span> }
+                         </div>
+                         <div class="bookmark-ref latin-ui">
+                           <span>Surah {{ b.surah }} ({{ b.surahNameEn }}) : {{ b.ayah }}</span>
+                           <div class="bookmark-meta">
+                             <span class="bookmark-page">Juz {{ b.juz || '-' }} &bull; Hal. {{ b.page }}</span>
+                             <span class="bookmark-date">{{ formatDate(b.createdAt) }}</span>
+                           </div>
+                         </div>
                       </div>
                     </button>
                     <div class="item-actions">
-                      <button (click)="onBookmarkClick(b)" title="Pergi ke Penanda">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 16 16 12 12 8"></polyline><line x1="8" y1="12" x2="16" y2="12"></line></svg>
+                      <button class="action-btn-circle" (click)="onBookmarkClick(b)" title="Pergi ke Penanda">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 16 16 12 12 8"></polyline><line x1="8" y1="12" x2="16" y2="12"></line></svg>
                       </button>
-                      <button (click)="editBookmark(b)" title="Edit Label/Pindah">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path></svg>
+                      <button class="action-btn-circle" (click)="editBookmark(b)" title="Edit Label/Pindah">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path></svg>
                       </button>
-                      <button class="delete-btn" (click)="deleteBookmark(b.key)">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                      <button class="action-btn-circle delete" (click)="deleteBookmark(b.key)" title="Hapus">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
                       </button>
                     </div>
                   </div>
@@ -284,7 +309,7 @@ import { FolderDialogComponent } from './folder-dialog.component';
       width: min(400px, 92vw);
       height: 100%;
       background: var(--bg-primary);
-      box-shadow: 4px 0 30px rgba(0, 0, 0, 0.2);
+      box-shadow: var(--shadow-medium);
       transform: translateX(-100%);
       transition: transform 0.3s ease;
       display: flex;
@@ -333,15 +358,15 @@ import { FolderDialogComponent } from './folder-dialog.component';
       &:hover { text-decoration: underline; }
     }
     .login-btn {
-      padding: 8px 16px;
-      background: var(--green-primary);
-      color: var(--text-light);
+      padding: 10px 16px;
+      background: var(--cyan-primary);
+      color: var(--text-primary);
       border: none;
-      border-radius: 8px;
+      border-radius: 9999px;
       font-size: 13px;
-      font-weight: 500;
+      font-weight: 600;
       cursor: pointer;
-      &:hover { background: var(--green-dark); }
+      &:hover { background: var(--cyan-dark); color: white; }
     }
 
     .tabs-container {
@@ -350,16 +375,21 @@ import { FolderDialogComponent } from './folder-dialog.component';
     }
     .tabs {
       display: flex;
-      gap: 8px;
+      gap: 4px;
       background: var(--bg-tertiary);
       padding: 4px;
-      border-radius: 8px;
+      border-radius: 9999px;
     }
     .tab-btn {
-      padding: 6px 12px;
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      padding: 8px 12px;
       border: none;
       background: transparent;
-      border-radius: 6px;
+      border-radius: 9999px;
       font-size: 13px;
       font-weight: 500;
       color: var(--text-muted);
@@ -367,9 +397,22 @@ import { FolderDialogComponent } from './folder-dialog.component';
       transition: all 0.2s;
 
       &.active {
-        background: var(--bg-primary);
-        color: var(--green-dark);
-        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        background: var(--bg-secondary);
+        color: var(--text-primary);
+        box-shadow: var(--shadow-soft);
+        
+        // Only the text and the icon should have the gradient effect.
+        span {
+          background: var(--gradient-card);
+          -webkit-background-clip: text;
+          -webkit-text-fill-color: transparent;
+          background-clip: text;
+          color: transparent; 
+        }
+
+        .tab-icon {
+          stroke: url(#tab-gradient);
+        }
       }
     }
     .close-btn {
@@ -394,30 +437,35 @@ import { FolderDialogComponent } from './folder-dialog.component';
       display: flex;
       align-items: center;
       gap: 12px;
-      width: 100%;
-      padding: 12px 20px;
-      border: none;
-      background: transparent;
+      width: calc(100% - 32px);
+      margin: 8px 16px;
+      padding: 16px;
+      border: 1px solid transparent;
+      border-radius: 16px;
+      background: var(--bg-secondary);
+      box-shadow: var(--shadow-soft);
       cursor: pointer;
       text-align: left;
-      transition: background 0.15s;
-      &:hover { background: var(--bg-secondary); }
+      transition: transform 0.2s, box-shadow 0.2s, border 0.2s;
+      &:hover { transform: translateY(-2px); box-shadow: var(--shadow-medium); }
       &.active {
-        background: rgba(26, 58, 42, 0.08);
-        border-right: 3px solid var(--green-primary);
+        background: var(--bg-secondary);
+        border: 1px solid var(--cyan-primary);
+        box-shadow: 0 0 0 2px rgba(0, 229, 255, 0.1);
       }
     }
     .surah-num {
       display: flex;
       align-items: center;
       justify-content: center;
-      width: 32px;
-      height: 32px;
+      width: 36px;
+      height: 36px;
       border-radius: 50%;
-      background: var(--bg-tertiary);
+      background: rgba(0, 229, 255, 0.08);
+      border: 1px dashed var(--cyan-primary);
       font-size: 13px;
-      font-weight: 500;
-      color: var(--text-secondary);
+      font-weight: 600;
+      color: var(--cyan-dark);
       flex-shrink: 0;
     }
     .surah-details {
@@ -440,20 +488,29 @@ import { FolderDialogComponent } from './folder-dialog.component';
     .bookmark-item {
       display: flex;
       align-items: center;
-      padding: 8px 16px;
-      border-bottom: 1px solid var(--bg-tertiary);
-      &:hover { background: var(--bg-secondary); }
+      width: calc(100% - 32px);
+      margin: 8px 16px;
+      padding: 16px;
+      border-radius: 16px;
+      background: var(--bg-secondary);
+      box-shadow: var(--shadow-soft);
+      border-bottom: none;
+      position: relative;
+      flex-direction: column;
+      align-items: stretch;
+      transition: transform 0.2s, box-shadow 0.2s;
+      &:hover { transform: translateY(-2px); box-shadow: var(--shadow-medium); }
     }
     .bookmark-content {
-      flex: 1;
       display: flex;
-      align-items: flex-start;
+      flex-direction: column;
       gap: 12px;
       background: transparent;
       border: none;
       text-align: left;
       cursor: pointer;
-      padding: 4px 0;
+      padding: 0;
+      width: 100%;
     }
     .bookmark-icon {
       font-size: 18px;
@@ -462,10 +519,17 @@ import { FolderDialogComponent } from './folder-dialog.component';
     .bookmark-details {
       display: flex;
       flex-direction: column;
-      gap: 2px;
+      gap: 4px;
+      width: 100%;
+    }
+    .bookmark-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      width: 100%;
     }
     .bookmark-surah {
-      font-size: 16px;
+      font-size: 18px;
       color: var(--text-primary);
     }
     .bookmark-ref {
@@ -476,29 +540,55 @@ import { FolderDialogComponent } from './folder-dialog.component';
       flex-direction: column;
       gap: 2px;
     }
+    .bookmark-meta {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 2px;
+    }
     .bookmark-page {
       font-size: 11px;
       color: var(--text-muted);
       font-weight: normal;
     }
     .bookmark-date {
-      font-size: 10px;
+      font-size: 11px;
       color: var(--text-muted);
-      margin-top: 2px;
     }
-    .delete-btn {
+    .item-actions {
+      display: flex;
+      gap: 8px;
+      justify-content: flex-end;
+      width: 100%;
+      margin-top: 12px;
+      padding-top: 12px;
+      border-top: 1px solid var(--bg-tertiary);
+    }
+    .action-btn-circle {
       width: 36px;
       height: 36px;
+      border-radius: 50%;
+      background: rgba(0, 229, 255, 0.08);
+      color: var(--cyan-dark);
+      border: 1px solid rgba(0, 229, 255, 0.2);
       display: flex;
       align-items: center;
       justify-content: center;
-      border: none;
-      background: transparent;
-      color: #ef4444;
-      border-radius: 8px;
       cursor: pointer;
-      opacity: 0.6;
-      &:hover { opacity: 1; background: rgba(239, 68, 68, 0.1); }
+      transition: all 0.2s;
+      &:hover {
+        background: var(--cyan-primary);
+        color: white;
+      }
+      &.delete {
+        background: rgba(239, 68, 68, 0.05);
+        color: #ef4444;
+        border-color: rgba(239, 68, 68, 0.1);
+        &:hover {
+          background: #ef4444;
+          color: white;
+        }
+      }
     }
     .empty-state {
       padding: 40px 20px;
@@ -512,7 +602,7 @@ import { FolderDialogComponent } from './folder-dialog.component';
       padding: 24px 20px;
       color: var(--text-primary);
       text-align: center;
-      h3 { margin-bottom: 8px; color: var(--green-dark); }
+      h3 { margin-bottom: 8px; color: var(--text-primary); }
       p { margin-bottom: 24px; color: var(--text-secondary); font-size: 14px; line-height: 1.5; }
     }
     .action-btn {
@@ -527,7 +617,7 @@ import { FolderDialogComponent } from './folder-dialog.component';
       &:hover { opacity: 0.9; }
     }
     .download-btn {
-      background: var(--green-primary);
+      background: var(--gradient-card);
       color: white;
     }
     .cancel-btn {
@@ -576,9 +666,9 @@ import { FolderDialogComponent } from './folder-dialog.component';
     }
     .download-btn.secondary {
       background: transparent;
-      border: 1px solid var(--green-primary);
-      color: var(--green-primary);
-      &:hover { background: rgba(26, 58, 42, 0.05); }
+      border: 1px solid var(--gold-dark);
+      color: var(--gold-dark);
+      &:hover { background: rgba(0, 184, 212, 0.05); }
     }
     .error-msg {
        padding: 12px;
@@ -607,7 +697,7 @@ import { FolderDialogComponent } from './folder-dialog.component';
     }
     .folder-icon { font-size: 16px; }
     .folder-name { flex: 1; }
-    .folder-actions, .item-actions {
+    .folder-actions {
       display: flex;
       gap: 4px;
       button {
@@ -620,7 +710,12 @@ import { FolderDialogComponent } from './folder-dialog.component';
         font-size: 14px;
         opacity: 0.6;
         padding: 4px;
+        border-radius: 4px;
         &:hover { opacity: 1; transform: scale(1.1); }
+      }
+      .delete-folder-btn {
+        color: #ef4444;
+        &:hover { background: rgba(239, 68, 68, 0.1); }
       }
     }
     .folder-content {
@@ -636,17 +731,24 @@ import { FolderDialogComponent } from './folder-dialog.component';
       font-style: italic;
     }
     .bookmark-item.nested {
-      padding-left: 8px;
+      padding: 16px;
       border-bottom: none;
       margin-bottom: 4px;
+      width: calc(100% - 32px);
+      margin-left: 0;
+      margin-right: 0;
     }
     .bookmark-label {
       font-size: 11px;
-      background: var(--bg-tertiary);
-      padding: 2px 6px;
-      border-radius: 4px;
-      color: var(--text-secondary);
-      margin-top: 2px;
+      background: rgba(0, 229, 255, 0.1);
+      padding: 4px 8px;
+      border-radius: 9999px;
+      color: var(--cyan-dark);
+      font-weight: 500;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 140px;
     }
     .loose-bookmarks-header {
       font-size: 12px;
