@@ -138,6 +138,7 @@ export class UserDataService extends UserDataApi {
       }
       this._deviceId.set(id);
       await this.reload();
+      await this.migrateMenuDefault();
     } catch {
       if (!this._deviceId()) this._deviceId.set(uuid());
     }
@@ -154,6 +155,20 @@ export class UserDataService extends UserDataApi {
       window.addEventListener('pagehide', () => this.flushQuietly(), { signal });
     }
     this._ready.set(true);
+  }
+
+  /**
+   * One-time switch to the new default (20 Okt 2026): the reader menu stays visible.
+   * Devices that stored the old default (false) are moved over once; a user who
+   * turns it off afterwards keeps that choice.
+   */
+  private async migrateMenuDefault(): Promise<void> {
+    const KEY = 'migr:menu-visible-default';
+    if (await this.db.meta.get(KEY)) return;
+    if (!this.prefs().controlsAlwaysVisible) {
+      await this.setPrefs({ controlsAlwaysVisible: true });
+    }
+    await this.db.meta.put({ key: KEY, value: Date.now() });
   }
 
   async reload(): Promise<void> {

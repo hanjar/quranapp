@@ -31,6 +31,28 @@ const SYNC_LABEL: Record<SyncStatus, string> = {
       <span class="title__sub">{{ subText() }}</span>
     </button>
 
+    <!-- Enter full-screen reading; tapping the page margin brings the menu back. -->
+    <button
+      type="button"
+      class="mf-icon-btn"
+      aria-label="Sembunyikan menu (layar penuh)"
+      title="Sembunyikan menu"
+      (click)="ui.chromeVisible.set(false)"
+    >
+      <svg
+        width="21"
+        height="21"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="1.6"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        aria-hidden="true"
+      >
+        <path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" />
+      </svg>
+    </button>
     <button type="button" class="mf-icon-btn" aria-label="Cari" (click)="ui.openSheet('search')">
       <svg
         width="21"

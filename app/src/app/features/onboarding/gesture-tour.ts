@@ -20,8 +20,8 @@ interface TourStep {
 export const TOUR_STEPS: TourStep[] = [
   {
     title: 'Ketuk margin',
-    body: 'Ketuk area kosong di tepi halaman untuk menampilkan atau menyembunyikan kontrol.',
-    alt: 'Tanpa gestur: tombol menu di pojok atas membuka kontrol.',
+    body: 'Menu tampil saat membaca. Ketuk ikon layar penuh di bilah atas untuk menyembunyikannya, dan ketuk tepi halaman untuk memunculkannya lagi.',
+    alt: 'Tanpa gestur: tombol "Tampilkan kontrol" lewat keyboard (Tab), atau atur di Pengaturan › Selalu tampilkan kontrol.',
   },
   {
     title: 'Ketuk atau tekan lama ayat',

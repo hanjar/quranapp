@@ -48,6 +48,15 @@
   --mf-page-w: calc(100vw - 16px - var(--mf-safe-left) - var(--mf-safe-right));
 }
 
+/* Persistent menu: keep the whole page (running head + page number) between the bars. */
+.zoomer.has-bars {
+  padding-top: calc(var(--mf-safe-top) + 64px);
+  padding-bottom: calc(var(--mf-safe-bottom) + 70px);
+}
+.zoomer {
+  transition: padding var(--mf-dur-base) var(--mf-ease);
+}
+
 .zoomer.is-animated {
   transition: transform var(--mf-dur-base) var(--mf-ease);
 }

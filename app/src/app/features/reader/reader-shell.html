@@ -21,6 +21,7 @@
     <div
       class="zoomer"
       [class.is-fit]="fitWidth()"
+      [class.has-bars]="hasBars()"
       [class.is-animated]="animated()"
       [style.--mf-pages]="spread() ? 2 : 1"
       [style.transform]="transform()"

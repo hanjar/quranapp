@@ -107,8 +107,11 @@ export class ReaderShell {
   });
 
   // --- chrome -------------------------------------------------------------
-  protected readonly chromeShown = computed(
-    () => this.ui.chromeVisible() || this.userData.prefs().controlsAlwaysVisible,
+  /** The menu can always be hidden by the user; the preference only controls auto-hide and the default. */
+  protected readonly chromeShown = computed(() => this.ui.chromeVisible());
+  /** Persistent menu: lay the page out between the bars instead of under them. */
+  protected readonly hasBars = computed(
+    () => this.chromeShown() && this.userData.prefs().controlsAlwaysVisible,
   );
   private readonly activity = signal(0);
   private readonly chromeFocus = signal(false);
@@ -178,6 +181,14 @@ export class ReaderShell {
       if (!this.content.index()) return;
       const pages = prefetchPages(this.visible(), APP_CONFIG.prefetchRadius);
       untracked(() => this.content.prefetch(pages));
+    });
+
+    // "Selalu tampilkan kontrol" (default on): the menu starts visible, and turning
+    // the preference on shows it again.
+    effect(() => {
+      if (this.userData.prefs().controlsAlwaysVisible) {
+        untracked(() => this.ui.chromeVisible.set(true));
+      }
     });
 
     // Auto-hide chrome after 4.5 s of inactivity.

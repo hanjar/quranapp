@@ -162,7 +162,7 @@ export const DEFAULT_PREFERENCES: Preferences = {
   paperTheme: 'cream',
   uiTheme: 'segar',
   layoutMode: 'auto',
-  controlsAlwaysVisible: false,
+  controlsAlwaysVisible: true,
   motion: 'system',
   highContrast: false,
   onboardingDone: false,
