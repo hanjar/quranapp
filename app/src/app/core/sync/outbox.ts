@@ -3,6 +3,7 @@ import {
   BookmarkFolder,
   KhatamRound,
   ReadDay,
+  ReadMarks,
   OutboxOperation,
   Preferences,
   ReadingPosition,
@@ -80,6 +81,10 @@ export function readDayPayload(d: ReadDay): Record<string, unknown> {
   return { day: d.day, pages: d.pages, updatedAt: d.updatedAt };
 }
 
+export function readMarksPayload(m: ReadMarks): Record<string, unknown> {
+  return { marks: m.marks, updatedAt: m.updatedAt };
+}
+
 export function roundPayload(r: KhatamRound): Record<string, unknown> {
   return { n: r.n, startedAt: r.startedAt, finishedAt: r.finishedAt, updatedAt: r.updatedAt };
 }
@@ -94,6 +99,10 @@ export function prefsPayload(p: Preferences): Record<string, unknown> {
     highContrast: p.highContrast,
     dailyTarget: p.dailyTarget,
     trackProgress: p.trackProgress,
+    nightMode: p.nightMode,
+    nightAuto: p.nightAuto,
+    nightStart: p.nightStart,
+    nightEnd: p.nightEnd,
     updatedAt: p.updatedAt,
   };
 }
@@ -109,7 +118,16 @@ export async function enqueueLocalSnapshot(
 ): Promise<number> {
   return db.transaction(
     'rw',
-    [db.bookmarks, db.folders, db.positions, db.prefs, db.readDays, db.rounds, db.outbox],
+    [
+      db.bookmarks,
+      db.folders,
+      db.positions,
+      db.prefs,
+      db.readDays,
+      db.rounds,
+      db.readMarks,
+      db.outbox,
+    ],
     async () => {
       const pending = await db.outbox.where('accountId').equals(accountId).toArray();
       const has = (e: SyncEntity, id: string) =>
@@ -147,6 +165,9 @@ export async function enqueueLocalSnapshot(
         if (!has('readday', d.day))
           ops.push(makeOp(accountId, 'readday', d.day, 'upsert', readDayPayload(d), d.rev, later));
       }
+      const marks = await db.readMarks.get('marks');
+      if (marks && Object.keys(marks.marks).length && !has('readmark', 'marks'))
+        ops.push(makeOp(accountId, 'readmark', 'marks', 'upsert', readMarksPayload(marks), marks.rev, later));
       if (ops.length) await db.outbox.bulkAdd(ops);
       return ops.length;
     },

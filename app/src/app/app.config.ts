@@ -17,6 +17,7 @@ import { SyncService } from './core/sync/sync.service';
 import { InstallService } from './core/install.service';
 import { ThemeService } from './core/theme.service';
 import { WakeLockService } from './core/wake-lock.service';
+import { LineRulesService } from './core/line-rules.service';
 import { AudioOfflineApi } from './core/audio/audio-offline.api';
 import { AudioOfflineService } from './core/audio/audio-offline.service';
 
@@ -40,6 +41,7 @@ export const appConfig: ApplicationConfig = {
       inject(ThemeService);
       inject(InstallService); // must listen for beforeinstallprompt from the start
       inject(WakeLockService); // keeps the screen on while reading (per-device setting)
+      inject(LineRulesService); // applies the saved "Garis antarbaris" choice before the first page
       void content.load();
       await data.init();
       // Sync is optional and never blocks reading.

@@ -1,5 +1,6 @@
-import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
-import { SyncApi } from '../../core/contracts';
+import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import { ContentApi, SyncApi } from '../../core/contracts';
+import { ReaderUiService } from '../../core/reader-ui.service';
 import { PAGE_COUNT } from '../../core/models';
 import { averagePerDay, juzRange, localDay } from '../../core/progress/progress-logic';
 import { ProgressService } from '../../core/progress/progress.service';
@@ -254,6 +255,58 @@ const MAX_TARGET = 40;
         border-color: var(--ui-accent);
         border-width: 2px;
       }
+      .form {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+      .range {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 8px 10px;
+        font-size: 14px;
+      }
+      .range input {
+        width: 84px;
+      }
+      .opt {
+        display: flex;
+        gap: 10px;
+        align-items: flex-start;
+        min-height: var(--mf-tap);
+        padding: 8px 4px;
+        font-size: 14px;
+      }
+      .opt input {
+        width: 20px;
+        height: 20px;
+        margin-top: 2px;
+        accent-color: var(--ui-primary);
+        flex: none;
+      }
+      .opt small {
+        display: block;
+        color: var(--ui-muted);
+        font-size: 12.5px;
+        margin-top: 2px;
+      }
+      .err {
+        color: var(--mf-danger);
+        font-size: 13px;
+      }
+      .suggest {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        align-items: flex-start;
+        padding: 12px 14px;
+        border-radius: var(--mf-radius-lg);
+        border: 1px solid var(--ui-accent);
+        background: color-mix(in srgb, var(--ui-accent) 8%, transparent);
+        font-size: 14px;
+        line-height: 1.45;
+      }
       .done-msg {
         display: flex;
         flex-direction: column;
@@ -371,6 +424,104 @@ const MAX_TARGET = 40;
       </div>
     </section>
 
+    <section class="block" aria-labelledby="pg-mark" data-search-id="progress-mark">
+      <div class="head">
+        <span class="t" id="pg-mark">Tandai sudah dibaca</span>
+        <button
+          type="button"
+          class="mf-btn mf-btn--outline"
+          [attr.aria-expanded]="formOpen()"
+          (click)="formOpen.set(!formOpen())"
+        >
+          {{ formOpen() ? 'Tutup' : 'Tandai' }}
+        </button>
+      </div>
+      @if (suggestion(); as sg) {
+        <div class="suggest">
+          <span
+            >Penanda terakhirmu ada di hal. {{ sg.upTo }}{{ sg.where }}. Tandai hal. 1–{{
+              sg.upTo
+            }}
+            sudah dibaca?</span
+          >
+          <button type="button" class="mf-btn mf-btn--primary" (click)="applySuggestion(sg.upTo)">
+            Tandai hal. 1–{{ sg.upTo }}
+          </button>
+        </div>
+      }
+      @if (formOpen()) {
+        <form class="form" (submit)="onSubmit($event)">
+          <div class="range">
+            <label for="pg-from">Dari hal.</label>
+            <input
+              id="pg-from"
+              class="mf-input"
+              type="number"
+              inputmode="numeric"
+              min="1"
+              max="604"
+              [value]="from()"
+              (input)="onFrom($any($event.target).value)"
+            />
+            <label for="pg-to">sampai</label>
+            <input
+              id="pg-to"
+              class="mf-input"
+              type="number"
+              inputmode="numeric"
+              min="1"
+              max="604"
+              [value]="to()"
+              (input)="onTo($any($event.target).value)"
+            />
+          </div>
+          @if (rangeError(); as e) {
+            <div class="err" role="alert">{{ e }}</div>
+          }
+          <fieldset class="stack" style="border: none; padding: 0; margin: 0">
+            <legend class="mf-visually-hidden">Kapan dibaca</legend>
+            <label class="opt">
+              <input
+                type="radio"
+                name="pg-when"
+                [checked]="when() === 'today'"
+                (change)="pickWhen('today')"
+              />
+              <span
+                >Dibaca hari ini<small>Dihitung di grafik harian dan target hari ini.</small></span
+              >
+            </label>
+            <label class="opt">
+              <input
+                type="radio"
+                name="pg-when"
+                [checked]="when() === 'before'"
+                (change)="pickWhen('before')"
+              />
+              <span
+                >Dibaca sebelumnya<small
+                  >Hanya menambah khatam, tidak masuk grafik harian.</small
+                ></span
+              >
+            </label>
+          </fieldset>
+          <div class="actions">
+            <button type="submit" class="mf-btn mf-btn--primary" [disabled]="!range().ok">
+              Tandai sudah dibaca
+            </button>
+            <button
+              type="button"
+              class="mf-btn mf-btn--outline"
+              [disabled]="!range().ok"
+              (click)="unmark()"
+            >
+              Batalkan tanda
+            </button>
+          </div>
+        </form>
+      }
+    </section>
+
     <section class="block" aria-labelledby="pg-juz">
       <div class="head">
         <span class="t" id="pg-juz">Peta juz</span>
@@ -394,8 +545,8 @@ const MAX_TARGET = 40;
         }
       </div>
       <p class="muted">
-        Isian menunjukkan bagian juz yang sudah dibaca. Ketuk juz untuk membuka halaman pertama yang
-        belum dibaca.
+        Isian menunjukkan bagian juz yang sudah dibaca, termasuk halaman yang kamu tandai sendiri.
+        Ketuk juz untuk membuka halaman pertama yang belum dibaca.
       </p>
     </section>
 
@@ -414,6 +565,44 @@ export class ProgressSheet {
   protected readonly progress = inject(ProgressService);
   protected readonly sync = inject(SyncApi);
   private readonly history = inject(SheetHistory);
+  private readonly ui = inject(ReaderUiService);
+  private readonly content = inject(ContentApi);
+
+  protected readonly formOpen = signal(false);
+  protected readonly from = signal('');
+  protected readonly to = signal('');
+  protected readonly when = signal<'today' | 'before'>('today');
+  private whenTouched = false;
+
+  protected readonly suggestion = computed(() => {
+    const sg = this.progress.suggestFromBookmarks();
+    if (!sg) return null;
+    const b = sg.source;
+    let where = '';
+    if (b.kind === 'verse' && b.surah && b.ayah) {
+      const name = this.content.index()
+        ? this.content.surah(b.surah).nameLatin
+        : `Surah ${b.surah}`;
+      where = ` (${name} · Ayat ${b.ayah})`;
+    }
+    return { upTo: sg.upTo, where };
+  });
+
+  /** Parsed range; `error` is shown only once the user typed something. */
+  protected readonly range = computed(() => {
+    const raw = this.from();
+    const f = Number(raw);
+    const t = Number(this.to() === '' ? raw : this.to());
+    const valid = (n: number) => Number.isInteger(n) && n >= 1 && n <= PAGE_COUNT;
+    let error: string | null = null;
+    if (raw === '') error = 'Isi nomor halaman awal.';
+    else if (!valid(f) || !valid(t)) error = `Nomor halaman harus 1 sampai ${PAGE_COUNT}.`;
+    else if (f > t) error = 'Halaman awal tidak boleh lebih besar dari halaman akhir.';
+    return { ok: error === null, from: f, to: t, error };
+  });
+  protected readonly rangeError = computed(() =>
+    this.from() !== '' || this.to() !== '' ? this.range().error : null,
+  );
 
   protected readonly total = PAGE_COUNT;
   protected readonly minTarget = MIN_TARGET;
@@ -481,6 +670,69 @@ export class ProgressSheet {
     if (!recent) return null;
     for (let n = 30; n >= 1; n--) if (recent.page >= juzRange(n)[0]) return n;
     return 1;
+  }
+
+  protected onFrom(v: string): void {
+    this.from.set(v);
+    this.autoWhen();
+  }
+
+  protected onTo(v: string): void {
+    this.to.set(v);
+    this.autoWhen();
+  }
+
+  protected pickWhen(w: 'today' | 'before'): void {
+    this.whenTouched = true;
+    this.when.set(w);
+  }
+
+  /** Default: 'today' up to 40 pages, else 'before' (until the user picks one). */
+  private autoWhen(): void {
+    const r = this.range();
+    if (this.whenTouched || !r.ok) return;
+    this.when.set(r.to - r.from + 1 <= 40 ? 'today' : 'before');
+  }
+
+  protected applySuggestion(upTo: number): void {
+    this.from.set('1');
+    this.to.set(String(upTo));
+    this.whenTouched = true;
+    this.when.set('before');
+    this.formOpen.set(true);
+  }
+
+  protected onSubmit(ev: Event): void {
+    ev.preventDefault();
+    void this.confirmMark();
+  }
+
+  private async confirmMark(): Promise<void> {
+    const r = this.range();
+    if (!r.ok) return;
+    const res = await this.progress.markRead({ from: r.from, to: r.to }, { when: this.when() });
+    if (res.added === 0) {
+      this.ui.showToast({ message: 'Semua halaman itu sudah tercatat dibaca.' });
+      return;
+    }
+    this.ui.showToast({
+      message: `${res.added} halaman ditandai`,
+      actionLabel: 'Urungkan',
+      action: () =>
+        void res.undo().then((ok) => {
+          if (!ok) this.ui.showToast({ message: 'Tanda ini tidak dapat diurungkan lagi.' });
+        }),
+      duration: 8000,
+    });
+  }
+
+  protected async unmark(): Promise<void> {
+    const r = this.range();
+    if (!r.ok) return;
+    const n = await this.progress.unmarkRead({ from: r.from, to: r.to });
+    this.ui.showToast({
+      message: n > 0 ? `${n} tanda dibatalkan` : 'Tidak ada tanda di rentang itu.',
+    });
   }
 
   protected setTarget(n: number): void {

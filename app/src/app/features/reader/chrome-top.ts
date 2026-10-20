@@ -1,7 +1,8 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input } from '@angular/core';
-import { ContentApi, SyncApi } from '../../core/contracts';
+import { ContentApi, SyncApi, UserDataApi } from '../../core/contracts';
 import { SyncStatus } from '../../core/models';
 import { ReaderUiService } from '../../core/reader-ui.service';
+import { ThemeService } from '../../core/theme.service';
 
 const SYNC_LABEL: Record<SyncStatus, string> = {
   off: 'belum masuk',
@@ -110,6 +111,24 @@ const SYNC_LABEL: Record<SyncStatus, string> = {
     </button>
     <button
       type="button"
+      class="mf-icon-btn night-toggle"
+      [attr.aria-label]="night.nightActive() ? 'Matikan mode malam' : 'Nyalakan mode malam'"
+      [attr.aria-pressed]="night.nightActive()"
+      (click)="toggleNight()"
+    >
+      @if (night.nightActive()) {
+        <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true">
+          <circle cx="12" cy="12" r="4" />
+          <path d="M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6l1.4 1.4M17 17l1.4 1.4M5.6 18.4L7 17M17 7l1.4-1.4" />
+        </svg>
+      } @else {
+        <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" aria-hidden="true">
+          <path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z" />
+        </svg>
+      }
+    </button>
+    <button
+      type="button"
       class="mf-icon-btn"
       aria-label="Pengaturan"
       (click)="ui.openSheet('settings')"
@@ -206,6 +225,12 @@ const SYNC_LABEL: Record<SyncStatus, string> = {
       font-size: 12.5px;
       color: var(--ui-muted);
     }
+    /* No room for another 44px target on phones (title already shrinks); settings has the control. */
+    @media (max-width: 479px) {
+      .night-toggle {
+        display: none;
+      }
+    }
     .account {
       position: relative;
     }
@@ -238,6 +263,23 @@ export class ChromeTop {
   protected readonly ui = inject(ReaderUiService);
   protected readonly sync = inject(SyncApi);
   private readonly content = inject(ContentApi);
+  private readonly data = inject(UserDataApi);
+  protected readonly night = inject(ThemeService);
+
+  /** Manual flip. From Otomatis the toast offers a way back. */
+  protected toggleNight(): void {
+    const wasAuto = this.data.prefs().nightMode === 'auto';
+    const next = this.night.nightActive() ? 'off' : 'on';
+    void this.data.setPrefs({ nightMode: next });
+    if (wasAuto) {
+      this.ui.showToast({
+        message: `Mode malam: ${next === 'on' ? 'Nyala' : 'Mati'} (manual)`,
+        actionLabel: 'Kembali ke otomatis',
+        action: () => void this.data.setPrefs({ nightMode: 'auto' }),
+        duration: 6000,
+      });
+    }
+  }
 
   readonly shown = input(true);
 

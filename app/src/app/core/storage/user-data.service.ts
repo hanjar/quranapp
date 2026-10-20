@@ -1,4 +1,4 @@
-import { DestroyRef, Injectable, computed, inject, signal } from '@angular/core';
+import { DestroyRef, Injectable, Injector, computed, inject, signal } from '@angular/core';
 import { APP_CONFIG } from '../config';
 import { ImportResult, UserDataApi } from '../contracts';
 import {
@@ -18,6 +18,7 @@ import {
   ReadingPosition,
   uuid,
 } from '../models';
+import { ReaderUiService } from '../reader-ui.service';
 import { MUSHAF_DB } from './db-token';
 import { PrefsRow } from './db';
 import { MAX_IMPORT_BYTES, parseExportText } from './export-file';
@@ -26,6 +27,17 @@ import { activeSyncAccount, enqueueOutbox } from './outbox';
 const POSITION_THROTTLE_MS = 2000;
 const UNDO_WINDOW_MS = 6000;
 const EDITION: EditionId = APP_CONFIG.editionId;
+/** A database that is not open after this long is held up by another tab; fail instead of hanging. */
+export const DB_OPEN_TIMEOUT_MS = 8000;
+export const DB_BLOCKED_MESSAGE = 'Tutup tab Mushaf Digital lain lalu muat ulang.';
+export const DB_OUTDATED_MESSAGE = 'Versi baru siap di tab lain. Muat ulang halaman ini.';
+
+export class StorageUnavailableError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'StorageUnavailableError';
+  }
+}
 
 function bookmarkPayload(b: Bookmark) {
   return {
@@ -59,6 +71,10 @@ function prefsPayload(p: Preferences) {
     highContrast: p.highContrast,
     dailyTarget: p.dailyTarget,
     trackProgress: p.trackProgress,
+    nightMode: p.nightMode,
+    nightAuto: p.nightAuto,
+    nightStart: p.nightStart,
+    nightEnd: p.nightEnd,
     updatedAt: p.updatedAt,
   };
 }
@@ -90,6 +106,49 @@ export class UserDataService extends UserDataApi {
   /** Aborts document/window listeners when the injector is destroyed (tests, HMR). */
   private readonly listeners = new AbortController();
   private readonly destroyRef = inject(DestroyRef);
+  private readonly injector = inject(Injector);
+  private issueShown = false;
+
+  constructor() {
+    super();
+    this.db.onIssue = (kind) =>
+      this.notifyIssue(kind === 'blocked' ? DB_BLOCKED_MESSAGE : DB_OUTDATED_MESSAGE, kind === 'versionchange');
+  }
+
+  private notifyIssue(message: string, reload: boolean): void {
+    if (this.issueShown) return;
+    this.issueShown = true;
+    try {
+      this.injector.get(ReaderUiService).showToast({
+        message,
+        duration: 60000,
+        ...(reload ? { actionLabel: 'Muat ulang', action: () => location.reload() } : {}),
+      });
+    } catch {
+      /* no UI (tests) */
+    }
+    setTimeout(() => (this.issueShown = false), 15000);
+  }
+
+  /** Resolves once IndexedDB is open; rejects (never hangs) when another tab holds it up. */
+  private async ensureOpen(): Promise<void> {
+    if (this.db.isOpen()) return;
+    if (this.db.outdated) throw new StorageUnavailableError(DB_OUTDATED_MESSAGE);
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    try {
+      await Promise.race([
+        this.db.open(),
+        new Promise<never>((_, reject) => {
+          timer = setTimeout(() => reject(new StorageUnavailableError(DB_BLOCKED_MESSAGE)), DB_OPEN_TIMEOUT_MS);
+        }),
+      ]);
+    } catch (e) {
+      if (e instanceof StorageUnavailableError) this.notifyIssue(e.message, false);
+      throw e;
+    } finally {
+      clearTimeout(timer);
+    }
+  }
 
   private readonly _ready = signal(false);
   private readonly _deviceId = signal('');
@@ -120,7 +179,7 @@ export class UserDataService extends UserDataApi {
 
   /** Serializes all writes so read-modify-write sequences never interleave. */
   private serial<T>(fn: () => Promise<T>): Promise<T> {
-    const run = this.chain.then(fn);
+    const run = this.chain.then(() => this.ensureOpen()).then(fn);
     this.chain = run.catch(() => undefined);
     return run;
   }
@@ -132,6 +191,7 @@ export class UserDataService extends UserDataApi {
 
   private async doInit(): Promise<void> {
     try {
+      await this.ensureOpen();
       const stored = (await this.db.meta.get('deviceId'))?.value;
       let id = typeof stored === 'string' ? stored : '';
       if (!id) {

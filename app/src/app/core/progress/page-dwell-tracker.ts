@@ -1,11 +1,11 @@
-import { READ_FULL_MS, READ_MIN_MS } from './progress-logic';
+import { READ_DWELL_MS } from './progress-logic';
 
 export interface PageDwellOptions {
   /** Called once per page per stay when it counts as read. `ms` = foreground dwell so far. */
   onRead: (page: number, ms: number) => void;
   now?: () => number;
-  minMs?: number;
-  fullMs?: number;
+  /** Foreground time needed on one page (default READ_DWELL_MS = 30 s). */
+  dwellMs?: number;
   setTimer?: (fn: () => void, ms: number) => unknown;
   clearTimer?: (handle: unknown) => void;
 }
@@ -21,13 +21,12 @@ interface Stay {
  *  - `visible(pages)` whenever the set of on-screen pages changes (page turn, spread, mode switch);
  *  - `hidden()` when the app goes to the background, `resume()` when it returns;
  *  - `stop()` (or `dispose()`) when the reader closes.
- * A page counts after `fullMs` (20 s) of continuous foreground, or on leaving after `minMs` (8 s).
- * Each stay reports a page at most once.
+ * A page counts only after `dwellMs` (30 s) of continuous foreground on it; leaving earlier, going
+ * to the background or closing the reader counts nothing. Each stay reports a page at most once.
  */
 export class PageDwellTracker {
   private readonly now: () => number;
-  private readonly minMs: number;
-  private readonly fullMs: number;
+  private readonly dwellMs: number;
   private readonly setTimer: (fn: () => void, ms: number) => unknown;
   private readonly clearTimer: (h: unknown) => void;
   private readonly stays = new Map<number, Stay>();
@@ -37,8 +36,7 @@ export class PageDwellTracker {
 
   constructor(private readonly opts: PageDwellOptions) {
     this.now = opts.now ?? (() => Date.now());
-    this.minMs = opts.minMs ?? READ_MIN_MS;
-    this.fullMs = opts.fullMs ?? READ_FULL_MS;
+    this.dwellMs = opts.dwellMs ?? READ_DWELL_MS;
     this.setTimer = opts.setTimer ?? ((fn, ms) => setTimeout(fn, ms));
     this.clearTimer = opts.clearTimer ?? ((h) => clearTimeout(h as ReturnType<typeof setTimeout>));
   }
@@ -55,7 +53,7 @@ export class PageDwellTracker {
     }
   }
 
-  /** App/tab went to the background: finish current stays (they count if >= minMs) and pause. */
+  /** App/tab went to the background: drop current stays (uncounted) and pause. */
   hidden(): void {
     this.closeAll();
     this.paused = true;
@@ -67,7 +65,7 @@ export class PageDwellTracker {
     this.visible(this.wanted);
   }
 
-  /** Reader closed: finish stays and forget the pages. */
+  /** Reader closed: drop stays and forget the pages. */
   stop(): void {
     this.closeAll();
     this.wanted = [];
@@ -85,7 +83,7 @@ export class PageDwellTracker {
       if (this.stays.get(page) !== stay || stay.counted) return;
       stay.counted = true;
       this.opts.onRead(page, this.now() - stay.since);
-    }, this.fullMs);
+    }, this.dwellMs);
     this.stays.set(page, stay);
   }
 
@@ -94,8 +92,6 @@ export class PageDwellTracker {
     if (!stay) return;
     this.stays.delete(page);
     if (stay.timer !== null) this.clearTimer(stay.timer);
-    const ms = this.now() - stay.since;
-    if (!stay.counted && ms >= this.minMs) this.opts.onRead(page, ms);
   }
 
   private closeAll(): void {

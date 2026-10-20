@@ -14,8 +14,11 @@ export const PAPER_THEMES = ['photo', 'ivory', 'antique', 'cream'] as const;
 export const UI_THEMES = ['klasik', 'segar', 'ceria', 'samudra'] as const;
 export const LAYOUT_MODES = ['auto', 'single', 'spread'] as const;
 export const MOTION_PREFS = ['system', 'reduce'] as const;
+export const NIGHT_MODES = ['off', 'on', 'auto'] as const;
+export const NIGHT_AUTOS = ['system', 'schedule'] as const;
+const HHMM_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
 
-export type Entity = 'bookmark' | 'position' | 'prefs' | 'folder' | 'readday' | 'khatam';
+export type Entity = 'bookmark' | 'position' | 'prefs' | 'folder' | 'readday' | 'khatam' | 'readmark';
 
 export const MAX_DAILY_TARGET = 40;
 
@@ -59,6 +62,10 @@ export interface PrefsData {
   /** Optional so older clients that never send them do not reset the stored values. */
   dailyTarget?: number;
   trackProgress?: boolean;
+  nightMode?: (typeof NIGHT_MODES)[number];
+  nightAuto?: (typeof NIGHT_AUTOS)[number];
+  nightStart?: string;
+  nightEnd?: string;
   updatedAt: number;
 }
 
@@ -215,6 +222,22 @@ export function parsePrefs(raw: unknown): Result<PrefsData> {
     if (typeof raw['trackProgress'] !== 'boolean') return fail('trackProgress must be a boolean');
     value.trackProgress = raw['trackProgress'];
   }
+  if (raw['nightMode'] !== undefined) {
+    const nm = oneOf(raw['nightMode'], NIGHT_MODES);
+    if (!nm) return fail('nightMode must be off, on or auto');
+    value.nightMode = nm;
+  }
+  if (raw['nightAuto'] !== undefined) {
+    const na = oneOf(raw['nightAuto'], NIGHT_AUTOS);
+    if (!na) return fail('nightAuto must be system or schedule');
+    value.nightAuto = na;
+  }
+  for (const k of ['nightStart', 'nightEnd'] as const) {
+    const v = raw[k];
+    if (v === undefined) continue;
+    if (typeof v !== 'string' || !HHMM_RE.test(v)) return fail(`${k} must be HH:MM`);
+    value[k] = v;
+  }
   return { ok: true, value };
 }
 
@@ -251,6 +274,34 @@ export function parseReadDay(raw: unknown): Result<ReadDayData> {
   return { ok: true, value: { day: raw['day'], pages, updatedAt } };
 }
 
+export interface MarksData {
+  marks: Record<string, PageSpan>;
+  updatedAt: number;
+}
+
+/** `{marks: {"<page>": [markedAt, unmarkedAt]}, updatedAt}`; unmarkedAt 0 = never unmarked. */
+export function parseReadMarks(raw: unknown): Result<MarksData> {
+  if (!isRecord(raw)) return fail('payload must be an object');
+  const m = raw['marks'];
+  if (!isRecord(m)) return fail('marks must be an object');
+  const keys = Object.keys(m);
+  if (keys.length === 0 || keys.length > 604) return fail('marks must hold 1-604 entries');
+  const marks: Record<string, PageSpan> = {};
+  for (const k of keys) {
+    const page = Number(k);
+    if (!Number.isInteger(page) || page < 1 || page > 604 || String(page) !== k) return fail('page must be 1-604');
+    const v = m[k];
+    if (!Array.isArray(v) || v.length !== 2) return fail('mark must be [markedAt, unmarkedAt]');
+    const a = timestamp(v[0]);
+    const b = timestamp(v[1]);
+    if (a === null || b === null) return fail('invalid mark timestamps');
+    marks[k] = [a, b];
+  }
+  const updatedAt = timestamp(raw['updatedAt']);
+  if (updatedAt === null) return fail('invalid updatedAt');
+  return { ok: true, value: { marks, updatedAt } };
+}
+
 export function parseRound(raw: unknown): Result<RoundData> {
   if (!isRecord(raw)) return fail('payload must be an object');
   const n = int(raw['n'], 1, 1000);
@@ -275,7 +326,7 @@ export function parseOp(raw: unknown): { opId: string | null; op: Result<ParsedO
   if (!isRecord(raw)) return { opId: null, op: fail('operation must be an object') };
   const opId = typeof raw['opId'] === 'string' && OP_ID_RE.test(raw['opId']) ? raw['opId'] : null;
   if (!opId) return { opId: null, op: fail('invalid opId') };
-  const entity = oneOf(raw['entity'], ['bookmark', 'folder', 'position', 'prefs', 'readday', 'khatam'] as const);
+  const entity = oneOf(raw['entity'], ['bookmark', 'folder', 'position', 'prefs', 'readday', 'khatam', 'readmark'] as const);
   if (!entity) return { opId, op: fail('invalid entity') };
   const entityId = raw['entityId'];
   if (!validEntityId(entityId)) return { opId, op: fail('invalid entityId') };

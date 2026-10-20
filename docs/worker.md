@@ -202,3 +202,10 @@ Two more sync entities, both behind the same `/sync` + `/sync/batch` contract:
 - Prefs payload gained optional `dailyTarget` (int 1-40) and `trackProgress` (bool); omitted = leave unchanged.
 - `/export` adds `readingDays` and `khatamRounds`; `DELETE /me/data` and the reset snapshot include both tables;
   daily cleanup purges their tombstones after 180 days and raises `tombstone_horizon`.
+
+### Manual read marks (migration `0005_read_marks.sql`)
+Entity `readmark` (entityId `"marks"`, payload `{marks:{"<1-604>":[markedAt, unmarkedAt]}, updatedAt}`) is one row per
+user in `read_marks`. Writes merge per-component max (grow-only; a no-op merge writes nothing). Never conflicts,
+cannot be deleted. `readday/all` clears it (marks `{}`, `cleared_at` set) and entries last touched at/before the
+clear watermark are dropped on upload. Pull data: `{marks, updatedAt, clearedAt}`; also in `/export` (`readMarks`),
+the reset snapshot (when non-empty) and `DELETE /me/data`. Dwell rule note: the 30 s page-dwell is client-side only.

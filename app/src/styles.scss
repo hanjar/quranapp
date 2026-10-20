@@ -13,6 +13,11 @@
 
   /* mushaf frame ornament (UI layer only, never Quran glyphs) */
   --mf-frame-ink: #3e6e99;
+  /* ink of the Quran text in the page artwork (the svg itself draws #231f20) */
+  --mf-text-ink: #231f20;
+  --mf-line-rule: rgb(110 90 60 / 0.24); /* optional separators between text lines */
+  /* raised controls (selected segment, inputs) */
+  --mf-raised: #ffffff;
   /* ring around the ayah number (the number itself keeps the text ink) */
   --mf-ayah-ornament: var(--mf-frame-ink);
 
@@ -105,6 +110,7 @@ html[data-paper='cream'] {
   --mf-frame-ink-inner: #d7c388;
   --mf-frame-outer-w: 2px;
   --mf-frame-inner-w: 1.5px;
+  --mf-line-rule: rgb(215 195 136 / 0.7);
   --mf-ayah-ornament: #a07a2c; /* deeper than the inner frame gold, ≥3:1 on the paper */
 }
 
@@ -174,6 +180,89 @@ html[data-contrast='high'] {
   --ui-muted: var(--ui-ink2);
   --mf-frame-ink: #24507a;
   --mf-ayah-ornament: #231f20; /* same ink as the text */
+  --mf-line-rule: rgb(35 31 32 / 0.4);
+}
+
+/*
+ * ---- Night mode (html[data-night='on'], set by ThemeService) ----
+ * Warm dark, never pure black. Overrides the paper theme + UI theme colours; the UI theme keeps
+ * its recognisable hue through lightened primary/accent. Measured contrast: see docs/night-mode.md.
+ */
+html[data-night='on'] {
+  color-scheme: dark;
+  --mf-paper: #1c1b19;
+  --mf-surround: #121110;
+  --mf-surface-paper: #242320;
+  --mf-text-ink: #e6e0d4;
+  --mf-line-rule: rgb(201 168 90 / 0.28);
+  --mf-raised: #38352f;
+  --mf-frame-ink: #c4585a;
+  --mf-frame-ink-inner: #8f7d4c;
+  --mf-ayah-ornament: #c9a85a;
+  --mf-danger: #ff9d8e;
+  --mf-on-danger: #2a0a05;
+  --mf-verse-select: color-mix(in srgb, var(--ui-primary) 26%, transparent);
+  --mf-verse-select-ring: color-mix(in srgb, var(--ui-primary) 85%, transparent);
+  --mf-verse-bookmarked: rgba(201, 168, 90, 0.26);
+  --mf-scrim: rgba(0, 0, 0, 0.6);
+  --ui-ink: #ece6da;
+  --ui-ink2: #cfc8ba;
+  --ui-muted: #a8a193;
+  --ui-line: #46433c;
+  --ui-hair: #34322d;
+  --ui-surface: #242320;
+}
+html[data-night='on'][data-ui='segar'] {
+  --ui-primary: #4fcfa4;
+  --ui-on: #0b1a14;
+  --ui-accent: #ff8a6b;
+  --ui-accent-icon: #ff8a6b;
+  --ui-accent-ink: #ffa58c;
+  --ui-welcome: #16231d;
+}
+html[data-night='on'][data-ui='ceria'] {
+  --ui-primary: #a99aff;
+  --ui-on: #15103a;
+  --ui-accent: #ffc247;
+  --ui-accent-icon: #ffc247;
+  --ui-accent-ink: #ffd27a;
+  --ui-welcome: #1d1a2e;
+}
+html[data-night='on'][data-ui='samudra'] {
+  --ui-primary: #6fabff;
+  --ui-on: #0a1a33;
+  --ui-accent: #ff7fa3;
+  --ui-accent-icon: #ff7fa3;
+  --ui-accent-ink: #ff9fba;
+  --ui-welcome: #172033;
+}
+html[data-night='on'][data-ui='klasik'] {
+  --ui-primary: #86c9b3;
+  --ui-on: #0e1f1a;
+  --ui-accent: #c9ad7f;
+  --ui-accent-icon: #c9ad7f;
+  --ui-accent-ink: #d9c096;
+  --ui-welcome: #1c1b19;
+}
+/* high contrast + night: black ground, white ink */
+html[data-night='on'][data-contrast='high'] {
+  --mf-paper: #000000;
+  --mf-surround: #000000;
+  --mf-surface-paper: #000000;
+  --mf-text-ink: #ffffff;
+  --mf-line-rule: rgb(255 255 255 / 0.4);
+  --mf-raised: #1a1a1a;
+  --mf-frame-ink: #ffffff;
+  --mf-frame-ink-inner: #ffffff;
+  --mf-ayah-ornament: #ffffff;
+  --ui-ink: #ffffff;
+  --ui-ink2: #ffffff;
+  --ui-muted: #e0e0e0;
+  --ui-line: #bdbdbd;
+  --ui-hair: #bdbdbd;
+  --ui-surface: #000000;
+  --ui-welcome: #000000;
+  --mf-danger: #ffb3a7;
 }
 
 html[data-motion='reduce'] {
@@ -262,7 +351,7 @@ input[type='range'] {
 }
 .mf-btn--danger {
   background: var(--mf-danger);
-  color: #fff;
+  color: var(--mf-on-danger, #fff);
 }
 .mf-btn:disabled {
   opacity: 0.5;
@@ -302,7 +391,7 @@ input[type='range'] {
 }
 .mf-segmented > button[aria-selected='true'],
 .mf-segmented > button[aria-pressed='true'] {
-  background: #fff;
+  background: var(--mf-raised);
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
 }
 
@@ -311,7 +400,7 @@ input[type='range'] {
   padding: 0 var(--mf-space-4);
   border-radius: var(--mf-radius-md);
   border: 1px solid var(--ui-line);
-  background: #fff;
+  background: var(--mf-raised);
   font-size: 15px;
   width: 100%;
 }

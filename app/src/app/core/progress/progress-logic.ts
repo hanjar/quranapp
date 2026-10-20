@@ -1,8 +1,7 @@
 import { KhatamRound, PAGE_COUNT, PageReadSpan, ReadDay } from '../models';
 
-/** Counts as read: >= READ_FULL_MS in the foreground, or left after >= READ_MIN_MS. */
-export const READ_MIN_MS = 8_000;
-export const READ_FULL_MS = 20_000;
+/** A page counts as read after this much continuous foreground time on it (leaving earlier counts nothing). */
+export const READ_DWELL_MS = 30_000;
 
 /**
  * First page of each juz in the Madinah (KFQC, 604-page) mushaf; index 0 = juz 1.
@@ -76,6 +75,19 @@ export function readInRound(days: readonly ReadDay[], round: KhatamRound | null)
     for (const [k, span] of Object.entries(d.pages)) {
       if (span[1] >= round.startedAt) out.add(Number(k));
     }
+  }
+  return out;
+}
+
+/** Pages manually marked as read that count for `round` (marked after it started, not unmarked since). */
+export function markedInRound(
+  marks: Record<string, [number, number]>,
+  round: KhatamRound | null,
+): Set<number> {
+  const out = new Set<number>();
+  if (!round) return out;
+  for (const [k, [markedAt, unmarkedAt]] of Object.entries(marks)) {
+    if (markedAt > unmarkedAt && markedAt >= round.startedAt) out.add(Number(k));
   }
   return out;
 }

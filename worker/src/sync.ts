@@ -13,6 +13,7 @@ import {
   parsePosition,
   parsePrefs,
   parseReadDay,
+  parseReadMarks,
   parseRound,
 } from './validate';
 import { isRecord } from './util';
@@ -93,6 +94,13 @@ interface DayRow {
   rev: number;
 }
 
+interface MarksRow {
+  marks: string; // JSON {"<page>": [markedAt, unmarkedAt]}
+  updated_at: number;
+  cleared_at: number | null;
+  rev: number;
+}
+
 interface RoundRow {
   id: string;
   n: number;
@@ -169,6 +177,20 @@ export function readDayChange(r: DayRow): Change {
   };
 }
 
+export function marksChange(r: MarksRow): Change {
+  return {
+    entity: 'readmark',
+    id: 'marks',
+    rev: r.rev,
+    deleted: false,
+    data: {
+      marks: JSON.parse(r.marks) as Record<string, PageSpan>,
+      updatedAt: r.updated_at,
+      clearedAt: r.cleared_at,
+    },
+  };
+}
+
 export function roundChange(r: RoundRow): Change {
   const deleted = r.deleted_at !== null;
   return {
@@ -222,15 +244,17 @@ export async function pullChanges(db: D1Database, userId: string, cursor: number
 
   if (needsReset) {
     // Full snapshot of live data in ONE response (no pagination), so clients never loop on reset.
-    const [bm, pos, pref, fol, rd, kr] = await db.batch([
+    const [bm, pos, pref, fol, rd, kr, mk] = await db.batch([
       db.prepare('SELECT * FROM bookmarks WHERE user_id = ?1 AND deleted_at IS NULL ORDER BY rev').bind(userId),
       db.prepare('SELECT * FROM reading_progress WHERE user_id = ?1 ORDER BY rev').bind(userId),
       db.prepare('SELECT payload, rev FROM preferences WHERE user_id = ?1').bind(userId),
       db.prepare('SELECT * FROM folders WHERE user_id = ?1 AND deleted_at IS NULL ORDER BY rev').bind(userId),
       db.prepare('SELECT * FROM reading_days WHERE user_id = ?1 AND deleted_at IS NULL ORDER BY rev').bind(userId),
       db.prepare('SELECT * FROM khatam_rounds WHERE user_id = ?1 AND deleted_at IS NULL ORDER BY rev').bind(userId),
+      db.prepare("SELECT * FROM read_marks WHERE user_id = ?1 AND marks != '{}'").bind(userId),
     ]);
     const changes = [
+      ...((mk?.results ?? []) as MarksRow[]).map(marksChange),
       ...((fol?.results ?? []) as FolderRow[]).map(folderChange),
       ...((rd?.results ?? []) as DayRow[]).map(readDayChange),
       ...((kr?.results ?? []) as RoundRow[]).map(roundChange),
@@ -242,7 +266,7 @@ export async function pullChanges(db: D1Database, userId: string, cursor: number
   }
 
   const n = limit + 1;
-  const [bm, pos, pref, rv2, fol, rd, kr] = await db.batch([
+  const [bm, pos, pref, rv2, fol, rd, kr, mk] = await db.batch([
     db.prepare('SELECT * FROM bookmarks WHERE user_id = ?1 AND rev > ?2 ORDER BY rev LIMIT ?3').bind(userId, cursor, n),
     db.prepare('SELECT * FROM reading_progress WHERE user_id = ?1 AND rev > ?2 ORDER BY rev LIMIT ?3').bind(userId, cursor, n),
     db.prepare('SELECT payload, rev FROM preferences WHERE user_id = ?1 AND rev > ?2').bind(userId, cursor),
@@ -250,8 +274,10 @@ export async function pullChanges(db: D1Database, userId: string, cursor: number
     db.prepare('SELECT * FROM folders WHERE user_id = ?1 AND rev > ?2 ORDER BY rev LIMIT ?3').bind(userId, cursor, n),
     db.prepare('SELECT * FROM reading_days WHERE user_id = ?1 AND rev > ?2 ORDER BY rev LIMIT ?3').bind(userId, cursor, n),
     db.prepare('SELECT * FROM khatam_rounds WHERE user_id = ?1 AND rev > ?2 ORDER BY rev LIMIT ?3').bind(userId, cursor, n),
+    db.prepare('SELECT * FROM read_marks WHERE user_id = ?1 AND rev > ?2').bind(userId, cursor),
   ]);
   const merged = [
+    ...((mk?.results ?? []) as MarksRow[]).map(marksChange),
     ...((fol?.results ?? []) as FolderRow[]).map(folderChange),
     ...((rd?.results ?? []) as DayRow[]).map(readDayChange),
     ...((kr?.results ?? []) as RoundRow[]).map(roundChange),
@@ -283,6 +309,7 @@ interface Sim {
   activeByKey: Map<string, string>;
   activeCount: number;
   prefs: PrefsRow | null;
+  marks: MarksRow | null;
   days: Map<string, DayRow>;
   activeDayCount: number;
   rounds: Map<string, RoundRow>;
@@ -347,7 +374,7 @@ export async function applyBatch(
       }
     }
 
-    const [logRes, byIdRes, byKeyRes, prefRes, countRes, fIdRes, fNameRes, fCountRes, rdIdRes, rdAllRes, rdCountRes, krIdRes, krNRes, krAllRes, krCountRes] = await db.batch([
+    const [logRes, byIdRes, byKeyRes, prefRes, countRes, fIdRes, fNameRes, fCountRes, rdIdRes, rdAllRes, rdCountRes, krIdRes, krNRes, krAllRes, krCountRes, mkRes] = await db.batch([
       db
         .prepare('SELECT op_id, result_json FROM op_log WHERE user_id = ?1 AND op_id IN (SELECT value FROM json_each(?2))')
         .bind(userId, JSON.stringify(opIds)),
@@ -389,6 +416,7 @@ export async function applyBatch(
         .prepare('SELECT * FROM khatam_rounds WHERE user_id = ?1 AND deleted_at IS NULL AND ?2 = 1')
         .bind(userId, clearAll ? 1 : 0),
       db.prepare('SELECT COUNT(*) AS n FROM khatam_rounds WHERE user_id = ?1 AND deleted_at IS NULL').bind(userId),
+      db.prepare('SELECT * FROM read_marks WHERE user_id = ?1').bind(userId),
     ]);
 
     const sim: Sim = {
@@ -400,6 +428,7 @@ export async function applyBatch(
       activeByKey: new Map(),
       activeCount: (countRes?.results[0] as { n: number } | undefined)?.n ?? 0,
       prefs: (prefRes?.results[0] as PrefsRow | undefined) ?? null,
+      marks: (mkRes?.results[0] as MarksRow | undefined) ?? null,
       days: new Map(),
       activeDayCount: (rdCountRes?.results[0] as { n: number } | undefined)?.n ?? 0,
       rounds: new Map(),
@@ -501,6 +530,10 @@ function applyOp(
     case 'readday':
       if (op.action === 'upsert') return upsertReadDay(db, userId, op, sim, writes, reject);
       return op.entityId === 'all' ? clearProgress(db, userId, op, sim, writes, now) : reject('only "all" can be deleted');
+    case 'readmark':
+      if (op.action !== 'upsert') return reject('readmarks cannot be deleted');
+      if (op.entityId !== 'marks') return reject('entityId must be "marks"');
+      return upsertMarks(db, userId, op, sim, writes, reject);
     case 'khatam':
       return op.action === 'upsert'
         ? upsertRound(db, userId, op, sim, writes, reject)
@@ -899,7 +932,72 @@ function clearProgress(
         .bind(userId, now, JSON.stringify(revs), JSON.stringify(chunk.map((r) => r.id)), g.finalRev),
     );
   }
+  if (sim.marks && sim.marks.marks !== '{}') {
+    const rev = ++sim.rev;
+    last = rev;
+    sim.marks = { ...sim.marks, marks: '{}', cleared_at: cleared, updated_at: now, rev };
+    writes.push((g) =>
+      db
+        .prepare(
+          `UPDATE read_marks SET marks = '{}', cleared_at = ?2, rev = ?3, updated_at = ?4
+           WHERE user_id = ?1 AND ${GUARD_SQL}`,
+        )
+        .bind(userId, cleared, rev, now, g.finalRev),
+    );
+  }
   return { opId: op.opId, status: 'applied', rev: last };
+}
+
+function upsertMarks(
+  db: D1Database,
+  userId: string,
+  op: ParsedOp,
+  sim: Sim,
+  writes: ((g: Guard) => Stmt)[],
+  reject: (e: string) => OpResult,
+): OpResult {
+  const p = parseReadMarks(op.payload);
+  if (!p.ok) return reject(p.error);
+  const existing = sim.marks;
+  // Entries last touched at/before the clear watermark are dropped (no resurrection).
+  const incoming: Pages = {};
+  for (const [k, v] of Object.entries(p.value.marks)) if (Math.max(v[0], v[1]) > sim.clearedAt) incoming[k] = v;
+  if (Object.keys(incoming).length === 0) return { opId: op.opId, status: 'applied', rev: existing?.rev };
+  const cur = existing ? (JSON.parse(existing.marks) as Pages) : {};
+  const merged = mergeMarks(cur, incoming);
+  const json = JSON.stringify(merged);
+  if (existing && json === existing.marks) return { opId: op.opId, status: 'applied', rev: existing.rev };
+  const rev = ++sim.rev;
+  const updatedAt = Math.max(existing?.updated_at ?? 0, p.value.updatedAt);
+  sim.marks = { marks: json, updated_at: updatedAt, cleared_at: existing?.cleared_at ?? null, rev };
+  if (existing) {
+    writes.push((g) =>
+      db
+        .prepare(`UPDATE read_marks SET marks = ?2, updated_at = ?3, rev = ?4 WHERE user_id = ?1 AND ${GUARD_SQL}`)
+        .bind(userId, json, updatedAt, rev, g.finalRev),
+    );
+  } else {
+    writes.push((g) =>
+      db
+        .prepare(
+          `INSERT INTO read_marks (user_id, marks, updated_at, cleared_at, rev)
+           SELECT ?1, ?2, ?3, NULL, ?4 WHERE ${GUARD_SQL}`,
+        )
+        .bind(userId, json, updatedAt, rev, g.finalRev),
+    );
+  }
+  return { opId: op.opId, status: 'applied', rev };
+}
+
+/** Per-component max: marks and unmarks both only grow. */
+export function mergeMarks(a: Pages, b: Pages): Pages {
+  const out: Pages = {};
+  for (const [k, v] of Object.entries(a)) out[k] = [v[0], v[1]];
+  for (const [k, v] of Object.entries(b)) {
+    const cur = out[k];
+    out[k] = cur ? [Math.max(cur[0], v[0]), Math.max(cur[1], v[1])] : [v[0], v[1]];
+  }
+  return out;
 }
 
 function upsertRound(

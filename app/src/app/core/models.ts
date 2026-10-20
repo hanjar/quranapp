@@ -11,6 +11,18 @@ export type PaperTheme = 'photo' | 'ivory' | 'antique' | 'cream';
 export type UiTheme = 'klasik' | 'segar' | 'ceria' | 'samudra';
 export type LayoutMode = 'auto' | 'single' | 'spread';
 export type MotionPref = 'system' | 'reduce';
+/** Night mode: manual off/on, or automatic (see NightAuto). */
+export type NightMode = 'off' | 'on' | 'auto';
+export const NIGHT_MODES: readonly NightMode[] = ['off', 'on', 'auto'];
+/** Source of the automatic night mode: device colour scheme or a daily schedule. */
+export type NightAuto = 'system' | 'schedule';
+export const NIGHT_AUTOS: readonly NightAuto[] = ['system', 'schedule'];
+export const DEFAULT_NIGHT_START = '18:00';
+export const DEFAULT_NIGHT_END = '05:00';
+const HHMM = /^([01]\d|2[0-3]):[0-5]\d$/;
+export function isHHMM(v: unknown): v is string {
+  return typeof v === 'string' && HHMM.test(v);
+}
 
 export interface AyahRef {
   surah: number; // 1–114
@@ -158,6 +170,13 @@ export interface Preferences {
   dailyTarget: number;
   /** "Catat progres membaca": false stops recording page views. Synced. */
   trackProgress: boolean;
+  /** Mode malam. Synced; default 'off'. */
+  nightMode: NightMode;
+  /** Used when nightMode is 'auto'. Synced. */
+  nightAuto: NightAuto;
+  /** 'HH:MM' local time the night schedule starts / ends (may cross midnight). Synced. */
+  nightStart: string;
+  nightEnd: string;
   updatedAt: number;
   rev: number | null;
 }
@@ -181,6 +200,10 @@ export const DEFAULT_PREFERENCES: Preferences = {
   onboardingDone: false,
   dailyTarget: DEFAULT_DAILY_TARGET,
   trackProgress: true,
+  nightMode: 'off',
+  nightAuto: 'system',
+  nightStart: DEFAULT_NIGHT_START,
+  nightEnd: DEFAULT_NIGHT_END,
   updatedAt: 0,
   rev: null,
 };
@@ -213,7 +236,40 @@ export interface KhatamRound {
   rev: number | null;
 }
 
-export type SyncEntity = 'bookmark' | 'folder' | 'position' | 'prefs' | 'readday' | 'khatam';
+/**
+ * Manual "already read" marks (pages read before tracking existed). Singleton row.
+ * Per page `[markedAt, unmarkedAt]`; merge = per-component max, so devices never lose marks
+ * and an unmark survives a merge. A page is marked while markedAt > unmarkedAt.
+ * Marks count for the khatam round only (never for daily stats).
+ */
+export interface ReadMarks {
+  key: 'marks';
+  marks: Record<string, [number, number]>;
+  updatedAt: number;
+  rev: number | null;
+}
+
+export function mergeReadMarks(
+  a: Record<string, [number, number]>,
+  b: Record<string, [number, number]>,
+): Record<string, [number, number]> {
+  const out: Record<string, [number, number]> = {};
+  for (const [k, v] of Object.entries(a)) out[k] = [v[0], v[1]];
+  for (const [k, v] of Object.entries(b)) {
+    const cur = out[k];
+    out[k] = cur ? [Math.max(cur[0], v[0]), Math.max(cur[1], v[1])] : [v[0], v[1]];
+  }
+  return out;
+}
+
+export type SyncEntity =
+  | 'bookmark'
+  | 'folder'
+  | 'position'
+  | 'prefs'
+  | 'readday'
+  | 'khatam'
+  | 'readmark';
 
 export interface OutboxOperation {
   opId: string; // uuid v4, idempotency key

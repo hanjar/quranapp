@@ -60,10 +60,29 @@
   height: 100%;
 }
 
+/* Quran text ink (the svg draws #231f20; the token lets night mode lighten it). Classed paths (verse polygons, surah cartouche) keep their own fills. */
+.art ::ng-deep svg.mf-page-svg path:not([class]) {
+  fill: var(--mf-text-ink);
+}
+
 /* Ornament ring around each ayah number, coloured per paper theme. */
-.art ::ng-deep .ayah-mark-ornament,
-.art ::ng-deep .ayah-mark-ornament * {
+.art ::ng-deep svg.mf-page-svg .ayah-mark-ornament,
+.art ::ng-deep svg.mf-page-svg .ayah-mark-ornament path {
   fill: var(--mf-ayah-ornament);
+}
+
+/* Optional separators between text lines (html[data-line-rules='on']). */
+.art ::ng-deep .mf-line-rules {
+  display: none;
+  pointer-events: none;
+  line {
+    stroke: var(--mf-line-rule);
+    stroke-width: 0.5;
+    stroke-linecap: round;
+  }
+}
+:host-context(html[data-line-rules='on']) .art ::ng-deep .mf-line-rules {
+  display: inline;
 }
 
 /* Decorative surah-header cartouche (own artwork, drawn behind the text). */
@@ -102,10 +121,10 @@
   .mf-sh-outer,
   .mf-sh-inner,
   .mf-sh-line {
-    stroke: #231f20;
+    stroke: var(--mf-text-ink);
   }
   .mf-sh-dot {
-    fill: #231f20;
+    fill: var(--mf-text-ink);
   }
 }
 

@@ -57,7 +57,13 @@ describe('feature registry', () => {
     ['hapus riwayat', 'progress-clear'],
     ['dua halaman', 'layout'],
     ['kontras', 'contrast'],
+    ['mode malam', 'night'],
+    ['gelap', 'night'],
+    ['dark', 'night'],
+    ['hitam', 'night'],
     ['animasi', 'motion'],
+    ['garis bantu', 'line-rules'],
+    ['pemisah', 'line-rules'],
     ['ukuran', 'font-larger'],
   ])('"%s" finds %s', (q, id) => {
     expect(ids(q)).toContain(id);

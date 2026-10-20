@@ -6,6 +6,7 @@ import {
   OutboxOperation,
   Preferences,
   ReadDay,
+  ReadMarks,
   ReadingPosition,
   SyncState,
 } from '../models';
@@ -37,12 +38,27 @@ export class MushafDb extends Dexie {
   prefs!: Table<PrefsRow, string>;
   readDays!: Table<ReadDay, string>;
   rounds!: Table<KhatamRound, string>;
+  readMarks!: Table<ReadMarks, string>;
   outbox!: Table<OutboxOperation, string>;
   sync!: Table<SyncState, string>;
   meta!: Table<MetaRow, string>;
 
+  /** True once another tab upgraded the schema and this connection was closed. */
+  outdated = false;
+  /** Set by UserDataService: surfaces connection problems to the user. */
+  onIssue?: (kind: 'blocked' | 'versionchange') => void;
+
   constructor(name = 'mushaf-digital') {
     super(name);
+    // Never let this connection block another tab's schema upgrade: close it and tell the UI.
+    this.on('versionchange', () => {
+      this.outdated = true;
+      this.close({ disableAutoOpen: true });
+      this.onIssue?.('versionchange');
+      return false;
+    });
+    // Our own upgrade is waiting for another tab (older version) to release its connection.
+    this.on('blocked', () => this.onIssue?.('blocked'));
     this.version(1).stores({
       bookmarks: 'id, key, kind, page, updatedAt, deletedAt',
       positions: 'editionId',
@@ -71,6 +87,8 @@ export class MushafDb extends Dexie {
       readDays: 'day, updatedAt',
       rounds: 'id, n, startedAt',
     });
+    // v4: manual "already read" marks (singleton row).
+    this.version(4).stores({ readMarks: 'key' });
   }
 }
 

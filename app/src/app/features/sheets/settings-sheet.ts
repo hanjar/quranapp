@@ -9,11 +9,12 @@ import {
 } from '../shell/audio-offline-helpers';
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { ContentApi, OfflineApi, SyncApi, UserDataApi } from '../../core/contracts';
-import { LayoutMode } from '../../core/models';
+import { LayoutMode, NightAuto, NightMode, isHHMM } from '../../core/models';
 import { ProgressService } from '../../core/progress/progress.service';
+import { LineRulesService } from '../../core/line-rules.service';
 import { InstallService } from '../../core/install.service';
 import { ReaderUiService } from '../../core/reader-ui.service';
-import { PAPER_THEMES, UI_THEMES } from '../../core/theme.service';
+import { PAPER_THEMES, ThemeService, UI_THEMES } from '../../core/theme.service';
 import { exportFilename, formatMb, importSummary } from '../shell/format';
 import { useSearchFocusTarget } from './focus-target';
 import { SHEET_STYLES } from './sheet-styles';
@@ -23,6 +24,16 @@ const LAYOUTS: { id: LayoutMode; label: string }[] = [
   { id: 'auto', label: 'Otomatis' },
   { id: 'single', label: '1 halaman' },
   { id: 'spread', label: '2 halaman' },
+];
+
+const NIGHT_OPTIONS: { id: NightMode; label: string }[] = [
+  { id: 'off', label: 'Mati' },
+  { id: 'on', label: 'Nyala' },
+  { id: 'auto', label: 'Otomatis' },
+];
+const NIGHT_AUTO_OPTIONS: { id: NightAuto; label: string }[] = [
+  { id: 'system', label: 'Ikuti perangkat' },
+  { id: 'schedule', label: 'Jadwal' },
 ];
 
 const SYNC_LABEL: Record<string, string> = {
@@ -41,7 +52,15 @@ const SYNC_LABEL: Record<string, string> = {
 @Component({
   selector: 'app-settings-sheet',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  styles: SHEET_STYLES,
+  styles: [
+    SHEET_STYLES,
+    `
+      .time-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-size: 13px; color: var(--ui-ink2); }
+      .time { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+      .time-row .mf-input { min-width: 0; }
+      .is-inactive { opacity: 0.45; }
+    `,
+  ],
   template: `
     @if (offlineCta(); as cta) {
       <section class="offline-cta" aria-labelledby="st-offline-cta">
@@ -65,9 +84,80 @@ const SYNC_LABEL: Record<string, string> = {
       </section>
     }
 
+    <section aria-labelledby="st-night" data-search-id="night">
+      <h3 id="st-night">Mode malam</h3>
+      <div class="mf-segmented" role="group" aria-labelledby="st-night">
+        @for (n of nightOptions; track n.id) {
+          <button
+            type="button"
+            [attr.aria-pressed]="prefs().nightMode === n.id"
+            (click)="data.setPrefs({ nightMode: n.id })"
+          >
+            {{ n.label }}
+          </button>
+        }
+      </div>
+      @if (prefs().nightMode === 'auto') {
+        <div class="mf-segmented" role="group" aria-label="Sumber mode malam otomatis">
+          @for (a of nightAutoOptions; track a.id) {
+            <button
+              type="button"
+              [attr.aria-pressed]="prefs().nightAuto === a.id"
+              (click)="data.setPrefs({ nightAuto: a.id })"
+            >
+              {{ a.label }}
+            </button>
+          }
+        </div>
+        @if (prefs().nightAuto === 'schedule') {
+          <div class="time-row">
+            <div class="time">
+            <label for="night-start">Mulai</label>
+            <input
+              id="night-start"
+              class="mf-input"
+              type="time"
+              step="900"
+              [value]="prefs().nightStart"
+              (change)="setTime('nightStart', $event)"
+            />
+            </div>
+            <div class="time">
+            <label for="night-end">Selesai</label>
+            <input
+              id="night-end"
+              class="mf-input"
+              type="time"
+              step="900"
+              [value]="prefs().nightEnd"
+              (change)="setTime('nightEnd', $event)"
+            />
+            </div>
+          </div>
+        }
+      }
+      <p class="muted" aria-live="polite">
+        @if (theme.nightActive()) {
+          Mode malam sedang menyala.
+        } @else {
+          Mode malam sedang mati.
+        }
+        @if (prefs().nightMode === 'auto') {
+          @if (prefs().nightAuto === 'system') {
+            Mengikuti pengaturan terang/gelap perangkat.
+          } @else {
+            Menyala otomatis pukul {{ prefs().nightStart }} sampai {{ prefs().nightEnd }}.
+          }
+        }
+      </p>
+    </section>
+
     <section aria-labelledby="st-paper" data-search-id="paper">
       <h3 id="st-paper">Warna kertas</h3>
-      <div class="grid3">
+      @if (theme.nightActive()) {
+        <p class="muted">Warna kertas tidak berlaku saat mode malam.</p>
+      }
+      <div class="grid3" [class.is-inactive]="theme.nightActive()">
         @for (t of paperThemes; track t.id) {
           <button
             type="button"
@@ -178,6 +268,25 @@ const SYNC_LABEL: Record<string, string> = {
             aria-labelledby="sw-controls"
             [attr.aria-checked]="prefs().controlsAlwaysVisible"
             (click)="data.setPrefs({ controlsAlwaysVisible: !prefs().controlsAlwaysVisible })"
+          ></button
+        ></span>
+      </div>
+      <div class="switch-row" data-search-id="line-rules">
+        <span
+          ><span id="sw-line-rules">Garis antarbaris</span
+          ><small id="sw-line-rules-d" style="display: block; color: var(--ui-muted); font-size: 12.5px"
+            >Garis tipis pemisah antarbaris di halaman mushaf.</small
+          ></span
+        >
+        <span class="hit"
+          ><button
+            type="button"
+            class="switch"
+            role="switch"
+            aria-labelledby="sw-line-rules"
+            aria-describedby="sw-line-rules-d"
+            [attr.aria-checked]="lineRules.enabled()"
+            (click)="lineRules.set(!lineRules.enabled())"
           ></button
         ></span>
       </div>
@@ -352,10 +461,14 @@ export class SettingsSheet {
   private readonly offline = inject(OfflineApi);
   protected readonly install = inject(InstallService);
   protected readonly wake = inject(WakeLockService);
+  protected readonly lineRules = inject(LineRulesService);
   protected readonly wakeOptions = WAKE_OPTIONS;
   protected readonly progress = inject(ProgressService);
   protected readonly confirmClear = signal(false);
 
+  protected readonly theme = inject(ThemeService);
+  protected readonly nightOptions = NIGHT_OPTIONS;
+  protected readonly nightAutoOptions = NIGHT_AUTO_OPTIONS;
   protected readonly paperThemes = PAPER_THEMES;
   protected readonly uiThemes = UI_THEMES;
   protected readonly layouts = LAYOUTS;
@@ -417,6 +530,12 @@ export class SettingsSheet {
     } catch {
       this.ui.showToast({ message: 'Riwayat baca gagal dihapus.' });
     }
+  }
+
+  protected setTime(key: 'nightStart' | 'nightEnd', ev: Event): void {
+    const v = (ev.target as HTMLInputElement).value;
+    if (isHHMM(v)) void this.data.setPrefs({ [key]: v });
+    else (ev.target as HTMLInputElement).value = this.prefs()[key];
   }
 
   protected openTour(): void {

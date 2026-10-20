@@ -59,7 +59,7 @@
 .tb-btn.is-on {
   background: var(--ui-primary);
   border-color: var(--ui-primary);
-  color: var(--ui-on-primary, #fff);
+  color: var(--ui-on);
 }
 .tb-btn:disabled {
   opacity: 0.4;

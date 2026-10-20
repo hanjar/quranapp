@@ -133,6 +133,54 @@ describe('sync apply: reading progress', () => {
     });
   });
 
+  describe('readmark (manual marks)', () => {
+    const markChange = (rev: number, marks: Record<string, unknown>, clearedAt: number | null = null): Change => ({
+      entity: 'readmark',
+      id: 'marks',
+      rev,
+      deleted: false,
+      data: { marks, updatedAt: 5, clearedAt },
+    });
+
+    it('unions per component max and keeps local-only marks', async () => {
+      await db.readMarks.put({ key: 'marks', marks: { '5': [10, 0], '6': [10, 0] }, updatedAt: 1, rev: 1 });
+      await applyChanges(db, ACC, [markChange(4, { '5': [3, 0], '6': [10, 20], '7': [8, 0], '0': [1, 1], '9': [1] })], opts());
+      const row = await db.readMarks.get('marks');
+      expect(row?.marks).toEqual({ '5': [10, 0], '6': [10, 20], '7': [8, 0] });
+      expect(row?.rev).toBe(4);
+    });
+
+    it('creates the row from a pull', async () => {
+      await applyChanges(db, ACC, [markChange(2, { '5': [10, 0] })], opts());
+      expect((await db.readMarks.get('marks'))?.marks).toEqual({ '5': [10, 0] });
+    });
+
+    it('clearedAt drops older local entries and refreshes the pending op', async () => {
+      await db.readMarks.put({ key: 'marks', marks: { '5': [10, 0], '6': [500, 0] }, updatedAt: 1, rev: 1 });
+      await db.outbox.add(makeOp(ACC, 'readmark', 'marks', 'upsert', { marks: {} }, 1));
+      await applyChanges(db, ACC, [markChange(5, {}, 100)], opts());
+      expect((await db.readMarks.get('marks'))?.marks).toEqual({ '6': [500, 0] });
+      expect((await db.outbox.toArray())[0]?.payload).toMatchObject({ marks: { '6': [500, 0] } });
+    });
+
+    it('applied sets rev; first-link snapshot and reset cover marks', async () => {
+      await db.readMarks.put({ key: 'marks', marks: { '5': [10, 0] }, updatedAt: 1, rev: null });
+      expect(await enqueueLocalSnapshot(db, ACC)).toBe(1);
+      const op = (await db.outbox.toArray())[0]!;
+      expect(op).toMatchObject({ entity: 'readmark', entityId: 'marks' });
+      await handleResults(db, ACC, [op], [{ opId: op.opId, status: 'applied', rev: 9 }], opts());
+      expect((await db.readMarks.get('marks'))?.rev).toBe(9);
+      await reconcileReset(db, ACC, [], opts()); // cleared elsewhere, nothing pending
+      expect(await db.readMarks.get('marks')).toBeUndefined();
+    });
+
+    it('reset re-sends unsynced marks', async () => {
+      await db.readMarks.put({ key: 'marks', marks: { '5': [10, 0] }, updatedAt: 1, rev: null });
+      await reconcileReset(db, ACC, [], opts());
+      expect((await db.outbox.toArray()).map((o) => o.entity)).toEqual(['readmark']);
+    });
+  });
+
   describe('khatam rounds', () => {
     it('upserts by id, honours rev and keeps a pending local edit', async () => {
       await applyChanges(db, ACC, [roundChange('r1', 2)], opts());

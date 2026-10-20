@@ -7,19 +7,24 @@ import {
   KhatamRound,
   LayoutMode,
   MotionPref,
+  NightAuto,
+  NightMode,
+  isHHMM,
   OutboxOperation,
   PaperTheme,
   PageReadSpan,
   ReadDay,
+  ReadMarks,
   ReadingPosition,
   SyncEntity,
   UiTheme,
   clampDailyTarget,
   isValidPage,
+  mergeReadMarks,
   mergeReadPages,
 } from '../models';
 import { MushafDb } from '../storage/db';
-import { bookmarkPayload, folderPayload, makeOp, readDayPayload, roundPayload } from './outbox';
+import { bookmarkPayload, folderPayload, makeOp, readDayPayload, readMarksPayload, roundPayload } from './outbox';
 import { BatchResult, Change } from './sync-types';
 
 /**
@@ -54,6 +59,8 @@ const PAPER: readonly string[] = ['photo', 'ivory', 'antique', 'cream'];
 const UI: readonly string[] = ['klasik', 'segar', 'ceria', 'samudra'];
 const LAYOUT: readonly string[] = ['auto', 'single', 'spread'];
 const MOTION: readonly string[] = ['system', 'reduce'];
+const NIGHT: readonly string[] = ['off', 'on', 'auto'];
+const NIGHT_AUTO: readonly string[] = ['system', 'schedule'];
 
 const TABLES = (db: MushafDb) => [
   db.bookmarks,
@@ -62,6 +69,7 @@ const TABLES = (db: MushafDb) => [
   db.prefs,
   db.readDays,
   db.rounds,
+  db.readMarks,
   db.outbox,
 ];
 
@@ -253,6 +261,10 @@ async function applyPrefs(ctx: Ctx, ch: Change): Promise<void> {
   const ui = str(d, 'uiTheme');
   const layout = str(d, 'layoutMode');
   const motion = str(d, 'motion');
+  const night = str(d, 'nightMode');
+  const nightAuto = str(d, 'nightAuto');
+  const nStart = str(d, 'nightStart');
+  const nEnd = str(d, 'nightEnd');
   await db.prefs.put({
     ...base,
     key: 'prefs',
@@ -264,6 +276,11 @@ async function applyPrefs(ctx: Ctx, ch: Change): Promise<void> {
     highContrast: bool(d, 'highContrast') ?? base.highContrast,
     dailyTarget: num(d, 'dailyTarget') != null ? clampDailyTarget(num(d, 'dailyTarget') as number) : base.dailyTarget,
     trackProgress: bool(d, 'trackProgress') ?? base.trackProgress,
+    nightMode: night && NIGHT.includes(night) ? (night as NightMode) : base.nightMode,
+    nightAuto:
+      nightAuto && NIGHT_AUTO.includes(nightAuto) ? (nightAuto as NightAuto) : base.nightAuto,
+    nightStart: isHHMM(nStart) ? nStart : base.nightStart,
+    nightEnd: isHHMM(nEnd) ? nEnd : base.nightEnd,
     updatedAt: num(d, 'updatedAt') ?? base.updatedAt,
     rev: ch.rev,
   });
@@ -380,6 +397,50 @@ async function applyReadDay(ctx: Ctx, ch: Change): Promise<void> {
   ctx.changed = true;
 }
 
+/** Parses wire marks; malformed entries are dropped. */
+export function parseWireMarks(raw: unknown): Record<string, [number, number]> {
+  const out: Record<string, [number, number]> = {};
+  if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) return out;
+  for (const [k, v] of Object.entries(raw as Record<string, unknown>)) {
+    const page = Number(k);
+    if (!isValidPage(page) || String(page) !== k || !Array.isArray(v) || v.length !== 2) continue;
+    const [a, b] = v as unknown[];
+    if (typeof a !== 'number' || typeof b !== 'number' || !Number.isFinite(a) || !Number.isFinite(b)) continue;
+    out[k] = [a, b];
+  }
+  return out;
+}
+
+async function applyReadMarks(ctx: Ctx, ch: Change): Promise<void> {
+  const { db } = ctx;
+  const d = ch.data;
+  if (ch.deleted || !d) return;
+  const local = await db.readMarks.get('marks');
+  // `clearedAt`: entries last touched at/before the clear are gone everywhere.
+  const clearedAt = num(d, 'clearedAt') ?? 0;
+  let mine = local?.marks ?? {};
+  if (clearedAt > 0) {
+    mine = Object.fromEntries(Object.entries(mine).filter(([, v]) => Math.max(v[0], v[1]) > clearedAt));
+  }
+  const merged = mergeReadMarks(mine, parseWireMarks(d['marks']));
+  const row: ReadMarks = {
+    key: 'marks',
+    marks: merged,
+    updatedAt: Math.max(local?.updatedAt ?? 0, num(d, 'updatedAt') ?? 0),
+    rev: local?.rev != null && local.rev > ch.rev ? local.rev : ch.rev,
+  };
+  if (local && JSON.stringify(local.marks) === JSON.stringify(merged) && local.rev === row.rev) return;
+  await db.readMarks.put(row);
+  if (clearedAt > 0 && JSON.stringify(local?.marks ?? {}) !== JSON.stringify(mine)) {
+    for (const op of pendingFor(ctx, 'readmark', 'marks', 'upsert')) {
+      op.payload = readMarksPayload(row);
+      await db.outbox.update(op.opId, { payload: op.payload });
+    }
+  }
+  await bumpBaseRev(ctx, 'readmark', 'marks', ch.rev);
+  ctx.changed = true;
+}
+
 async function applyRound(ctx: Ctx, ch: Change): Promise<void> {
   const { db } = ctx;
   const d = ch.data;
@@ -445,6 +506,8 @@ async function applyOne(ctx: Ctx, ch: Change): Promise<void> {
       return applyReadDay(ctx, ch);
     case 'khatam':
       return applyRound(ctx, ch);
+    case 'readmark':
+      return applyReadMarks(ctx, ch);
     case 'bookmark':
       return applyBookmark(ctx, ch);
     case 'folder':
@@ -533,6 +596,7 @@ export function handleResults(
               await db.positions.update(op.entityId, { rev: r.rev });
             else if (op.entity === 'readday') await db.readDays.update(op.entityId, { rev: r.rev });
             else if (op.entity === 'khatam') await db.rounds.update(op.entityId, { rev: r.rev });
+            else if (op.entity === 'readmark') await db.readMarks.update('marks', { rev: r.rev });
             else await db.prefs.update('prefs', { rev: r.rev });
             await bumpBaseRev(ctx, op.entity, op.entityId, r.rev);
           }
@@ -637,6 +701,22 @@ export function reconcileReset(
         }
       } else if (rd.rev == null && !pendingFor(ctx, 'readday', rd.day, 'upsert').length) {
         const op = makeOp(accountId, 'readday', rd.day, 'upsert', readDayPayload(rd), null, now);
+        await db.outbox.add(op);
+        ctx.pending.push(op);
+      }
+    }
+    const localMarks = await db.readMarks.get('marks');
+    if (localMarks) {
+      const remoteHas = changes.some((c) => c.entity === 'readmark' && !c.deleted);
+      if (localMarks.rev != null && !remoteHas) {
+        if (pendingFor(ctx, 'readmark', 'marks', 'upsert').length) {
+          await db.readMarks.put({ ...localMarks, rev: null });
+        } else {
+          await db.readMarks.delete('marks');
+          ctx.changed = true;
+        }
+      } else if (localMarks.rev == null && !pendingFor(ctx, 'readmark', 'marks', 'upsert').length) {
+        const op = makeOp(accountId, 'readmark', 'marks', 'upsert', readMarksPayload(localMarks), null, now);
         await db.outbox.add(op);
         ctx.pending.push(op);
       }

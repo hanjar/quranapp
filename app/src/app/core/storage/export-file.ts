@@ -6,6 +6,7 @@ import {
   bookmarkKey,
   DEFAULT_EDITION,
   DEFAULT_PREFERENCES,
+  isHHMM,
   isValidPage,
   Preferences,
   ReadingPosition,
@@ -147,6 +148,16 @@ export function validatePreferences(raw: unknown): Preferences {
       typeof raw['trackProgress'] === 'boolean'
         ? raw['trackProgress']
         : DEFAULT_PREFERENCES.trackProgress,
+    nightMode:
+      raw['nightMode'] === 'on' || raw['nightMode'] === 'auto' || raw['nightMode'] === 'off'
+        ? raw['nightMode']
+        : DEFAULT_PREFERENCES.nightMode,
+    nightAuto:
+      raw['nightAuto'] === 'system' || raw['nightAuto'] === 'schedule'
+        ? raw['nightAuto']
+        : DEFAULT_PREFERENCES.nightAuto,
+    nightStart: isHHMM(raw['nightStart']) ? raw['nightStart'] : DEFAULT_PREFERENCES.nightStart,
+    nightEnd: isHHMM(raw['nightEnd']) ? raw['nightEnd'] : DEFAULT_PREFERENCES.nightEnd,
     updatedAt: isTime(raw['updatedAt']) ? raw['updatedAt'] : 0,
     rev: null,
   };

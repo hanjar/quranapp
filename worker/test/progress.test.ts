@@ -257,10 +257,101 @@ describe('progress with the rest of the account', () => {
     expect(r.map((x) => x.status)).toEqual(['rejected', 'rejected', 'rejected', 'rejected']);
   });
 
+  it('prefs accept nightMode and reject unknown values', async () => {
+    const cookie = await login('a@x.co');
+    const pref = (baseRev: number | null, over: Record<string, unknown>) => ({
+      opId: uid(), entity: 'prefs', entityId: 'prefs', action: 'upsert', baseRev, payload: prefsPayload(over),
+    });
+    expect((await batch(cookie, [pref(null, { nightMode: 'auto', nightAuto: 'schedule', nightStart: '19:30', nightEnd: '04:45' })]))[0].status).toBe('applied');
+    expect((await pull(cookie)).changes[0].data).toMatchObject({ nightMode: 'auto', nightAuto: 'schedule', nightStart: '19:30', nightEnd: '04:45' });
+    const r = await batch(cookie, [pref(1, { nightMode: 'dark' }), pref(1, { nightMode: 5 }), pref(1, { nightAuto: 'sun' }), pref(1, { nightStart: '25:00' }), pref(1, { nightEnd: '5:00' })]);
+    expect(r.map((x) => x.status)).toEqual(['rejected', 'rejected', 'rejected', 'rejected', 'rejected']);
+  });
+
   it('mixes progress with bookmark ops in one batch and keeps revisions dense', async () => {
     const cookie = await login('a@x.co');
     const r = await batch(cookie, [dayOp('2026-10-20', { '1': [T, T + 1] }), roundOp('r-1', 1), dayOp('2026-10-20', { '2': [T, T + 1] })]);
     expect(r.map((x) => x.rev)).toEqual([1, 2, 3]);
     expect((await pull(cookie)).cursor).toBe(3);
+  });
+});
+
+describe('readmark: manual "already read" marks', () => {
+  type Marks = Record<string, [number, number]>;
+  const marksOp = (marks: Marks, over: Record<string, unknown> = {}) => ({
+    opId: uid(),
+    entity: 'readmark',
+    entityId: 'marks',
+    action: 'upsert',
+    baseRev: null,
+    payload: { marks, updatedAt: 1700000000000, ...over },
+  });
+
+  it('merges per component max so devices never lose marks and an unmark survives', async () => {
+    const cookie = await login('a@x.co');
+    expect((await batch(cookie, [marksOp({ '5': [T + 10, 0], '6': [T + 10, 0] })]))[0]).toMatchObject({ status: 'applied', rev: 1 });
+    // device B: marks 7, unmarks 6, has an older mark of 5
+    expect((await batch(cookie, [marksOp({ '5': [T + 5, 0], '6': [T + 10, T + 20], '7': [T + 30, 0] })]))[0]).toMatchObject({ status: 'applied', rev: 2 });
+    const c = (await pull(cookie)).changes[0];
+    expect(c).toMatchObject({ entity: 'readmark', id: 'marks', rev: 2, deleted: false });
+    expect(c.data.marks).toEqual({ '5': [T + 10, 0], '6': [T + 10, T + 20], '7': [T + 30, 0] });
+    // stale re-mark of 6 (older markedAt) cannot undo the unmark
+    await batch(cookie, [marksOp({ '6': [T + 10, 0] })]);
+    expect((await pull(cookie)).changes[0].data.marks['6']).toEqual([T + 10, T + 20]);
+  });
+
+  it('no-op merges neither write nor bump the revision; replay is idempotent', async () => {
+    const cookie = await login('a@x.co');
+    const op = marksOp({ '5': [T + 10, 0] });
+    await batch(cookie, [op]);
+    expect((await batch(cookie, [op]))[0].rev).toBe(1);
+    expect((await batch(cookie, [marksOp({ '5': [T + 1, 0] })]))[0]).toMatchObject({ status: 'applied', rev: 1 });
+    expect((await pull(cookie, '?cursor=1')).changes).toEqual([]);
+  });
+
+  it('validates payload, entityId and refuses delete', async () => {
+    const cookie = await login('a@x.co');
+    const r = await batch(cookie, [
+      marksOp({}),
+      marksOp({ '0': [1, 0] }),
+      marksOp({ '605': [1, 0] }),
+      marksOp({ '5': [1] as any }),
+      marksOp({ '5': [-1, 0] }),
+      { ...marksOp({ '5': [1, 0] }), entityId: 'other' },
+      { ...marksOp({ '5': [1, 0] }), action: 'delete' },
+      marksOp({ '5': [1, 0] }, { updatedAt: -1 }),
+    ]);
+    expect(r.every((x) => x.status === 'rejected')).toBe(true);
+  });
+
+  it('clear history wipes marks, sets the watermark and drops stale marks afterwards', async () => {
+    const cookie = await login('a@x.co');
+    const before = Date.now() - 60_000;
+    await batch(cookie, [marksOp({ '5': [before, 0] })]);
+    expect((await batch(cookie, [clearOp()]))[0]).toMatchObject({ status: 'applied', rev: 2 });
+    const ch = (await pull(cookie, '?cursor=1')).changes[0];
+    expect(ch).toMatchObject({ entity: 'readmark', rev: 2 });
+    expect(ch.data.marks).toEqual({});
+    expect(typeof ch.data.clearedAt).toBe('number');
+    // stale device re-uploads the old mark: ignored; a fresh one is accepted
+    expect((await batch(cookie, [marksOp({ '5': [before, 0] })]))[0].status).toBe('applied');
+    expect((await pull(cookie, '?cursor=2')).changes).toEqual([]);
+    await batch(cookie, [marksOp({ '9': [T, 0] })]);
+    expect((await pull(cookie, '?cursor=2')).changes[0].data.marks).toEqual({ '9': [T, 0] });
+  });
+
+  it('is in the reset snapshot (when non-empty), export and account deletion', async () => {
+    const cookie = await login('a@x.co');
+    await batch(cookie, [marksOp({ '5': [T, 0] })]);
+    const snap = await pull(cookie, '?cursor=99');
+    expect(snap.reset).toBe(true);
+    expect(snap.changes.map((c: any) => c.entity)).toEqual(['readmark']);
+    const exp = (await json(await call('GET', '/export', { cookie }))).data;
+    expect(exp.readMarks).toMatchObject({ rev: 1, marks: { '5': [T, 0] } });
+    await batch(cookie, [clearOp()]);
+    expect((await pull(cookie, '?cursor=99')).changes).toEqual([]);
+    expect((await json(await call('GET', '/export', { cookie }))).data.readMarks).toBeNull();
+    await call('DELETE', '/me/data', { cookie });
+    expect((await env.DB.prepare('SELECT COUNT(*) AS n FROM read_marks').first<{ n: number }>())!.n).toBe(0);
   });
 });

@@ -114,8 +114,10 @@ export class SyncService extends SyncApi {
           this.db.prefs,
           this.db.readDays,
           this.db.rounds,
+          this.db.readMarks,
         ],
         async () => {
+          await this.db.readMarks.clear();
           await this.db.readDays.clear();
           await this.db.rounds.clear();
           await this.db.bookmarks.clear();
@@ -253,6 +255,7 @@ export class SyncService extends SyncApi {
         this.db.prefs,
         this.db.readDays,
         this.db.rounds,
+        this.db.readMarks,
       ],
       async () => {
         if (st.accountId) await this.db.outbox.where('accountId').equals(st.accountId).delete();
@@ -265,6 +268,7 @@ export class SyncService extends SyncApi {
         await this.db.prefs.toCollection().modify({ rev: null });
         await this.db.readDays.toCollection().modify({ rev: null });
         await this.db.rounds.toCollection().modify({ rev: null });
+        await this.db.readMarks.toCollection().modify({ rev: null });
         await this.db.meta.bulkDelete([META_ACCOUNT, META_CONFLICT]);
         await this.db.sync.put({ ...DEFAULT_STATE });
       },
