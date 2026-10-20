@@ -7,6 +7,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { JUZ_STARTS, deriveJuz, derivePages, deriveSurahs, pageAyahs, checkIntegrity } from './lib/derive.mjs';
 import { LATIN_SOURCE, buildLatinMap } from './lib/latin.mjs';
+import { ARABIC_SOURCE, buildArabicMap } from './lib/arabic.mjs';
 import { TAFSIR_SOURCE, buildTafsirMaps } from './lib/tafsir.mjs';
 import { TRANSLATION_SOURCE, buildTranslationMap, findFootnoteMarkers } from './lib/translation.mjs';
 import { validateSvg } from './lib/svg-validate.mjs';
@@ -216,12 +217,14 @@ async function main() {
 
   let latin = null;
   let translation = null;
+  let arabic = null;
   let footnotes = [];
   if (!opts.skipLatin || !opts.skipTranslation) {
     console.log('Fetching EQuran.id (latin + translation) ...');
     if (partial) console.log('  (partial build: still covers all 114 surahs)');
     const payloads = await fetchEquran(opts.latinRefresh);
     if (!opts.skipLatin) latin = buildLatinMap(payloads, surahs);
+    arabic = buildArabicMap(payloads, surahs);
     if (!opts.skipTranslation) {
       translation = buildTranslationMap(payloads, surahs);
       footnotes = findFootnoteMarkers(translation);
@@ -262,6 +265,10 @@ async function main() {
         'utf8',
       ),
     );
+  }
+  if (arabic) {
+    const a = { format: 'mushaf-arabic', version: 1, source: { ...ARABIC_SOURCE, fetchedAt: new Date().toISOString() }, ayahs: arabic };
+    await emit('arabic.json', Buffer.from(JSON.stringify(a) + '\n', 'utf8'));
   }
   if (translation) {
     const t = { format: 'mushaf-translation', version: 1, lang: 'id', source: { ...TRANSLATION_SOURCE, fetchedAt: new Date().toISOString() }, ayahs: translation };
@@ -307,6 +314,7 @@ async function main() {
   console.log(`  pages        ${pages.length}${partial ? ' (partial)' : ''}`);
   console.log(`  surahs       ${surahs.length}   juz ${juz.length}`);
   console.log(`  latin        ${latin ? Object.keys(latin).length + ' ayahs' : 'skipped'}`);
+  console.log(`  arabic       ${arabic ? Object.keys(arabic).length + ' ayahs' : 'skipped'}`);
   console.log(`  translation  ${translation ? Object.keys(translation).length + ' ayahs, footnote-marker entries: ' + footnotes.length : 'skipped'}`);
   console.log(`  tafsir       ${tafsir ? `114 files, ${tafsirTotal} bytes (${mb(tafsirTotal)} MB), largest surah ${tafsirLargest.surah} = ${tafsirLargest.bytes} bytes` : 'skipped'}`);
   console.log(`  files        ${Object.keys(files).length}`);

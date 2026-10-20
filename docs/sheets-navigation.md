@@ -17,7 +17,7 @@ Content components navigate with `history.closeThen(() => ui.goToPage(...))` so 
 (also guarantees `closeSheet()` clearing `selectedVerse` happens before `goToPage(..., {highlight})` sets it).
 
 ## Content components
-- `VerseSheet`: Tandai/Ditandai (toast + Urungkan), Salin rujukan, Bagikan (Web Share, fallback copy), Tutup. Text: `QS. Al-Baqarah 2:255 (hal. 42)`.
+- `VerseSheet`: Tandai/Ditandai (toast + Urungkan), Salin, Bagikan (Web Share, fallback copy), Tutup. Salin and Bagikan share the same text: `QS. Al-Hasyr 59:3 (hal. 545)`, Arabic (Latin if the Arabic file is unavailable), `"<terjemahan>" (Terjemahan Kemenag RI)`, then the deep link `<origin>/59/3`. Shared links `/{surah}/{ayah}` (and `/{surah}`) are resolved by `core/verse-link.ts` and redirect to `/hal/{page}` with the ayah highlighted.
 - `BrowseSheet`: tabs Surah/Juz/Halaman bound to `ui.browseTab`; filter by name/number/Arabic; page tab validates 1–604 (`parsePageInput`), invalid input shows an inline message and never navigates.
 - `BookmarksSheet`: "Posisi terakhir" card from `userData.position()`, Ayat/Halaman segments, delete with toast + Urungkan (undo from `removeBookmark`). No folders.
 - `SearchSheet` + `parseSearch` (`search-parser.ts`, pure): surah names (case/hyphen/diacritic-insensitive, with or without `Al-`/`An-`, English and Arabic), `n`, `2:255` / `2.255`, `hal 50` / `halaman 50`, `juz 30`. Exact ayah page via `ContentApi.pageOf`.

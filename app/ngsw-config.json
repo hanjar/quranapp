@@ -30,6 +30,7 @@
         "files": [
           "/content/*/*.json",
           "!/content/*/latin.json",
+          "!/content/*/arabic.json",
           "!/content/*/translation-id.json"
         ]
       }
@@ -41,6 +42,7 @@
       "resources": {
         "files": [
           "/content/*/latin.json",
+          "/content/*/arabic.json",
           "/content/*/translation-id.json"
         ]
       }

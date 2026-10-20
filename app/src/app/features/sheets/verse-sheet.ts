@@ -8,6 +8,7 @@ import {
   signal,
   untracked,
 } from '@angular/core';
+import { ArabicTextService } from '../../core/content/arabic.service';
 import { LatinService } from '../../core/content/latin.service';
 import { TafsirService } from '../../core/content/tafsir.service';
 import { TranslationService } from '../../core/content/translation.service';
@@ -15,7 +16,7 @@ import { ContentApi, UserDataApi } from '../../core/contracts';
 import { ReaderUiService } from '../../core/reader-ui.service';
 import { AudioService } from '../../core/audio/audio.service';
 import { SheetHistory } from './sheet-history';
-import { latinCopyText, shareText, translationCopyText, verseReference } from './nav-helpers';
+import { latinCopyText, shareText, translationCopyText, verseReference, verseUrl } from './nav-helpers';
 
 @Component({
   selector: 'app-verse-sheet',
@@ -153,7 +154,7 @@ import { latinCopyText, shareText, translationCopyText, verseReference } from '.
           </svg>
           {{ nowPlaying() ? 'Jeda' : 'Putar' }}
         </button>
-        <button type="button" class="act" aria-label="Salin rujukan" (click)="copy()">
+        <button type="button" class="act" aria-label="Salin ayat" (click)="copy()">
           <svg
             width="22"
             height="22"
@@ -364,6 +365,7 @@ export class VerseSheet {
   private readonly content = inject(ContentApi);
   private readonly userData = inject(UserDataApi);
   private readonly latin = inject(LatinService);
+  private readonly arabic = inject(ArabicTextService);
   private readonly audio = inject(AudioService);
 
   /** True while this exact ayah is playing (or loading). */
@@ -430,6 +432,7 @@ export class VerseSheet {
       const v = this.ui.selectedVerse();
       untracked(() => {
         const ref = v ? { surah: v.surah, ayah: v.ayah } : null;
+        if (ref) this.arabic.preload();
         this.loadLatin(ref);
         this.loadTr(ref);
         this.tafsirOpen.set(false);
@@ -558,18 +561,43 @@ export class VerseSheet {
     }
   }
 
+  /**
+   * Text for Salin/Bagikan: reference, Arabic (Latin when the Arabic file cannot be
+   * loaded), Kemenag translation and the deep link on this app's origin.
+   */
+  private async verseText(): Promise<string | null> {
+    const v = this.ui.selectedVerse();
+    const ref = this.info()?.reference;
+    if (!v || !ref) return null;
+    const ayah = { surah: v.surah, ayah: v.ayah };
+    // Already in memory in the normal case (preloaded when the sheet opened); otherwise
+    // wait briefly so a slow connection does not delay sharing, then fall back to Latin.
+    const arabic =
+      this.arabic.peek(ayah) ??
+      (await Promise.race([
+        this.arabic.get(ayah),
+        new Promise<null>((r) => setTimeout(() => r(null), ARABIC_WAIT_MS)),
+      ]));
+    return shareText({
+      reference: ref,
+      arabic,
+      latin: this.latinText(),
+      translation: this.trText(),
+      url: verseUrl(location.origin, v.surah, v.ayah),
+    });
+  }
+
   protected async copy(): Promise<void> {
-    const text = this.info()?.reference;
+    const text = await this.verseText();
     if (!text) return;
     this.ui.showToast({
-      message: (await copyText(text)) ? 'Rujukan disalin' : 'Rujukan gagal disalin',
+      message: (await copyText(text)) ? 'Ayat disalin' : 'Ayat gagal disalin',
     });
   }
 
   protected async share(): Promise<void> {
-    const ref = this.info()?.reference;
-    if (!ref) return;
-    const text = shareText({ reference: ref, latin: this.latinText(), translation: this.trText() });
+    const text = await this.verseText();
+    if (!text) return;
     if (typeof navigator.share === 'function') {
       try {
         await navigator.share({ text });
@@ -584,6 +612,9 @@ export class VerseSheet {
     });
   }
 }
+
+/** Longest wait for the Arabic file before sharing falls back to the Latin text. */
+const ARABIC_WAIT_MS = 2000;
 
 const LATIN_KEY = 'mf-latin-collapsed';
 

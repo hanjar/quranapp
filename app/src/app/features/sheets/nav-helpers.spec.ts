@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { SurahMeta } from '../../core/models';
-import { filterJuz, filterSurahs, formatDate, parsePageInput, latinCopyText, shareText, translationCopyText, verseReference } from './nav-helpers';
+import { filterJuz, filterSurahs, formatDate, parsePageInput, latinCopyText, shareText, translationCopyText, verseReference, verseUrl } from './nav-helpers';
 
 const mk = (
   number: number,
@@ -94,13 +94,30 @@ describe('translationCopyText / shareText', () => {
   });
   it('shares reference only when nothing else is loaded', () => {
     expect(shareText({ reference: 'R', latin: null, translation: undefined })).toBe('R');
-    expect(shareText({ reference: 'R', latin: '  ', translation: '' })).toBe('R');
+    expect(shareText({ reference: 'R', arabic: ' ', latin: '  ', translation: '' })).toBe('R');
   });
-  it('adds Latin and/or translation', () => {
-    expect(shareText({ reference: 'R', latin: 'wa inna' })).toBe('R\nwa inna');
-    expect(shareText({ reference: 'R', translation: 'dan sungguh' })).toBe('R\n"dan sungguh" (Terjemahan Kemenag RI)');
-    expect(shareText({ reference: 'R', latin: 'wa inna', translation: 'dan sungguh' })).toBe(
-      'R\nwa inna\n\n"dan sungguh" (Terjemahan Kemenag RI)',
-    );
+  it('uses Arabic, then translation, then the link', () => {
+    expect(
+      shareText({
+        reference: 'R',
+        arabic: 'ar',
+        latin: 'wa inna',
+        translation: 'dan sungguh',
+        url: 'https://quran.hanjar.net/59/3',
+      }),
+    ).toBe('R\nar\n\n"dan sungguh" (Terjemahan Kemenag RI)\n\nhttps://quran.hanjar.net/59/3');
+  });
+  it('falls back to Latin when Arabic is not available', () => {
+    expect(
+      shareText({ reference: 'R', arabic: null, latin: 'wa inna', translation: 'x', url: 'U' }),
+    ).toBe('R\nwa inna\n\n"x" (Terjemahan Kemenag RI)\n\nU');
+  });
+  it('omits a missing translation but keeps the link', () => {
+    expect(shareText({ reference: 'R', arabic: 'ar', url: 'U' })).toBe('R\nar\n\nU');
+    expect(shareText({ reference: 'R', url: 'U' })).toBe('R\n\nU');
+  });
+  it('builds the deep link from the runtime origin', () => {
+    expect(verseUrl('https://quran.hanjar.net', 59, 3)).toBe('https://quran.hanjar.net/59/3');
+    expect(verseUrl('http://localhost:4200/', 1, 1)).toBe('http://localhost:4200/1/1');
   });
 });

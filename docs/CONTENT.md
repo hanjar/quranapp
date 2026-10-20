@@ -24,6 +24,7 @@ commit, validates it, and writes `app/public/content/hafs-kfqc/` (gitignored, se
 | `surahs.json` | `SurahMeta[]`; Arabic/English names, ayahCount, startPage from upstream; endPage derived; Indonesian transliteration from the design prototype |
 | `edition.json` | `Edition` (source, licence, attribution) |
 | `latin.json` | `LatinFile`: Indonesian Latin transliteration per ayah (`"s:a"` keys, 6236 entries), Kemenag RI via EQuran.id API v2 (`GET /api/v2/surat/{1..114}`, `ayat[].teksLatin`) |
+| `arabic.json` | `ArabicFile`: Unicode Arabic text per ayah (`"s:a"` keys, 6236 entries), Teks Arab Kemenag RI from the same EQuran.id responses (`ayat[].teksArab`). Verbatim (trim/whitespace/NFC only); used only for Salin/Bagikan, never rendered on the mushaf page. 1,426,148 bytes. Lazy service-worker group with latin/translation |
 | `translation-id.json` | `TranslationFile`: Indonesian translation per ayah (Terjemahan Kemenag RI, edisi penyempurnaan 2019), same EQuran.id responses as latin (`ayat[].teksIndonesia`), 6236 entries |
 | `manifest.json` | sha256 + bytes of every file, `totalBytes` |
 

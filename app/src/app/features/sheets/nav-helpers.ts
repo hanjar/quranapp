@@ -60,16 +60,27 @@ export function translationCopyText(
   return `QS. ${surah.nameLatin} ${surah.number}:${ayah} — ${translation.trim()} (Terjemahan Kemenag RI)`;
 }
 
-/** Share text: reference, then Latin and translation when available. */
+/** Deep link to one ayah on this app's own origin: `https://host/59/3`. */
+export function verseUrl(origin: string, surah: number, ayah: number): string {
+  return `${origin.replace(/\/+$/, '')}/${surah}/${ayah}`;
+}
+
+/**
+ * Share/copy text: reference, the Arabic text (Latin transliteration when Arabic is
+ * not available), the Kemenag translation and the deep link. Missing parts are omitted.
+ */
 export function shareText(parts: {
   reference: string;
+  arabic?: string | null;
   latin?: string | null;
   translation?: string | null;
+  url?: string | null;
 }): string {
-  const out = [parts.reference];
-  const latin = parts.latin?.trim();
+  const body = parts.arabic?.trim() || parts.latin?.trim();
   const tr = parts.translation?.trim();
-  if (latin) out.push(latin);
-  if (tr) out.push(`${latin ? '\n' : ''}"${tr}" (Terjemahan Kemenag RI)`);
-  return out.join('\n');
+  const url = parts.url?.trim();
+  const blocks = [body ? `${parts.reference}\n${body}` : parts.reference];
+  if (tr) blocks.push(`"${tr}" (Terjemahan Kemenag RI)`);
+  if (url) blocks.push(url);
+  return blocks.join('\n\n');
 }

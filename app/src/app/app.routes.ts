@@ -2,6 +2,7 @@ import { inject } from '@angular/core';
 import { Router, Routes } from '@angular/router';
 import { UserDataApi } from './core/contracts';
 import { ReaderUiService } from './core/reader-ui.service';
+import { verseLinkRedirect } from './core/verse-link';
 
 /**
  * `/` resumes the last read page (US-02). First-ever visit goes to the welcome
@@ -41,5 +42,8 @@ export const routes: Routes = [
     loadComponent: () => import('./features/onboarding/welcome').then((m) => m.Welcome),
     title: 'Selamat datang · Mushaf Digital',
   },
+  // Shared verse links: /59/3 opens the page with that ayah highlighted; /59 the surah's first page.
+  { path: ':surah/:ayah', canActivate: [verseLinkRedirect], children: [] },
+  { path: ':surah', canActivate: [verseLinkRedirect], children: [] },
   { path: '**', redirectTo: '' },
 ];
