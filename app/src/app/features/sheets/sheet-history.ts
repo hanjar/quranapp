@@ -1,4 +1,5 @@
 import { Injectable, inject } from '@angular/core';
+import { AyahRef } from '../../core/models';
 import { ReaderUiService } from '../../core/reader-ui.service';
 
 /**
@@ -41,6 +42,19 @@ export class SheetHistory {
   /** User-initiated close (X, scrim, Escape). */
   close(): void {
     this.closeThen();
+  }
+
+  /**
+   * Closes the sheet and opens a page. The sheet's own history entry is REPLACED
+   * by the target URL instead of popped: popping would make the router handle the
+   * popstate and navigate back to the old page, overriding this navigation.
+   * Back still returns to the page the reader was on before opening the sheet.
+   */
+  navigateTo(page: number, opts: { highlight?: AyahRef | null } = {}): void {
+    const replaceUrl = this.pushed;
+    this.pushed = false;
+    this.ui.closeSheet();
+    this.ui.goToPage(page, { ...opts, replaceUrl });
   }
 
   /**

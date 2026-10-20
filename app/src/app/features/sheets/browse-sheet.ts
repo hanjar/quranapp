@@ -167,7 +167,7 @@ export class BrowseSheet {
   }
 
   protected open(page: number): void {
-    this.history.closeThen(() => this.ui.goToPage(page));
+    this.history.navigateTo(page);
   }
 
   protected goPage(): void {

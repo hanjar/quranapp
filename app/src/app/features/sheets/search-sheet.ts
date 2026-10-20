@@ -75,7 +75,7 @@ export class SearchSheet {
   });
 
   protected open(r: SearchResult): void {
-    this.history.closeThen(() => this.ui.goToPage(r.page, { highlight: r.highlight ?? null }));
+    this.history.navigateTo(r.page, { highlight: r.highlight ?? null });
   }
 
   protected openFirst(): void {

@@ -113,12 +113,12 @@ export class BookmarksSheet {
     const pos = this.userData.position();
     if (!pos) return;
     const highlight = pos.surah && pos.ayah ? { surah: pos.surah, ayah: pos.ayah } : null;
-    this.history.closeThen(() => this.ui.goToPage(pos.page, { highlight }));
+    this.history.navigateTo(pos.page, { highlight });
   }
 
   protected open(b: Bookmark): void {
     const highlight = b.kind === 'verse' && b.surah && b.ayah ? { surah: b.surah, ayah: b.ayah } : null;
-    this.history.closeThen(() => this.ui.goToPage(b.page, { highlight }));
+    this.history.navigateTo(b.page, { highlight });
   }
 
   protected async remove(b: Bookmark): Promise<void> {
