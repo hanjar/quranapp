@@ -125,6 +125,12 @@
   gap: 6px;
   transition: opacity var(--mf-dur-base);
 }
+/* Floating +/- only for mouse/trackpad users; touch screens use the bottom-bar button. */
+@media (pointer: coarse) {
+  .zoom-ctl {
+    display: none;
+  }
+}
 .zoom-ctl.is-hidden {
   opacity: 0;
   pointer-events: none;

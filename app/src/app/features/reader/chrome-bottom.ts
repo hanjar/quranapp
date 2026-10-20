@@ -55,6 +55,34 @@ import { ReaderUiService } from '../../core/reader-ui.service';
       </svg>
     </button>
 
+    <!-- Touch screens: zoom lives here (no free margin for floating +/-); mouse users get +/- at the edge. -->
+    <button
+      type="button"
+      class="mf-icon-btn zoom-toggle"
+      [class.is-on]="zoomed()"
+      [disabled]="!zoomAvailable()"
+      [attr.aria-label]="zoomed() ? 'Kembali ke ukuran normal' : 'Perbesar halaman'"
+      [attr.aria-pressed]="zoomed()"
+      (click)="toggleZoom.emit()"
+    >
+      <svg
+        width="21"
+        height="21"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="1.6"
+        stroke-linecap="round"
+        aria-hidden="true"
+      >
+        <circle cx="10.5" cy="10.5" r="6" />
+        <path d="M20 20l-5-5M8 10.5h5" />
+        @if (!zoomed()) {
+          <path d="M10.5 8v5" />
+        }
+      </svg>
+    </button>
+
     <button
       type="button"
       class="pill"
@@ -137,6 +165,11 @@ import { ReaderUiService } from '../../core/reader-ui.service';
       opacity: 0.35;
       cursor: not-allowed;
     }
+    @media (pointer: fine) {
+      .zoom-toggle {
+        display: none;
+      }
+    }
     .mf-icon-btn.is-on {
       color: var(--ui-accent-icon);
     }
@@ -161,6 +194,10 @@ export class ChromeBottom {
   readonly shown = input(true);
   readonly canNext = input(true);
   readonly canPrev = input(true);
+  readonly zoomed = input(false);
+  /** False in phone-landscape fit-width mode, where the page is already enlarged. */
+  readonly zoomAvailable = input(true);
+  readonly toggleZoom = output<void>();
   readonly next = output<void>();
   readonly prev = output<void>();
 
