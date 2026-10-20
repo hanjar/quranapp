@@ -91,6 +91,26 @@ const SYNC_LABEL: Record<SyncStatus, string> = {
     <button
       type="button"
       class="mf-icon-btn"
+      aria-label="Progres membaca"
+      (click)="ui.openSheet('progress')"
+    >
+      <svg
+        width="21"
+        height="21"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="1.6"
+        stroke-linecap="round"
+        aria-hidden="true"
+      >
+        <path d="M12 4a8 8 0 1 1-8 8" />
+        <path d="M12 8v4l3 2" />
+      </svg>
+    </button>
+    <button
+      type="button"
+      class="mf-icon-btn"
       aria-label="Pengaturan"
       (click)="ui.openSheet('settings')"
     >

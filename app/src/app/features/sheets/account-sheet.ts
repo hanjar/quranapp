@@ -29,9 +29,10 @@ type Confirm = 'signout' | 'delete' | null;
             <li>Lanjutkan membaca dari halaman terakhir di perangkat mana pun</li>
             <li>Penanda ikut tersimpan dan tidak hilang saat data peramban dibersihkan</li>
             <li>Pilihan tampilan terbawa ke perangkat lain</li>
+            <li>Progres membaca dan target harian ikut tersimpan</li>
           </ul>
           <div class="mf-note">
-            Yang disimpan hanya posisi, penanda, dan preferensi. Tanpa iklan, tanpa pelacakan.
+            Yang disimpan hanya posisi, penanda, progres membaca, dan preferensi. Tanpa iklan, tanpa pelacakan.
           </div>
           <div class="actions">
             <button type="button" class="mf-btn mf-btn--primary" (click)="step.set('login')">
@@ -94,6 +95,7 @@ type Confirm = 'signout' | 'delete' | null;
           </div>
         </div>
         <p class="muted">Sinkronisasi hanya mengirim perubahan, bukan setiap balikan halaman.</p>
+        <p class="muted">Progres membaca (halaman yang sudah dibaca, khatam, dan target harian) ikut tersinkron. Matikan atau hapus lewat Pengaturan.</p>
       </section>
 
       @if (sync.conflict(); as c) {

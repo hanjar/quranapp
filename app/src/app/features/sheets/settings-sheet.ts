@@ -7,9 +7,10 @@ import {
   surahsFullyStored,
   totalStored,
 } from '../shell/audio-offline-helpers';
-import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { ContentApi, OfflineApi, SyncApi, UserDataApi } from '../../core/contracts';
 import { LayoutMode } from '../../core/models';
+import { ProgressService } from '../../core/progress/progress.service';
 import { InstallService } from '../../core/install.service';
 import { ReaderUiService } from '../../core/reader-ui.service';
 import { PAPER_THEMES, UI_THEMES } from '../../core/theme.service';
@@ -231,6 +232,53 @@ const SYNC_LABEL: Record<string, string> = {
       </p>
     </section>
 
+    <section aria-label="Progres membaca">
+      <div class="switch-row" data-search-id="progress-track">
+        <span id="sw-progress">Catat progres membaca</span>
+        <span class="hit"
+          ><button
+            type="button"
+            class="switch"
+            role="switch"
+            aria-labelledby="sw-progress"
+            [attr.aria-checked]="progress.enabled()"
+            (click)="progress.setEnabled(!progress.enabled())"
+          ></button
+        ></span>
+      </div>
+      @if (confirmClear()) {
+        <div class="panel warn" role="alertdialog" aria-labelledby="clr-t" aria-describedby="clr-d">
+          <strong id="clr-t">Hapus riwayat baca?</strong>
+          <p id="clr-d">
+            Semua halaman yang tercatat dibaca dan khatam dihapus dari perangkat ini{{
+              sync.account() ? ' dan dari akunmu' : ''
+            }}. Penanda tidak ikut terhapus.
+          </p>
+          <div class="actions">
+            <button type="button" class="mf-btn mf-btn--outline" (click)="confirmClear.set(false)">
+              Batal
+            </button>
+            <button type="button" class="mf-btn mf-btn--danger" (click)="clearHistory()">
+              Hapus riwayat
+            </button>
+          </div>
+        </div>
+      } @else {
+        <button
+          type="button"
+          class="row danger"
+          data-search-id="progress-clear"
+          (click)="confirmClear.set(true)"
+        >
+          <span>Hapus riwayat baca</span>
+        </button>
+      }
+      <p class="muted">
+        Halaman dihitung terbaca setelah beberapa detik tampil di layar. Progres tersimpan di
+        perangkat ini{{ sync.account() ? ' dan ikut tersinkron ke akunmu' : '' }}.
+      </p>
+    </section>
+
     <section aria-label="Lainnya">
       <button type="button" class="row" (click)="openTour()">
         <span>Panduan gestur</span><span class="end chev" aria-hidden="true">›</span>
@@ -305,6 +353,8 @@ export class SettingsSheet {
   protected readonly install = inject(InstallService);
   protected readonly wake = inject(WakeLockService);
   protected readonly wakeOptions = WAKE_OPTIONS;
+  protected readonly progress = inject(ProgressService);
+  protected readonly confirmClear = signal(false);
 
   protected readonly paperThemes = PAPER_THEMES;
   protected readonly uiThemes = UI_THEMES;
@@ -350,6 +400,24 @@ export class SettingsSheet {
     if (!this.sync.account()) return 'Belum masuk';
     return SYNC_LABEL[this.sync.status()] ?? '';
   });
+
+  protected async clearHistory(): Promise<void> {
+    this.confirmClear.set(false);
+    try {
+      const undo = await this.progress.clearHistory();
+      this.ui.showToast({
+        message: 'Riwayat baca dihapus',
+        actionLabel: 'Urungkan',
+        action: () =>
+          void undo().then((ok) => {
+            if (!ok) this.ui.showToast({ message: 'Riwayat tidak dapat dipulihkan lagi.' });
+          }),
+        duration: 8000,
+      });
+    } catch {
+      this.ui.showToast({ message: 'Riwayat baca gagal dihapus.' });
+    }
+  }
 
   protected openTour(): void {
     this.ui.closeSheet();

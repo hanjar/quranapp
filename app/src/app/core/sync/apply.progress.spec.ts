@@ -63,7 +63,15 @@ describe('sync apply: reading progress', () => {
       const res = await applyChanges(
         db,
         ACC,
-        [dayChange('2026-10-20', 3, { '5': [10, 20], '0': [1, 2], '700': [1, 2], x: [1, 2], '6': [1] })],
+        [
+          dayChange('2026-10-20', 3, {
+            '5': [10, 20],
+            '0': [1, 2],
+            '700': [1, 2],
+            x: [1, 2],
+            '6': [1],
+          }),
+        ],
         opts(),
       );
       expect(res.changed).toBe(true);
@@ -155,7 +163,11 @@ describe('sync apply: reading progress', () => {
       await db.outbox.add(makeOp(ACC, 'khatam', 'mine', 'upsert', {}, null));
       await applyChanges(db, ACC, [roundChange('theirs', 7, { startedAt: 100 })], opts());
       expect(await db.rounds.get('mine')).toBeUndefined();
-      expect(await db.rounds.get('theirs')).toMatchObject({ rev: 7, startedAt: 50, finishedAt: 900 });
+      expect(await db.rounds.get('theirs')).toMatchObject({
+        rev: 7,
+        startedAt: 50,
+        finishedAt: 900,
+      });
       const ops = await db.outbox.toArray();
       expect(ops).toHaveLength(1);
       expect(ops[0]).toMatchObject({ entity: 'khatam', entityId: 'theirs', baseRev: 7 });
@@ -197,7 +209,13 @@ describe('sync apply: reading progress', () => {
     it('applied clear-all op (no local row) is harmless', async () => {
       const op = makeOp(ACC, 'readday', 'all', 'delete', null, null);
       await db.outbox.add(op);
-      const out = await handleResults(db, ACC, [op], [{ opId: op.opId, status: 'applied', rev: 3 }], opts());
+      const out = await handleResults(
+        db,
+        ACC,
+        [op],
+        [{ opId: op.opId, status: 'applied', rev: 3 }],
+        opts(),
+      );
       expect(out.applied).toBe(1);
       expect(await db.outbox.count()).toBe(0);
     });

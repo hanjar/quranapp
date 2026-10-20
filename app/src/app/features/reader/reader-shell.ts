@@ -15,6 +15,7 @@ import {
 import { APP_CONFIG } from '../../core/config';
 import { ContentApi, UserDataApi } from '../../core/contracts';
 import { AyahRef } from '../../core/models';
+import { ProgressService } from '../../core/progress/progress.service';
 import { ReaderUiService } from '../../core/reader-ui.service';
 import { ReadingViewService } from '../../core/reading-view.service';
 import { ChromeBottom } from './chrome-bottom';
@@ -63,6 +64,7 @@ export class ReaderShell {
   protected readonly ui = inject(ReaderUiService);
   protected readonly rv = inject(ReadingViewService);
   private readonly userData = inject(UserDataApi);
+  private readonly tracker = inject(ProgressService).createTracker();
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
   private readonly destroyRef = inject(DestroyRef);
 
@@ -154,6 +156,17 @@ export class ReaderShell {
   });
 
   constructor() {
+    // Reading progress: the dwell tracker decides which on-screen pages count as read.
+    // Re-run on page, spread and mode changes (translation mode shows the same page as text).
+    effect(() => {
+      const num = this.pageNum();
+      if (num === null) return;
+      const pages = this.visible();
+      this.textMode();
+      untracked(() => this.tracker.visible([...pages]));
+    });
+    this.destroyRef.onDestroy(() => this.tracker.stop());
+
     // Invalid page param -> page 1 (replace history entry).
     effect(() => {
       const raw = this.page();

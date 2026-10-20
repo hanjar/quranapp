@@ -153,7 +153,9 @@ describe('ProgressService', () => {
     await svc.idle();
     const ops = await db.outbox.toArray();
     expect(ops.filter((o) => o.entity === 'readday')).toHaveLength(1); // coalesced per day
-    const payload = ops.find((o) => o.entity === 'readday')!.payload as { pages: Record<string, unknown> };
+    const payload = ops.find((o) => o.entity === 'readday')!.payload as {
+      pages: Record<string, unknown>;
+    };
     expect(Object.keys(payload.pages).sort()).toEqual(['7', '8', '9']); // full day, not just the delta
     expect(ops.filter((o) => o.entity === 'khatam')).toHaveLength(0); // round 1 already existed
     expect(ops.every((o) => o.accountId === 'acc1')).toBe(true);
@@ -165,7 +167,10 @@ describe('ProgressService', () => {
     await svc.idle();
     const ops = await db.outbox.toArray();
     expect(ops.map((o) => o.entity).sort()).toEqual(['khatam', 'readday']);
-    expect(ops.find((o) => o.entity === 'khatam')).toMatchObject({ action: 'upsert', baseRev: null });
+    expect(ops.find((o) => o.entity === 'khatam')).toMatchObject({
+      action: 'upsert',
+      baseRev: null,
+    });
   });
 
   it('startNextRound finishes the open round and a new one counts from zero', async () => {
@@ -175,7 +180,10 @@ describe('ProgressService', () => {
     const next = await svc.startNextRound();
     expect(next).toMatchObject({ n: 2, finishedAt: null });
     await settle();
-    expect(svc.rounds().map((r) => [r.n, r.finishedAt != null])).toEqual([[1, true], [2, false]]);
+    expect(svc.rounds().map((r) => [r.n, r.finishedAt != null])).toEqual([
+      [1, true],
+      [2, false],
+    ]);
     expect(svc.currentRound()?.n).toBe(2);
     expect(svc.readInRound().size).toBe(0);
     expect(svc.recent(5).map((r) => r.page)).toEqual([7]); // history is kept
@@ -188,7 +196,14 @@ describe('ProgressService', () => {
     const pages: Record<string, [number, number]> = {};
     for (let p = 1; p <= PAGE_COUNT; p++) pages[String(p)] = [AT, AT + 1];
     await db.readDays.put({ day: localDay(AT), pages, updatedAt: AT, rev: null });
-    await db.rounds.put({ id: 'r1', n: 1, startedAt: AT, finishedAt: null, updatedAt: AT, rev: null });
+    await db.rounds.put({
+      id: 'r1',
+      n: 1,
+      startedAt: AT,
+      finishedAt: null,
+      updatedAt: AT,
+      rev: null,
+    });
     await settle();
     expect(svc.roundComplete()).toBe(true);
     expect(svc.percent()).toBe(100);

@@ -17,6 +17,7 @@ import { BookmarksSheet } from './bookmarks-sheet';
 import { BrowseSheet } from './browse-sheet';
 import { FeedbackSheet } from './feedback-sheet';
 import { OfflineSheet } from './offline-sheet';
+import { ProgressSheet } from './progress-sheet';
 import { SearchSheet } from './search-sheet';
 import { SettingsSheet } from './settings-sheet';
 import { SheetHistory } from './sheet-history';
@@ -32,6 +33,7 @@ const TITLES: Record<SheetName, string> = {
   account: 'Akun & sinkronisasi',
   about: 'Tentang & lisensi',
   feedback: 'Kirim masukan',
+  progress: 'Progres membaca',
 };
 
 const FOCUSABLE =
@@ -54,6 +56,7 @@ const FOCUSABLE =
     AccountSheet,
     AboutSheet,
     FeedbackSheet,
+    ProgressSheet,
   ],
   host: { '(document:keydown.escape)': 'onEscape($event)' },
   template: `
@@ -121,6 +124,9 @@ const FOCUSABLE =
             }
             @case ('feedback') {
               <app-feedback-sheet />
+            }
+            @case ('progress') {
+              <app-progress-sheet />
             }
           }
         </div>

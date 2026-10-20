@@ -12,6 +12,7 @@ import {
 } from '../../core/models';
 import { AudioService } from '../../core/audio/audio.service';
 import { AudioOfflineApi } from '../../core/audio/audio-offline.api';
+import { ProgressService } from '../../core/progress/progress.service';
 import { ReaderUiService } from '../../core/reader-ui.service';
 import { ReadingViewService } from '../../core/reading-view.service';
 import { TranslationService } from '../../core/content/translation.service';
@@ -183,6 +184,10 @@ describe('ReaderShell', () => {
         { provide: OfflineApi, useValue: new FakeOffline() },
         { provide: AudioOfflineApi, useValue: { localUrl: async () => null } },
         { provide: SyncApi, useValue: new FakeSync() },
+        {
+          provide: ProgressService,
+          useValue: { createTracker: () => ({ visible: () => {}, stop: () => {}, hidden: () => {} }) },
+        },
         {
           provide: TranslationService,
           useValue: { source: signal(null), get: async (r: { surah: number; ayah: number }) => `Terjemah ${r.surah}:${r.ayah}` },

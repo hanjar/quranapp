@@ -42,7 +42,10 @@ describe('PageDwellTracker', () => {
     tracker.visible([5, 6]); // 4 left after 10 s, 5 stays
     expect(reads).toEqual([[4, 10_000]]);
     vi.advanceTimersByTime(10_000); // 5 reaches 20 s
-    expect(reads).toEqual([[4, 10_000], [5, 20_000]]);
+    expect(reads).toEqual([
+      [4, 10_000],
+      [5, 20_000],
+    ]);
   });
 
   it('hidden() finishes stays and pauses; resume() restarts the wanted pages from zero', () => {
@@ -57,7 +60,10 @@ describe('PageDwellTracker', () => {
     expect(reads).toHaveLength(1);
     tracker.resume();
     vi.advanceTimersByTime(20_000);
-    expect(reads).toEqual([[5, 9_000], [6, 20_000]]);
+    expect(reads).toEqual([
+      [5, 9_000],
+      [6, 20_000],
+    ]);
   });
 
   it('stop() finishes stays, forgets pages and cancels timers', () => {

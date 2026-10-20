@@ -3,7 +3,9 @@ import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@a
 import { ContentApi, UserDataApi } from '../../core/contracts';
 import { Bookmark } from '../../core/models';
 import { ReaderUiService } from '../../core/reader-ui.service';
+import { ProgressService } from '../../core/progress/progress.service';
 import { formatDate } from './nav-helpers';
+import { relativeDay } from './progress-format';
 import { SheetHistory } from './sheet-history';
 
 type BmTab = 'verse' | 'page';
@@ -150,6 +152,17 @@ type BmTab = 'verse' | 'page';
         </div>
       </div>
     }
+    @if (history5().length > 0) {
+      <section class="hist" aria-labelledby="bm-hist">
+        <div class="mf-eyebrow" id="bm-hist">Riwayat baca</div>
+        @for (h of history5(); track h.page) {
+          <button type="button" class="hrow" (click)="history.navigateTo(h.page)">
+            <span>{{ h.label }}</span>
+            <span class="hat">{{ h.at }}</span>
+          </button>
+        }
+      </section>
+    }
   `,
   styles: `
     :host {
@@ -254,6 +267,31 @@ type BmTab = 'verse' | 'page';
       -webkit-box-orient: vertical;
       overflow: hidden;
     }
+    .hist {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      padding-top: 6px;
+    }
+    .hrow {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      min-height: var(--mf-tap);
+      border: none;
+      border-bottom: 1px solid var(--ui-hair);
+      background: transparent;
+      color: var(--ui-ink);
+      font-size: 14px;
+      padding: 0 4px;
+      text-align: left;
+    }
+    .hat {
+      flex: none;
+      font-size: 12.5px;
+      color: var(--ui-muted);
+    }
     .manage {
       align-self: flex-start;
       min-height: var(--mf-tap);
@@ -289,6 +327,7 @@ export class BookmarksSheet {
   private readonly ui = inject(ReaderUiService);
   private readonly content = inject(ContentApi);
   private readonly userData = inject(UserDataApi);
+  private readonly progress = inject(ProgressService);
   protected readonly history = inject(SheetHistory);
 
   protected readonly tab = signal<BmTab>('verse');
@@ -302,6 +341,18 @@ export class BookmarksSheet {
     if (pos.ayah) parts.push(`Ayat ${pos.ayah}`);
     if (pos.updatedAt > 0) parts.push(formatDate(pos.updatedAt));
     return { label: parts.filter(Boolean).join(' · ') };
+  });
+
+  /** Last 5 distinct pages read ("Riwayat baca"). */
+  protected readonly history5 = computed(() => {
+    this.progress.days();
+    if (!this.content.index()) return [];
+    const now = Date.now();
+    return this.progress.recent(5).map((r) => ({
+      page: r.page,
+      label: `Halaman ${r.page} · ${this.content.surahAt(r.page).nameLatin}`,
+      at: relativeDay(r.lastAt, now),
+    }));
   });
 
   protected readonly rows = computed(() => {

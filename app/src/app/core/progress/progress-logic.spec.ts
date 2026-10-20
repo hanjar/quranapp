@@ -92,7 +92,10 @@ describe('progress logic', () => {
   });
 
   it('lastDays includes zero days; average shortens its window for new readers', () => {
-    const days = [day('2026-10-19', { '1': [1, 1], '2': [1, 1] }), day('2026-10-20', { '3': [1, 1], '4': [1, 1], '5': [1, 1], '6': [1, 1] })];
+    const days = [
+      day('2026-10-19', { '1': [1, 1], '2': [1, 1] }),
+      day('2026-10-20', { '3': [1, 1], '4': [1, 1], '5': [1, 1], '6': [1, 1] }),
+    ];
     const l7 = lastDays(days, '2026-10-20');
     expect(l7).toHaveLength(7);
     expect(l7[0]).toEqual({ day: '2026-10-14', count: 0 });
