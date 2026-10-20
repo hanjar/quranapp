@@ -40,8 +40,7 @@ import { SHEET_STYLES } from './sheet-styles';
       <h3>Kode sumber terbuka</h3>
       <p>
         Kode aplikasi berlisensi MIT.
-        <!-- TODO: ganti dengan URL repositori publik yang sebenarnya. -->
-        <a class="link" href="https://github.com/" target="_blank" rel="noopener noreferrer">github.com</a>
+        <a class="link" href="https://github.com/hanjar/quranapp" target="_blank" rel="noopener noreferrer">github.com/hanjar/quranapp</a>
       </p>
     </section>
 
