@@ -137,7 +137,7 @@ export interface Preferences {
 }
 
 export const DEFAULT_PREFERENCES: Preferences = {
-  paperTheme: 'ivory',
+  paperTheme: 'cream',
   uiTheme: 'segar',
   layoutMode: 'auto',
   controlsAlwaysVisible: false,

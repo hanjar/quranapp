@@ -6,10 +6,10 @@
  */
 
 :root {
-  /* paper (reader surface) */
-  --mf-paper: #f5f1e8;
-  --mf-surround: #e8e2d4;
-  --mf-surface-paper: #fbf8f2;
+  /* paper (reader surface) — default: Krem Madinah */
+  --mf-paper: #fffdf6;
+  --mf-surround: #f1e9d2;
+  --mf-surface-paper: #fffefa;
 
   /* mushaf frame ornament (UI layer only, never Quran glyphs) */
   --mf-frame-ink: #3e6e99;

@@ -9,7 +9,7 @@ Semua bisa ditinjau ulang; ubah file ini bila keputusan berubah.
 | D2 | **Angular 21.2** (bukan 22) | Node lokal 22.14 di bawah minimum Angular 22 (22.22.3). Upgrade ke 22 cukup `ng update` setelah Node naik | Sementara |
 | D3 | Gestur mengikuti **tech spec + prototipe**: tap ayat = pilih, tap margin = kontrol, ketuk dua kali = zoom, tekan lama = menu | PRD mengusulkan ketuk dua kali = pilih ayat; tech spec dan prototipe konsisten satu sama lain | Uji pengguna |
 | D4 | Arah balik: geser kiri→kanan = halaman berikutnya; halaman ganjil di kanan dalam spread | Konvensi mushaf cetak RTL | Validasi pengguna nyata (tech spec §10) |
-| D5 | Default tema: kertas **Gading Hangat #F5F1E8** (tech spec), antarmuka **Segar** (prototipe revisi) | PRD mengusulkan #EEEDEB; permintaan pengerjaan berdasar tech spec | — |
+| D5 | Default tema: kertas **Krem Madinah #FFFDF6** (bingkai merah-emas), antarmuka **Segar** | Diminta pemilik proyek 20 Okt 2026 (sebelumnya Gading Hangat sesuai tech spec) | — |
 | D6 | Tema kertas = latar CSS saja | SVG sumber tidak punya rect latar (transparan); tinta tidak pernah diwarnai ulang | Terverifikasi pada sampel hal. 1, 3, 106 |
 | D7 | Bingkai biru halaman = lapisan UI (CSS) | Artwork sumber tidak memuat ornamen bingkai; tech spec: "gutters and frames belong to UI layer" | — |
 | D8 | Login: **Google OIDC** (authorization code + PKCE) di Worker, sesi cookie HttpOnly di D1; `dev-login` hanya bila `DEV_AUTH=1` | Penyedia terkelola tanpa menyimpan kata sandi; tanpa biaya tambahan; mudah ditambah penyedia lain | Perlu `GOOGLE_CLIENT_ID/SECRET` saat deploy |

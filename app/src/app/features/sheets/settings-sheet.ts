@@ -4,7 +4,7 @@ import { OfflineApi, SyncApi, UserDataApi } from '../../core/contracts';
 import { LayoutMode } from '../../core/models';
 import { ReaderUiService } from '../../core/reader-ui.service';
 import { PAPER_THEMES, UI_THEMES } from '../../core/theme.service';
-import { exportFilename, importSummary } from '../shell/format';
+import { exportFilename, formatMb, importSummary } from '../shell/format';
 import { SHEET_STYLES } from './sheet-styles';
 
 const LAYOUTS: { id: LayoutMode; label: string }[] = [
@@ -31,6 +31,28 @@ const SYNC_LABEL: Record<string, string> = {
   changeDetection: ChangeDetectionStrategy.OnPush,
   styles: SHEET_STYLES,
   template: `
+    @if (offlineCta(); as cta) {
+      <section class="offline-cta" aria-labelledby="st-offline-cta">
+        <h3 id="st-offline-cta">Baca tanpa internet</h3>
+        <p class="muted">
+          {{ cta.cached }} dari {{ cta.total }} halaman sudah tersimpan di perangkat ini.
+        </p>
+        <div
+          class="bar"
+          role="progressbar"
+          aria-label="Halaman tersimpan"
+          [attr.aria-valuenow]="cta.cached"
+          aria-valuemin="0"
+          [attr.aria-valuemax]="cta.total"
+        >
+          <span [style.width.%]="cta.percent"></span>
+        </div>
+        <button type="button" class="mf-btn mf-btn--primary" (click)="downloadAll()">
+          {{ cta.downloading ? 'Lihat progres unduhan' : cta.label }}
+        </button>
+      </section>
+    }
+
     <section aria-labelledby="st-paper">
       <h3 id="st-paper">Warna kertas</h3>
       <div class="grid3">
@@ -191,6 +213,33 @@ export class SettingsSheet {
       ? 'Lengkap'
       : `${s.cachedPages}/${s.totalPages} hal.`;
   });
+
+  /** Prominent prompt to make every page available offline, until the package is complete. */
+  protected readonly offlineCta = computed(() => {
+    const s = this.offline.status();
+    if (s.totalPages === 0 || s.cachedPages >= s.totalPages) return null;
+    const remaining = Math.max(0, s.totalBytes - s.cachedBytes);
+    return {
+      cached: s.cachedPages,
+      total: s.totalPages,
+      percent: Math.round((s.cachedPages / s.totalPages) * 100),
+      downloading: s.state === 'downloading',
+      label:
+        s.state === 'paused' || s.cachedPages > 0
+          ? `Unduh semua halaman (sisa ≈ ${formatMb(remaining)})`
+          : `Unduh semua halaman (≈ ${formatMb(s.totalBytes)})`,
+    };
+  });
+
+  /** Starts (or resumes) the full download and shows its progress. */
+  protected downloadAll(): void {
+    const s = this.offline.status();
+    if (s.state !== 'downloading') {
+      const run = s.state === 'paused' ? this.offline.resume() : this.offline.startFullDownload();
+      void run.catch(() => undefined);
+    }
+    this.ui.openSheet('offline');
+  }
 
   protected readonly accountSummary = computed(() => {
     if (!this.sync.account()) return 'Belum masuk';

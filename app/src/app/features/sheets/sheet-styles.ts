@@ -30,6 +30,8 @@ export const SHEET_STYLES = `
   .panel { display: flex; flex-direction: column; gap: 10px; padding: var(--mf-space-4); border-radius: var(--mf-radius-lg); border: 1px solid var(--ui-line); background: var(--ui-surface); }
   .panel.warn { border-color: var(--ui-accent); background: color-mix(in srgb, var(--ui-accent) 8%, var(--ui-surface)); }
   .panel strong { font-size: 15px; }
+  .offline-cta { padding: 14px; border-radius: var(--mf-radius-lg); background: color-mix(in srgb, var(--ui-primary) 7%, transparent); border: 1px solid color-mix(in srgb, var(--ui-primary) 25%, transparent); }
+  .offline-cta .mf-btn { width: 100%; }
   .bar { height: 8px; border-radius: 4px; background: var(--ui-hair); overflow: hidden; }
   .bar > span { display: block; height: 100%; background: var(--ui-primary); transition: width var(--mf-dur-base); }
   .status-dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; background: var(--ui-primary); flex: none; }
