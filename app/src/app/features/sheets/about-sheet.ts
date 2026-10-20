@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 import { SwUpdate } from '@angular/service-worker';
+import { UpdateService } from '../../core/update.service';
 import { withTimeout } from '../../core/async';
 import { AudioService } from '../../core/audio/audio.service';
 import { BUILD_INFO } from '../../core/build-info';
@@ -51,8 +52,15 @@ import { SHEET_STYLES } from './sheet-styles';
         [disabled]="checking()"
         (click)="checkForUpdate()"
       >
-        {{ checking() ? 'Memeriksa…' : 'Periksa pembaruan' }}
+        {{
+          checking()
+            ? 'Memeriksa…'
+            : updates.available()
+              ? 'Versi baru siap · Muat ulang'
+              : 'Periksa pembaruan'
+        }}
       </button>
+      <p class="muted">Aplikasi memeriksa pembaruan otomatis saat dibuka dan setiap 30 menit.</p>
       @if (updateNote(); as note) {
         <p class="muted" role="status">{{ note }}</p>
       }
@@ -144,6 +152,7 @@ export class AboutSheet {
   private readonly content = inject(ContentApi);
   protected readonly audio = inject(AudioService);
   private readonly sw = inject(SwUpdate);
+  protected readonly updates = inject(UpdateService);
   protected readonly ui = inject(ReaderUiService);
   protected readonly build = BUILD_INFO;
   protected readonly builtAt = BUILD_INFO.builtAt
@@ -177,7 +186,13 @@ export class AboutSheet {
     this.checking.set(true);
     this.updateNote.set(null);
     try {
-      const found = await withTimeout(this.sw.checkForUpdate(), 10_000);
+      // Already downloaded in the background: checkForUpdate() would say "none".
+      if (this.updates.available()) {
+        this.ui.showToast({ message: 'Memasang versi terbaru…', duration: 3000 });
+        await this.updates.reload();
+        return;
+      }
+      const found = await withTimeout(this.updates.check(true), 10_000);
       if (found) {
         this.ui.showToast({ message: 'Memasang versi terbaru…', duration: 3000 });
         await withTimeout(this.sw.activateUpdate(), 10_000);
