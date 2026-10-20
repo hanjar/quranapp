@@ -11,7 +11,11 @@ import {
   SyncStatus,
 } from '../../core/models';
 import { AudioService } from '../../core/audio/audio.service';
+import { AudioOfflineApi } from '../../core/audio/audio-offline.api';
 import { ReaderUiService } from '../../core/reader-ui.service';
+import { ReadingViewService } from '../../core/reading-view.service';
+import { TranslationService } from '../../core/content/translation.service';
+import { LatinService } from '../../core/content/latin.service';
 import { ReaderShell } from './reader-shell';
 
 function svgFor(page: number): SVGSVGElement {
@@ -177,9 +181,16 @@ describe('ReaderShell', () => {
         { provide: ContentApi, useValue: content },
         { provide: UserDataApi, useValue: userData },
         { provide: OfflineApi, useValue: new FakeOffline() },
+        { provide: AudioOfflineApi, useValue: { localUrl: async () => null } },
         { provide: SyncApi, useValue: new FakeSync() },
+        {
+          provide: TranslationService,
+          useValue: { source: signal(null), get: async (r: { surah: number; ayah: number }) => `Terjemah ${r.surah}:${r.ayah}` },
+        },
+        { provide: LatinService, useValue: { source: signal(null), get: async () => 'latin' } },
       ],
     });
+    localStorage.clear();
     ui = TestBed.inject(ReaderUiService);
     goTo = vi.fn();
     ui.goToPage = goTo as unknown as ReaderUiService['goToPage'];
@@ -280,5 +291,39 @@ describe('ReaderShell', () => {
     expect(el.querySelectorAll('.ayahPolygon.is-playing').length).toBe(1);
     audio.state.set('idle');
     audio.current.set(null);
+  });
+
+  describe('translation mode', () => {
+    it('renders the page ayahs as text, saves position, opens the verse sheet on keyboard pick', async () => {
+      TestBed.inject(ReadingViewService).setMode('translation');
+      const fixture = await mount('5');
+      const el = fixture.nativeElement as HTMLElement;
+      expect(el.querySelector('mf-page-view')).toBeNull();
+      expect(el.querySelectorAll('mf-translation-pane .ayah').length).toBe(2);
+      expect(el.textContent).toContain('Terjemah 1:1');
+      expect(userData.saved).toEqual([5]);
+      const pick = vi.spyOn(ui, 'selectVerse');
+      el.querySelector<HTMLElement>('.ayah')!.dispatchEvent(
+        new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }),
+      );
+      expect(pick).toHaveBeenCalledWith({ surah: 1, ayah: 1, page: 5 });
+    });
+
+    it('keeps page keyboard navigation and marks the playing ayah', async () => {
+      TestBed.inject(ReadingViewService).setMode('translation');
+      const fixture = await mount('10');
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft', bubbles: true }));
+      expect(goTo).toHaveBeenLastCalledWith(11);
+      const audio = TestBed.inject(AudioService);
+      audio.current.set({ surah: 1, ayah: 2 });
+      audio.state.set('playing');
+      fixture.detectChanges();
+      await fixture.whenStable();
+      expect(
+        (fixture.nativeElement as HTMLElement).querySelector('.ayah.is-playing')?.getAttribute('data-ayah'),
+      ).toBe('2');
+      audio.state.set('idle');
+      audio.current.set(null);
+    });
   });
 });

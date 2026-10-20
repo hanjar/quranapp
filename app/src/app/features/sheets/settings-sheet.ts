@@ -1,14 +1,21 @@
 import { buildLabel } from '../../core/build-info';
 import { AudioService } from '../../core/audio/audio.service';
+import { AudioOfflineApi } from '../../core/audio/audio-offline.api';
 import { AUDIO_MODES } from '../shell/audio-labels';
+import {
+  offlineAudioSummary,
+  surahsFullyStored,
+  totalStored,
+} from '../shell/audio-offline-helpers';
 import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
-import { OfflineApi, SyncApi, UserDataApi } from '../../core/contracts';
+import { ContentApi, OfflineApi, SyncApi, UserDataApi } from '../../core/contracts';
 import { LayoutMode } from '../../core/models';
 import { InstallService } from '../../core/install.service';
 import { ReaderUiService } from '../../core/reader-ui.service';
 import { PAPER_THEMES, UI_THEMES } from '../../core/theme.service';
 import { exportFilename, formatMb, importSummary } from '../shell/format';
 import { SHEET_STYLES } from './sheet-styles';
+import { WAKE_OPTIONS, WakeLockService } from '../../core/wake-lock.service';
 
 const LAYOUTS: { id: LayoutMode; label: string }[] = [
   { id: 'auto', label: 'Otomatis' },
@@ -144,7 +151,18 @@ const SYNC_LABEL: Record<string, string> = {
           ></button
         ></span>
       </div>
-      <p class="muted">Audio diputar online dan butuh koneksi internet.</p>
+      @if (audioOffline.supported().length > 0 && audioOffline.manifest()) {
+        <button type="button" class="row" (click)="ui.openSheet('offline')">
+          <span>Audio offline</span
+          ><span class="end"
+            >{{ audioOfflineSummary() }} <span class="chev" aria-hidden="true">›</span></span
+          >
+        </button>
+      }
+      <p class="muted">
+        Audio diputar online dan butuh koneksi internet, kecuali surah yang sudah disimpan untuk
+        offline.
+      </p>
     </section>
 
     <section aria-label="Tampilan">
@@ -187,6 +205,29 @@ const SYNC_LABEL: Record<string, string> = {
           ></button
         ></span>
       </div>
+      <div class="row" style="cursor: default">
+        <span id="wake-label">Layar tetap menyala</span>
+      </div>
+      <div class="mf-segmented" role="group" aria-labelledby="wake-label">
+        @for (w of wakeOptions; track w.id) {
+          <button
+            type="button"
+            [attr.aria-pressed]="wake.mode() === w.id"
+            [disabled]="!wake.supported"
+            (click)="wake.setMode(w.id)"
+          >
+            {{ w.label }}
+          </button>
+        }
+      </div>
+      <p class="muted">
+        @if (wake.supported) {
+          Layar tidak padam selama membaca, sampai tidak ada interaksi sesuai waktu yang dipilih.
+          Selama audio diputar layar tetap menyala.
+        } @else {
+          Browser ini belum mendukung; atur waktu layar mati di pengaturan perangkat.
+        }
+      </p>
     </section>
 
     <section aria-label="Lainnya">
@@ -241,11 +282,24 @@ export class SettingsSheet {
   protected readonly buildLabel = buildLabel();
   protected readonly audio = inject(AudioService);
   protected readonly audioModes = AUDIO_MODES;
+  protected readonly audioOffline = inject(AudioOfflineApi);
+  private readonly content = inject(ContentApi);
+  protected readonly audioOfflineSummary = computed(() => {
+    const per = this.audioOffline.perSurah();
+    const counts = this.content.index()?.surahs.map((s) => s.ayahCount) ?? [];
+    return offlineAudioSummary(
+      this.audioOffline.variant(),
+      surahsFullyStored(per, counts),
+      totalStored(per),
+    );
+  });
   protected readonly data = inject(UserDataApi);
   protected readonly ui = inject(ReaderUiService);
   protected readonly sync = inject(SyncApi);
   private readonly offline = inject(OfflineApi);
   protected readonly install = inject(InstallService);
+  protected readonly wake = inject(WakeLockService);
+  protected readonly wakeOptions = WAKE_OPTIONS;
 
   protected readonly paperThemes = PAPER_THEMES;
   protected readonly uiThemes = UI_THEMES;

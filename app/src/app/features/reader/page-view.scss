@@ -60,6 +60,12 @@
   height: 100%;
 }
 
+/* Ornament ring around each ayah number, coloured per paper theme. */
+.art ::ng-deep .ayah-mark-ornament,
+.art ::ng-deep .ayah-mark-ornament * {
+  fill: var(--mf-ayah-ornament);
+}
+
 /* Verse polygons live inside the dynamically inserted svg. */
 .art ::ng-deep .ayahPolygon {
   pointer-events: all;

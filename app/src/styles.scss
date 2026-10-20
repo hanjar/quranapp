@@ -13,6 +13,8 @@
 
   /* mushaf frame ornament (UI layer only, never Quran glyphs) */
   --mf-frame-ink: #3e6e99;
+  /* ring around the ayah number (the number itself keeps the text ink) */
+  --mf-ayah-ornament: var(--mf-frame-ink);
 
   /* UI theme (default: segar) */
   --ui-primary: #0a7a5c;
@@ -103,6 +105,7 @@ html[data-paper='cream'] {
   --mf-frame-ink-inner: #d7c388;
   --mf-frame-outer-w: 2px;
   --mf-frame-inner-w: 1.5px;
+  --mf-ayah-ornament: #a07a2c; /* deeper than the inner frame gold, ≥3:1 on the paper */
 }
 
 /* ---- UI themes ---- */
@@ -170,6 +173,7 @@ html[data-contrast='high'] {
   --ui-line: #9a9284;
   --ui-muted: var(--ui-ink2);
   --mf-frame-ink: #24507a;
+  --mf-ayah-ornament: #231f20; /* same ink as the text */
 }
 
 html[data-motion='reduce'] {

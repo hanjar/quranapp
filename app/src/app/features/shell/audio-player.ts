@@ -11,7 +11,9 @@ import {
 import { AudioService } from '../../core/audio/audio.service';
 import { ContentApi } from '../../core/contracts';
 import { ReaderUiService } from '../../core/reader-ui.service';
+import { AudioOfflineApi, AudioScope } from '../../core/audio/audio-offline.api';
 import { modeLabel, modeShortLabel, nextMode, nowPlayingTitle } from './audio-labels';
+import { downloadButtonState } from './audio-offline-helpers';
 
 const VAR = '--mf-player-h';
 
@@ -105,6 +107,13 @@ function setPlayerHeight(px: number): void {
       width: 44px;
       background: var(--ui-primary);
       color: var(--ui-on);
+    }
+    .btn svg.ring circle {
+      fill: none;
+    }
+    .btn:disabled {
+      opacity: 1;
+      cursor: default;
     }
     .btn svg {
       width: 20px;
@@ -256,6 +265,48 @@ function setPlayerHeight(px: number): void {
               <path d="M21 13v2a3 3 0 01-3 3H3" /></svg
             >{{ modeShort() }}
           </button>
+          @if (dl(); as d) {
+            <button
+              type="button"
+              class="btn"
+              [attr.aria-label]="d.label"
+              [disabled]="d.kind === 'busy'"
+              (click)="saveSurah()"
+            >
+              @if (d.kind === 'done') {
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M9 16.2 4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4z" />
+                </svg>
+              } @else if (d.kind === 'busy') {
+                <svg viewBox="0 0 24 24" aria-hidden="true" class="ring">
+                  <circle
+                    cx="12"
+                    cy="12"
+                    r="9"
+                    fill="none"
+                    stroke-opacity="0.25"
+                    stroke="currentColor"
+                    stroke-width="3"
+                  />
+                  <circle
+                    cx="12"
+                    cy="12"
+                    r="9"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="3"
+                    stroke-dasharray="56.5"
+                    [attr.stroke-dashoffset]="56.5 * (1 - d.fraction)"
+                    transform="rotate(-90 12 12)"
+                  />
+                </svg>
+              } @else {
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M5 20h14v-2H5zM19 9h-4V3H9v6H5l7 7z" />
+                </svg>
+              }
+            </button>
+          }
         }
         <button type="button" class="btn" aria-label="Hentikan audio" (click)="audio.stop()">
           <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -272,6 +323,7 @@ export class AudioPlayer {
   protected readonly audio = inject(AudioService);
   protected readonly ui = inject(ReaderUiService);
   private readonly content = inject(ContentApi);
+  private readonly offlineAudio = inject(AudioOfflineApi);
   private readonly pill = viewChild<ElementRef<HTMLElement>>('pill');
 
   protected readonly mode = computed(() => modeLabel(this.audio.mode()));
@@ -285,6 +337,26 @@ export class AudioPlayer {
     const name = idx ? this.content.surah(cur.surah).nameLatin : `Surah ${cur.surah}`;
     return nowPlayingTitle(name, cur.ayah, this.audio.basmalah());
   });
+
+  /** Offline-save control state for the current surah (null when unsupported). */
+  protected readonly dl = computed(() => {
+    const cur = this.audio.current();
+    if (!cur || this.offlineAudio.supported().length === 0 || !this.offlineAudio.manifest()) return null;
+    const scope: AudioScope = { kind: 'surah', id: cur.surah };
+    this.offlineAudio.perSurah();
+    const p = this.offlineAudio.progressOf(scope);
+    const st = this.offlineAudio.status();
+    const active =
+      st.state === 'downloading' && st.scope?.kind === 'surah' && st.scope.id === cur.surah;
+    const info = downloadButtonState(p.done, p.total, active);
+    return { ...info, label: info.label };
+  });
+
+  protected saveSurah(): void {
+    const cur = this.audio.current();
+    if (!cur) return;
+    void this.offlineAudio.download({ kind: 'surah', id: cur.surah });
+  }
 
   protected readonly announce = computed(() =>
     this.audio.state() === 'playing' ? this.title() : '',

@@ -201,3 +201,32 @@
     animation: none;
   }
 }
+
+/* Translation mode: one scroll container per pane; swipes still reach the gesture controller. */
+.stage.is-text {
+  touch-action: pan-y;
+  user-select: text;
+  -webkit-user-select: text;
+}
+.textmode {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: row-reverse; /* mushaf on the right (RTL book), translation on the left */
+}
+.textmode__text {
+  flex: 1 1 0;
+  min-width: 0;
+  height: 100%;
+}
+.textmode__mushaf {
+  flex: 0 0 min(50%, calc(100vh * 0.575 + 48px));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  box-sizing: border-box;
+  container-type: size;
+  padding: calc(var(--mf-safe-top) + 64px) 8px calc(var(--mf-safe-bottom) + 70px + var(--mf-player-h, 0px));
+  border-inline-start: 1px solid var(--ui-hair);
+}

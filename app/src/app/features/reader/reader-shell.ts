@@ -16,10 +16,12 @@ import { APP_CONFIG } from '../../core/config';
 import { ContentApi, UserDataApi } from '../../core/contracts';
 import { AyahRef } from '../../core/models';
 import { ReaderUiService } from '../../core/reader-ui.service';
+import { ReadingViewService } from '../../core/reading-view.service';
 import { ChromeBottom } from './chrome-bottom';
 import { ChromeTop } from './chrome-top';
 import { GestureController, GestureIntent, VerseHit } from './gesture-controller';
 import { PageLoadResult, PageView } from './page-view';
+import { TranslationPane } from './translation-pane';
 import {
   DOUBLE_TAP_ZOOM,
   MAX_ZOOM,
@@ -47,7 +49,7 @@ const CHROME_IDLE_MS = 4500;
  */
 @Component({
   selector: 'mf-reader-shell',
-  imports: [PageView, ChromeTop, ChromeBottom],
+  imports: [PageView, TranslationPane, ChromeTop, ChromeBottom],
   templateUrl: './reader-shell.html',
   styleUrl: './reader-shell.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -59,6 +61,7 @@ const CHROME_IDLE_MS = 4500;
 export class ReaderShell {
   protected readonly content = inject(ContentApi);
   protected readonly ui = inject(ReaderUiService);
+  protected readonly rv = inject(ReadingViewService);
   private readonly userData = inject(UserDataApi);
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
   private readonly destroyRef = inject(DestroyRef);
@@ -74,14 +77,26 @@ export class ReaderShell {
   private readonly measured = signal(false);
 
   protected readonly pageNum = computed(() => parsePageParam(this.page()));
+  /** Translation reading mode (text) instead of the mushaf image. */
+  protected readonly textMode = computed(() => this.rv.mode() === 'translation');
+  /** Wide screens in translation mode: mushaf page on one side, its translation on the other. */
+  protected readonly textWide = computed(() => {
+    const v = this.viewport();
+    return (
+      this.textMode() && decideSpread(this.userData.prefs().layoutMode, v.width, v.height)
+    );
+  });
+  /** Two mushaf pages side by side (never in translation mode: that is one page + its text). */
   protected readonly spread = computed(() => {
     const v = this.viewport();
-    return decideSpread(this.userData.prefs().layoutMode, v.width, v.height);
+    return (
+      !this.textMode() && decideSpread(this.userData.prefs().layoutMode, v.width, v.height)
+    );
   });
   /** Phone landscape: page fills the width and scrolls vertically; zoom is off. */
   protected readonly fitWidth = computed(() => {
     const v = this.viewport();
-    return decideFitWidth(this.spread(), v.width, v.height);
+    return !this.textMode() && decideFitWidth(this.spread(), v.width, v.height);
   });
   private readonly stageEl = viewChild<ElementRef<HTMLElement>>('stage');
   protected readonly visible = computed(() => visiblePagesFor(this.pageNum() ?? 1, this.spread()), {
@@ -127,8 +142,8 @@ export class ReaderShell {
     const p = this.pan();
     return `translate(${p.x}px, ${p.y}px) scale(${z})`;
   });
-  protected readonly canZoomIn = computed(() => !this.fitWidth() && this.ui.zoom() < MAX_ZOOM);
-  protected readonly canZoomOut = computed(() => this.ui.zoom() > MIN_ZOOM);
+  protected readonly canZoomIn = computed(() => !this.fitWidth() && !this.textMode() && this.ui.zoom() < MAX_ZOOM);
+  protected readonly canZoomOut = computed(() => !this.textMode() && this.ui.zoom() > MIN_ZOOM);
 
   private pinchBase: { zoom: number; pan: Pan } | null = null;
 
@@ -164,6 +179,7 @@ export class ReaderShell {
       this.visible();
       this.spread();
       this.fitWidth();
+      this.textMode();
       const stage = this.stageEl()?.nativeElement;
       untracked(() => {
         if (stage) stage.scrollTop = 0;
@@ -174,6 +190,13 @@ export class ReaderShell {
     });
     effect(() => {
       if (this.ui.zoom() <= 1) untracked(() => this.pan.set({ x: 0, y: 0 }));
+    });
+
+    // Phone translation mode has no PageView to report a rendered page: save the position here.
+    effect(() => {
+      const num = this.pageNum();
+      if (num === null || !this.textMode() || this.textWide() || !this.content.index()) return;
+      untracked(() => this.userData.savePosition(num));
     });
 
     // Prefetch neighbours once metadata is available.
@@ -294,7 +317,7 @@ export class ReaderShell {
   }
 
   protected zoomBy(delta: number): void {
-    if (this.fitWidth()) return;
+    if (this.fitWidth() || this.textMode()) return;
     this.animated.set(true);
     const size = this.stageSize();
     const r = zoomAt(
@@ -351,6 +374,14 @@ export class ReaderShell {
   }
 
   private verseAt(target: Element | null): VerseHit | null {
+    const textAyah = target?.closest?.('.ayah[data-surah]');
+    if (textAyah) {
+      const surah = Number(textAyah.getAttribute('data-surah'));
+      const ayah = Number(textAyah.getAttribute('data-ayah'));
+      const page = Number(textAyah.closest('mf-translation-pane')?.getAttribute('data-page'));
+      if (!Number.isInteger(surah) || !Number.isInteger(ayah) || !Number.isInteger(page)) return null;
+      return { ref: { surah, ayah }, page };
+    }
     const poly = target?.closest?.('.ayahPolygon');
     if (!poly) return null;
     const surah = Number(poly.getAttribute('surah'));
@@ -377,7 +408,7 @@ export class ReaderShell {
         else this.toggleChrome();
         break;
       case 'double-tap': {
-        if (this.fitWidth()) break; // already enlarged; zoom would fight the scroll
+        if (this.fitWidth() || this.textMode()) break; // already enlarged / text view; zoom would fight the scroll
         this.animated.set(true);
         if (this.ui.zoom() > 1) {
           this.resetZoom();
@@ -405,7 +436,7 @@ export class ReaderShell {
         );
         break;
       case 'pinch': {
-        if (this.fitWidth()) break;
+        if (this.fitWidth() || this.textMode()) break;
         this.animated.set(false);
         if (i.start || !this.pinchBase) {
           this.pinchBase = { zoom: this.ui.zoom(), pan: this.pan() };

@@ -56,6 +56,7 @@ import { ReaderUiService } from '../../core/reader-ui.service';
     </button>
 
     <!-- Touch screens: zoom lives here (no free margin for floating +/-); mouse users get +/- at the edge. -->
+    @if (!textMode()) {
     <button
       type="button"
       class="mf-icon-btn zoom-toggle"
@@ -82,6 +83,7 @@ import { ReaderUiService } from '../../core/reader-ui.service';
         }
       </svg>
     </button>
+    }
 
     <button
       type="button"
@@ -110,6 +112,36 @@ import { ReaderUiService } from '../../core/reader-ui.service';
       >
         <path d="M5 7h14M5 12h14M5 17h9" />
       </svg>
+    </button>
+
+    <button
+      type="button"
+      class="mode-btn"
+      [class.is-on]="textMode()"
+      [attr.aria-pressed]="textMode()"
+      aria-label="Mode terjemahan"
+      (click)="toggleMode.emit()"
+    >
+      <svg
+        width="20"
+        height="20"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="1.6"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        aria-hidden="true"
+      >
+        @if (textMode()) {
+          <path d="M4 5h16v14H4z" />
+          <path d="M7 9h10M7 12.5h10M7 16h6" />
+        } @else {
+          <path d="M12 6c-2-1.4-4.5-2-8-2v14c3.5 0 6 .6 8 2 2-1.4 4.5-2 8-2V4c-3.5 0-6 .6-8 2z" />
+          <path d="M12 6v14" />
+        }
+      </svg>
+      <span class="mode-btn__label" aria-hidden="true">{{ textMode() ? 'Mushaf' : 'Terjemahan' }}</span>
     </button>
 
     <button
@@ -145,8 +177,8 @@ import { ReaderUiService } from '../../core/reader-ui.service';
       align-items: center;
       justify-content: space-between;
       gap: 2px;
-      padding: 8px calc(var(--mf-safe-right) + 8px) calc(var(--mf-safe-bottom) + 8px)
-        calc(var(--mf-safe-left) + 8px);
+      padding: 8px calc(var(--mf-safe-right) + 4px) calc(var(--mf-safe-bottom) + 8px)
+        calc(var(--mf-safe-left) + 4px);
       background: color-mix(in srgb, var(--ui-surface) 94%, transparent);
       backdrop-filter: blur(8px);
       border-top: 1px solid var(--ui-hair);
@@ -173,8 +205,35 @@ import { ReaderUiService } from '../../core/reader-ui.service';
     .mf-icon-btn.is-on {
       color: var(--ui-accent-icon);
     }
+    .mode-btn {
+      display: inline-flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 1px;
+      min-width: var(--mf-tap);
+      min-height: var(--mf-tap);
+      padding: 2px 4px;
+      border: 0;
+      border-radius: var(--mf-radius-pill);
+      background: transparent;
+      color: var(--ui-ink);
+    }
+    .mode-btn.is-on {
+      color: var(--ui-accent-icon);
+    }
+    .mode-btn__label {
+      font-size: 10px;
+      line-height: 1.1;
+      white-space: nowrap;
+    }
+    @media (max-width: 359px) {
+      .mode-btn__label {
+        display: none;
+      }
+    }
     .pill {
-      min-width: 84px;
+      min-width: 64px;
       min-height: var(--mf-tap);
       padding: 0 12px;
       border-radius: var(--mf-radius-pill);
@@ -197,6 +256,9 @@ export class ChromeBottom {
   readonly zoomed = input(false);
   /** False in phone-landscape fit-width mode, where the page is already enlarged. */
   readonly zoomAvailable = input(true);
+  /** Translation reading mode is active. */
+  readonly textMode = input(false);
+  readonly toggleMode = output<void>();
   readonly toggleZoom = output<void>();
   readonly next = output<void>();
   readonly prev = output<void>();

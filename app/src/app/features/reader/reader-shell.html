@@ -12,12 +12,34 @@
     #stage
     class="stage"
     [class.is-fit]="fitWidth()"
-    aria-label="Pembaca mushaf"
+    [class.is-text]="textMode()"
+    [attr.aria-label]="textMode() ? 'Pembaca terjemahan' : 'Pembaca mushaf'"
     (pointerdown)="onPointerDown($event)"
     (pointermove)="onPointerMove($event)"
     (pointerup)="onPointerUp($event)"
     (pointercancel)="onPointerCancel($event)"
   >
+    @if (textMode()) {
+      <div class="textmode" [class.is-wide]="textWide()">
+        @if (textWide()) {
+          <div class="textmode__mushaf">
+            <mf-page-view
+              [page]="pageNum() ?? 1"
+              [selected]="selected()"
+              [bookmarked]="bookmarkedVerses()"
+              (loadResult)="onPageResult($event)"
+            />
+          </div>
+        }
+        <div class="textmode__text">
+          <mf-translation-pane
+            [page]="pageNum() ?? 1"
+            [selected]="selected()"
+            [bookmarked]="bookmarkedVerses()"
+          />
+        </div>
+      </div>
+    } @else {
     <div
       class="zoomer"
       [class.is-fit]="fitWidth()"
@@ -36,6 +58,7 @@
         />
       }
     </div>
+    }
   </section>
 
   <div class="edge edge--left" [class.is-visible]="!chromeShown() && !ui.sheetOpen()" aria-hidden="true"></div>
@@ -68,6 +91,8 @@
     [canPrev]="canPrev()"
     [zoomed]="zoomed()"
     [zoomAvailable]="!fitWidth()"
+    [textMode]="textMode()"
+    (toggleMode)="rv.toggleMode()"
     (toggleZoom)="toggleZoom()"
     (next)="goNext()"
     (prev)="goPrev()"

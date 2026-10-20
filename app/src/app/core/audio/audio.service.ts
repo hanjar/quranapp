@@ -3,6 +3,7 @@ import { Router } from '@angular/router';
 import { ContentApi } from '../contracts';
 import { AyahRef } from '../models';
 import { ReaderUiService } from '../reader-ui.service';
+import { AudioOfflineApi } from './audio-offline.api';
 import {
   AudioMode,
   QARI,
@@ -28,6 +29,7 @@ export class AudioService {
   private readonly content = inject(ContentApi);
   private readonly ui = inject(ReaderUiService);
   private readonly router = inject(Router);
+  private readonly offline = inject(AudioOfflineApi);
 
   readonly qari = QARI;
   readonly state = signal<AudioState>('idle');
@@ -128,11 +130,6 @@ export class AudioService {
   }
 
   private begin(ref: AyahRef): void {
-    if (typeof navigator !== 'undefined' && navigator.onLine === false) {
-      this.current.set(ref);
-      this.fail('Audio butuh koneksi internet.');
-      return;
-    }
     if (needsBasmalah(ref)) this.playFile(ref, true);
     else this.playFile(ref, false);
   }
@@ -146,8 +143,34 @@ export class AudioService {
     this.triedFallback = false;
     this.state.set('loading');
     this.followPage(ref);
-    a.src = QARI.primary(globalAyahNumber(target, this.counts()));
-    a.dataset['fallback'] = QARI.fallback(target);
+    this.setMediaSession(ref);
+    // Stored recitation first (offline packages), otherwise stream.
+    void this.offline
+      .localUrl(target)
+      .catch(() => null)
+      .then((local) => {
+        if (token !== this.token) return;
+        const stream = QARI.primary(globalAyahNumber(target, this.counts()));
+        if (!local && isOffline()) {
+          // Surah packages don't carry the Al-Fatihah file used for the basmalah.
+          if (basmalah) this.playFile(ref, false);
+          else this.fail('Ayat ini belum disimpan untuk offline. Sambungkan internet atau simpan surahnya.');
+          return;
+        }
+        this.startFile(a, token, ref, basmalah, local ?? stream, local ? stream : QARI.fallback(target));
+      });
+  }
+
+  private startFile(
+    a: HTMLAudioElement,
+    token: number,
+    ref: AyahRef,
+    basmalah: boolean,
+    src: string,
+    fallback: string,
+  ): void {
+    a.src = src;
+    a.dataset['fallback'] = fallback;
     a.onended = () => {
       if (token !== this.token) return;
       if (basmalah) this.playFile(ref, false);
@@ -173,7 +196,6 @@ export class AudioService {
         if (token !== this.token) return;
         if ((e as { name?: string })?.name === 'NotAllowedError') this.state.set('paused');
       });
-    this.setMediaSession(ref);
     this.preloadAfter(ref);
   }
 
@@ -194,9 +216,15 @@ export class AudioService {
       !shouldContinue(this.mode(), this.start, n, (r) => this.content.pageOf(r))
     )
       return;
-    const pre = (this.preloader ??= this.createAudio());
-    pre.preload = 'auto';
-    pre.src = QARI.primary(globalAyahNumber(n, this.counts()));
+    void this.offline
+      .localUrl(n)
+      .catch(() => null)
+      .then((local) => {
+        if (local || isOffline()) return; // stored files need no warm-up
+        const pre = (this.preloader ??= this.createAudio());
+        pre.preload = 'auto';
+        pre.src = QARI.primary(globalAyahNumber(n, this.counts()));
+      });
   }
 
   /** Keep the recited ayah on screen — only while the user is in the reader. */
@@ -242,6 +270,10 @@ export class AudioService {
     ms.setActionHandler('nexttrack', () => this.next());
     ms.setActionHandler('previoustrack', () => this.prev());
   }
+}
+
+function isOffline(): boolean {
+  return typeof navigator !== 'undefined' && navigator.onLine === false;
 }
 
 function readMode(): AudioMode {

@@ -1,0 +1,118 @@
+<div class="pane" [style.--tr-scale]="view.fontScale()">
+  @if (head(); as h) {
+    <div class="head" aria-hidden="true">
+      <span class="head__surah">{{ h.surahs }}</span>
+      <span class="head__juz">{{ h.juz }}</span>
+    </div>
+  }
+
+  <div class="toolbar" role="toolbar" aria-label="Pengaturan teks terjemahan">
+    <button
+      type="button"
+      class="tb-btn tb-btn--latin"
+      [class.is-on]="view.showLatin()"
+      [attr.aria-pressed]="view.showLatin()"
+      (click)="view.setShowLatin(!view.showLatin())"
+    >
+      Latin
+    </button>
+    <span class="tb-gap"></span>
+    <button
+      type="button"
+      class="tb-btn"
+      aria-label="Perkecil teks"
+      [disabled]="!view.canSmaller()"
+      (click)="view.smaller()"
+    >
+      A<span aria-hidden="true">&minus;</span>
+    </button>
+    <button
+      type="button"
+      class="tb-btn"
+      aria-label="Perbesar teks"
+      [disabled]="!view.canLarger()"
+      (click)="view.larger()"
+    >
+      A+
+    </button>
+  </div>
+
+  @if (status() === 'unavailable') {
+    <div class="state" role="alert">
+      <h2 class="state__title mf-display">Terjemahan belum dapat dimuat</h2>
+      <p class="state__body">
+        Berkas terjemahan belum tersimpan di perangkat ini. Sambungkan ke internet, lalu coba lagi.
+      </p>
+      <button type="button" class="mf-btn mf-btn--primary" (click)="retry()">Coba lagi</button>
+    </div>
+  } @else if (status() === 'loading') {
+    <p class="loading" role="status">Memuat terjemahan…</p>
+  }
+
+  @if (view.showLatin() && status() === 'ready' && latinMissing()) {
+    <p class="note" role="status">
+      Teks Latin belum tersedia.
+      <button type="button" class="link" (click)="retry()">Coba lagi</button>
+    </p>
+  }
+
+  <ol class="ayahs" [attr.aria-label]="'Terjemahan halaman ' + page()">
+    @for (a of ayahs(); track a.surah + ':' + a.ayah) {
+      <li class="item">
+        @if (a.startsSurah) {
+          <div class="surah-head">
+            <h2 class="surah-head__name mf-display">
+              <span class="surah-head__ar" lang="ar" dir="rtl">{{ surahName(a.surah).ar }}</span>
+              <span>{{ a.surah }} · {{ surahName(a.surah).latin }}</span>
+            </h2>
+            @if (a.bismillah) {
+              @if (bismillah(); as b) {
+                <p class="bismillah">
+                  @if (view.showLatin() && b.latin) {
+                    <span class="bismillah__latin">{{ b.latin }}</span>
+                  }
+                  <span>{{ b.id }}</span>
+                </p>
+              }
+            }
+          </div>
+        }
+        <div
+          class="ayah"
+          role="button"
+          tabindex="0"
+          [attr.data-surah]="a.surah"
+          [attr.data-ayah]="a.ayah"
+          [attr.data-key]="key(a)"
+          [class.is-selected]="isSelected(a)"
+          [class.is-playing]="isPlaying(a)"
+          [class.is-bookmarked]="bookmarked().has(key(a))"
+          [attr.aria-label]="ariaFor(a)"
+          (click)="onClick($event, a)"
+          (keydown.enter)="pick(a, $event)"
+          (keydown.space)="pick(a, $event)"
+        >
+          <span class="badge" aria-hidden="true">
+            {{ a.ayah }}
+            @if (bookmarked().has(key(a))) {
+              <svg class="badge__mark" width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M6.5 4h11v16l-5.5-4-5.5 4z" />
+              </svg>
+            }
+          </span>
+          <span class="texts">
+            @if (view.showLatin() && textOf(a).latin; as l) {
+              <span class="latin">{{ l }}</span>
+            }
+            <span class="tr">{{ textOf(a).tr ?? (status() === 'ready' ? '—' : '') }}</span>
+          </span>
+        </div>
+      </li>
+    }
+  </ol>
+
+  @if (source(); as src) {
+    <p class="credit">Terjemahan: {{ src.name }}</p>
+  }
+  <span class="num" aria-hidden="true">{{ page() }}</span>
+</div>
