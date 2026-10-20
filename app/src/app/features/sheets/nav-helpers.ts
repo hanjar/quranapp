@@ -50,3 +50,26 @@ export function latinCopyText(
 ): string {
   return `QS. ${surah.nameLatin} ${surah.number}:${ayah} — ${latin.trim()}`;
 }
+
+/** Text for "Salin terjemahan". */
+export function translationCopyText(
+  surah: Pick<SurahMeta, 'nameLatin' | 'number'>,
+  ayah: number,
+  translation: string,
+): string {
+  return `QS. ${surah.nameLatin} ${surah.number}:${ayah} — ${translation.trim()} (Terjemahan Kemenag RI)`;
+}
+
+/** Share text: reference, then Latin and translation when available. */
+export function shareText(parts: {
+  reference: string;
+  latin?: string | null;
+  translation?: string | null;
+}): string {
+  const out = [parts.reference];
+  const latin = parts.latin?.trim();
+  const tr = parts.translation?.trim();
+  if (latin) out.push(latin);
+  if (tr) out.push(`${latin ? '\n' : ''}"${tr}" (Terjemahan Kemenag RI)`);
+  return out.join('\n');
+}

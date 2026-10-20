@@ -7,6 +7,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { JUZ_STARTS, deriveJuz, derivePages, deriveSurahs, pageAyahs, checkIntegrity } from './lib/derive.mjs';
 import { LATIN_SOURCE, buildLatinMap } from './lib/latin.mjs';
+import { TRANSLATION_SOURCE, buildTranslationMap, findFootnoteMarkers } from './lib/translation.mjs';
 import { validateSvg } from './lib/svg-validate.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -17,7 +18,7 @@ const pad = (n) => String(n).padStart(3, '0');
 const sha256 = (buf) => createHash('sha256').update(buf).digest('hex');
 
 function parseArgs(argv) {
-  const o = { commit: null, pages: [1, 604], concurrency: 8, skipLatin: false, latinRefresh: false };
+  const o = { commit: null, pages: [1, 604], concurrency: 8, skipLatin: false, skipTranslation: false, latinRefresh: false };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (a === '--commit') o.commit = argv[++i];
@@ -25,7 +26,10 @@ function parseArgs(argv) {
       const m = /^(\d+)(?:-(\d+))?$/.exec(argv[++i] ?? '');
       if (!m) throw new Error('--pages expects N or N-M');
       o.pages = [Number(m[1]), Number(m[2] ?? m[1])];
-    } else if (a === '--concurrency') o.concurrency = Number(argv[++i]);
+    } else if (a === '--skip-latin') o.skipLatin = true;
+    else if (a === '--skip-translation') o.skipTranslation = true;
+    else if (a === '--latin-refresh') o.latinRefresh = true;
+    else if (a === '--concurrency') o.concurrency = Number(argv[++i]);
     else throw new Error(`unknown argument: ${a}`);
   }
   const [a, b] = o.pages;
@@ -97,8 +101,8 @@ async function pool(items, n, fn) {
   return results;
 }
 
-/** Fetch per-surah transliteration from EQuran.id; cached in .content-cache/latin/<date>/. */
-async function fetchLatin(surahs, refresh) {
+/** Fetch per-surah EQuran.id payloads (latin + translation share them); cached in .content-cache/latin/<date>/. */
+async function fetchEquran(refresh) {
   const dir = path.join(ROOT, '.content-cache', 'latin', new Date().toISOString().slice(0, 10));
   const nums = Array.from({ length: 114 }, (_, i) => i + 1);
   const payloads = await pool(nums, 4, async (n) => {
@@ -121,7 +125,7 @@ async function fetchLatin(surahs, refresh) {
     await writeFile(file, text);
     return json;
   });
-  return buildLatinMap(payloads, surahs);
+  return payloads;
 }
 
 async function main() {
@@ -183,10 +187,18 @@ async function main() {
   };
 
   let latin = null;
-  if (!opts.skipLatin) {
-    console.log('Fetching Latin transliteration (EQuran.id) ...');
-    if (partial) console.log('  (partial build: latin still covers all 114 surahs)');
-    latin = await fetchLatin(surahs, opts.latinRefresh);
+  let translation = null;
+  let footnotes = [];
+  if (!opts.skipLatin || !opts.skipTranslation) {
+    console.log('Fetching EQuran.id (latin + translation) ...');
+    if (partial) console.log('  (partial build: still covers all 114 surahs)');
+    const payloads = await fetchEquran(opts.latinRefresh);
+    if (!opts.skipLatin) latin = buildLatinMap(payloads, surahs);
+    if (!opts.skipTranslation) {
+      translation = buildTranslationMap(payloads, surahs);
+      footnotes = findFootnoteMarkers(translation);
+      if (footnotes.length) console.warn(`WARNING: ${footnotes.length} translation entries with probable footnote markers (left unaltered)`);
+    }
   }
 
   // Write to a fresh temp dir then swap in, so a failed build never leaves a mixed folder.
@@ -217,6 +229,10 @@ async function main() {
       ),
     );
   }
+  if (translation) {
+    const t = { format: 'mushaf-translation', version: 1, lang: 'id', source: { ...TRANSLATION_SOURCE, fetchedAt: new Date().toISOString() }, ayahs: translation };
+    await emit('translation-id.json', Buffer.from(JSON.stringify(t) + '\n', 'utf8'));
+  }
   const totalBytes = Object.values(files).reduce((n, f) => n + f.bytes, 0);
   const manifest = { editionId: 'hafs-kfqc', contentVersion, files, totalBytes, ...(partial ? { partial: true, pages: [from, to] } : {}) };
   await writeFile(path.join(tmpOut, 'manifest.json'), json(manifest));
@@ -229,6 +245,7 @@ async function main() {
   console.log(`  pages        ${pages.length}${partial ? ' (partial)' : ''}`);
   console.log(`  surahs       ${surahs.length}   juz ${juz.length}`);
   console.log(`  latin        ${latin ? Object.keys(latin).length + ' ayahs' : 'skipped'}`);
+  console.log(`  translation  ${translation ? Object.keys(translation).length + ' ayahs, footnote-marker entries: ' + footnotes.length : 'skipped'}`);
   console.log(`  files        ${Object.keys(files).length}`);
   console.log(`  total bytes  ${totalBytes} (${mb(totalBytes)} MB)`);
   console.log(`  largest page ${pad(largest.page)} = ${largest.bytes} bytes (${(largest.bytes / 1024).toFixed(0)} KB)`);

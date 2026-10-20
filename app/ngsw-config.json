@@ -29,17 +29,19 @@
       "resources": {
         "files": [
           "/content/*/*.json",
-          "!/content/*/latin.json"
+          "!/content/*/latin.json",
+          "!/content/*/translation-id.json"
         ]
       }
     },
     {
-      "name": "content-latin",
+      "name": "content-ayah-texts",
       "installMode": "lazy",
       "updateMode": "lazy",
       "resources": {
         "files": [
-          "/content/*/latin.json"
+          "/content/*/latin.json",
+          "/content/*/translation-id.json"
         ]
       }
     },

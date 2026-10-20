@@ -21,3 +21,4 @@ remains under its original terms:
    against the upstream page data at build time.
 5. **Arabic UI font** - Amiri (SIL Open Font License) where used for surah names.
 6. **Latin transliteration per ayah (`latin.json`)** - Transliterasi Kemenag RI (Kementerian Agama RI, quran.kemenag.go.id), obtained via the EQuran.id API v2 (<https://equran.id/apidev>). Data belongs to Kemenag RI; use is non-commercial with attribution, pending written permission from LPMQ. Text is reproduced verbatim (whitespace/NFC normalisation only).
+7. **Indonesian translation per ayah (`translation-id.json`)** - "Al-Qur'an dan Terjemahannya", edisi penyempurnaan 2019, Kementerian Agama RI (quran.kemenag.go.id), obtained via the EQuran.id API v2 (<https://equran.id/apidev>). Data belongs to Kemenag RI; use is non-commercial with attribution, pending written permission from LPMQ. Text is reproduced verbatim (HTML-tag stripping, whitespace and NFC normalisation only).

@@ -24,6 +24,7 @@ commit, validates it, and writes `app/public/content/hafs-kfqc/` (gitignored, se
 | `surahs.json` | `SurahMeta[]`; Arabic/English names, ayahCount, startPage from upstream; endPage derived; Indonesian transliteration from the design prototype |
 | `edition.json` | `Edition` (source, licence, attribution) |
 | `latin.json` | `LatinFile`: Indonesian Latin transliteration per ayah (`"s:a"` keys, 6236 entries), Kemenag RI via EQuran.id API v2 (`GET /api/v2/surat/{1..114}`, `ayat[].teksLatin`) |
+| `translation-id.json` | `TranslationFile`: Indonesian translation per ayah (Terjemahan Kemenag RI, edisi penyempurnaan 2019), same EQuran.id responses as latin (`ayat[].teksIndonesia`), 6236 entries |
 | `manifest.json` | sha256 + bytes of every file, `totalBytes` |
 
 Current full build: 608 files, 372,955,568 bytes (355.7 MB), largest page 585 (774 KB).
@@ -35,6 +36,7 @@ node scripts/build-content.mjs                    # latest main, all 604 pages
 node scripts/build-content.mjs --commit <40-hex>  # reproducible
 node scripts/build-content.mjs --pages 1-10       # quick partial build (manifest has "partial": true)
 node scripts/build-content.mjs --skip-latin       # offline build without latin.json
+node scripts/build-content.mjs --skip-translation # omit translation-id.json (flags are independent)
 node scripts/build-content.mjs --latin-refresh    # ignore today's latin cache
 node scripts/verify-content.mjs [dir]             # re-hash output against manifest.json (CI/deploy)
 node --test scripts/test/*.test.mjs               # unit tests
@@ -46,6 +48,10 @@ Output is written to a temp folder and swapped in only after every check passes.
 ## Latin transliteration
 
 Fetched with concurrency 4 and retries, cached in `.content-cache/latin/<YYYY-MM-DD>/`. Validation: 114 surahs, ayah count per surah equals `surahs.json`, total 6236, every value a non-empty string of at most 2000 chars. Normalisation is limited to stripping HTML tags (build fails on `<script`), collapsing whitespace and Unicode NFC; diacritics and wording are kept verbatim, nothing is generated. Current file: 771,927 bytes.
+
+## Translation
+
+Built from the same cached EQuran.id responses as latin (one fetch). Validation: 6236 total, per-surah counts equal to `surahs.json`, non-empty, at most 6000 chars. Normalisation: HTML tags stripped (their text kept; build fails on `<script`), whitespace collapsed, NFC. Entries with probable footnote markers (digit glued to a letter, or superscript digits) are counted and warned about but never altered; currently 0. Current file: 1,176,426 bytes.
 
 ## Checks that fail the build
 

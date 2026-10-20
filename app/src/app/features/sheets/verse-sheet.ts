@@ -1,10 +1,19 @@
 import { LOCAL_WRITE_TIMEOUT_MS, withTimeout } from '../../core/async';
-import { ChangeDetectionStrategy, Component, computed, effect, inject, signal, untracked } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  effect,
+  inject,
+  signal,
+  untracked,
+} from '@angular/core';
 import { LatinService } from '../../core/content/latin.service';
+import { TranslationService } from '../../core/content/translation.service';
 import { ContentApi, UserDataApi } from '../../core/contracts';
 import { ReaderUiService } from '../../core/reader-ui.service';
 import { SheetHistory } from './sheet-history';
-import { latinCopyText, verseReference } from './nav-helpers';
+import { latinCopyText, shareText, translationCopyText, verseReference } from './nav-helpers';
 
 @Component({
   selector: 'app-verse-sheet',
@@ -43,7 +52,44 @@ import { latinCopyText, verseReference } from './nav-helpers';
                 <span></span><span></span><span class="short"></span>
               </div>
             } @else {
-              <p class="muted">Bacaan Latin belum tersedia (perlu koneksi untuk memuat pertama kali).</p>
+              <p class="muted">
+                Bacaan Latin belum tersedia (perlu koneksi untuk memuat pertama kali).
+              </p>
+            }
+          </div>
+        }
+      </section>
+      <section class="latin" aria-label="Terjemahan">
+        <div class="latin-head">
+          <span class="mf-eyebrow">Terjemahan</span>
+          <button
+            type="button"
+            class="latin-toggle"
+            [attr.aria-expanded]="!trCollapsed()"
+            aria-controls="mf-tr-body"
+            (click)="toggleTr()"
+          >
+            {{ trCollapsed() ? 'Tampilkan terjemahan' : 'Sembunyikan terjemahan' }}
+          </button>
+        </div>
+        @if (!trCollapsed()) {
+          <div id="mf-tr-body" aria-live="polite">
+            @if (trText(); as t) {
+              <p class="tr-text" lang="id">{{ t }}</p>
+              <div class="latin-foot">
+                <span class="attr">{{ trSource() }}</span>
+                <button type="button" class="latin-copy" (click)="copyTr()">
+                  Salin terjemahan
+                </button>
+              </div>
+            } @else if (trText() === undefined) {
+              <div class="skeleton" aria-busy="true" aria-label="Memuat terjemahan">
+                <span></span><span></span><span class="short"></span>
+              </div>
+            } @else {
+              <p class="muted">
+                Terjemahan belum tersedia (perlu koneksi untuk memuat pertama kali).
+              </p>
             }
           </div>
         }
@@ -140,18 +186,83 @@ import { latinCopyText, verseReference } from './nav-helpers';
       font-size: 13.5px;
       color: var(--ui-muted);
     }
-    .latin { display: flex; flex-direction: column; gap: var(--mf-space-2); }
-    .latin-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-    .latin-toggle, .latin-copy { min-height: var(--mf-tap); padding: 0 var(--mf-space-2); border: none; background: transparent; color: var(--ui-primary); font-size: 13px; font-weight: 500; }
-    .latin-text { margin: 0; font-size: 16.5px; line-height: 1.6; font-style: normal; user-select: text; -webkit-user-select: text; }
-    .latin-foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-    .attr { font-size: 11.5px; color: var(--ui-muted); }
-    .muted { margin: 0; font-size: 13.5px; line-height: 1.5; color: var(--ui-muted); }
-    .skeleton { display: flex; flex-direction: column; gap: 8px; padding: 6px 0; }
-    .skeleton span { height: 14px; border-radius: 7px; background: color-mix(in srgb, var(--ui-ink) 8%, transparent); animation: mf-pulse 1.2s ease-in-out infinite; }
-    .skeleton .short { width: 60%; }
-    @keyframes mf-pulse { 50% { opacity: 0.45; } }
-    @media (prefers-reduced-motion: reduce) { .skeleton span { animation: none; } }
+    .latin {
+      display: flex;
+      flex-direction: column;
+      gap: var(--mf-space-2);
+    }
+    .latin-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+    .latin-toggle,
+    .latin-copy {
+      min-height: var(--mf-tap);
+      padding: 0 var(--mf-space-2);
+      border: none;
+      background: transparent;
+      color: var(--ui-primary);
+      font-size: 13px;
+      font-weight: 500;
+    }
+    .latin-text {
+      margin: 0;
+      font-size: 16.5px;
+      line-height: 1.6;
+      font-style: normal;
+      user-select: text;
+      -webkit-user-select: text;
+    }
+    .tr-text {
+      margin: 0;
+      font-size: 15.5px;
+      line-height: 1.6;
+      user-select: text;
+      -webkit-user-select: text;
+    }
+    .latin-foot {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+    .attr {
+      font-size: 11.5px;
+      color: var(--ui-muted);
+    }
+    .muted {
+      margin: 0;
+      font-size: 13.5px;
+      line-height: 1.5;
+      color: var(--ui-muted);
+    }
+    .skeleton {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      padding: 6px 0;
+    }
+    .skeleton span {
+      height: 14px;
+      border-radius: 7px;
+      background: color-mix(in srgb, var(--ui-ink) 8%, transparent);
+      animation: mf-pulse 1.2s ease-in-out infinite;
+    }
+    .skeleton .short {
+      width: 60%;
+    }
+    @keyframes mf-pulse {
+      50% {
+        opacity: 0.45;
+      }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .skeleton span {
+        animation: none;
+      }
+    }
     .grid {
       position: sticky;
       bottom: 0;
@@ -204,10 +315,53 @@ export class VerseSheet {
   });
   private latinSeq = 0;
 
+  private readonly translation = inject(TranslationService);
+  protected readonly trText = signal<string | null | undefined>(undefined);
+  protected readonly trCollapsed = signal(readFlag(TR_KEY));
+  protected readonly trSource = computed(() => {
+    const src = this.translation.source();
+    return src?.name && src.edition
+      ? `${src.name} · ${src.edition}`
+      : 'Terjemahan Kemenag RI (edisi 2019)';
+  });
+  private trSeq = 0;
+
   constructor() {
     effect(() => {
       const v = this.ui.selectedVerse();
-      untracked(() => this.loadLatin(v ? { surah: v.surah, ayah: v.ayah } : null));
+      untracked(() => {
+        const ref = v ? { surah: v.surah, ayah: v.ayah } : null;
+        this.loadLatin(ref);
+        this.loadTr(ref);
+      });
+    });
+  }
+
+  private loadTr(ref: { surah: number; ayah: number } | null): void {
+    const seq = ++this.trSeq;
+    this.trText.set(undefined);
+    if (!ref) return;
+    this.translation
+      .get(ref)
+      .then((t) => seq === this.trSeq && this.trText.set(t))
+      .catch(() => seq === this.trSeq && this.trText.set(null));
+  }
+
+  protected toggleTr(): void {
+    const next = !this.trCollapsed();
+    this.trCollapsed.set(next);
+    writeFlag(TR_KEY, next);
+  }
+
+  protected async copyTr(): Promise<void> {
+    const v = this.ui.selectedVerse();
+    const t = this.trText();
+    const surah = v ? this.content.index()?.surahs[v.surah - 1] : undefined;
+    if (!v || !t || !surah) return;
+    this.ui.showToast({
+      message: (await copyText(translationCopyText(surah, v.ayah, t)))
+        ? 'Terjemahan disalin'
+        : 'Terjemahan gagal disalin',
     });
   }
 
@@ -237,7 +391,9 @@ export class VerseSheet {
     const surah = v ? this.content.index()?.surahs[v.surah - 1] : undefined;
     if (!v || !t || !surah) return;
     this.ui.showToast({
-      message: (await copyText(latinCopyText(surah, v.ayah, t))) ? 'Bacaan disalin' : 'Bacaan gagal disalin',
+      message: (await copyText(latinCopyText(surah, v.ayah, t)))
+        ? 'Bacaan disalin'
+        : 'Bacaan gagal disalin',
     });
   }
 
@@ -288,8 +444,9 @@ export class VerseSheet {
   }
 
   protected async share(): Promise<void> {
-    const text = this.info()?.reference;
-    if (!text) return;
+    const ref = this.info()?.reference;
+    if (!ref) return;
+    const text = shareText({ reference: ref, latin: this.latinText(), translation: this.trText() });
     if (typeof navigator.share === 'function') {
       try {
         await navigator.share({ text });
@@ -300,19 +457,33 @@ export class VerseSheet {
       }
     }
     this.ui.showToast({
-      message: (await copyText(text)) ? 'Rujukan disalin' : 'Rujukan gagal disalin',
+      message: (await copyText(text)) ? 'Teks ayat disalin untuk dibagikan' : 'Teks gagal disalin',
     });
   }
 }
 
 const LATIN_KEY = 'mf-latin-collapsed';
 
-function readCollapsed(): boolean {
+const TR_KEY = 'mf-translation-collapsed';
+
+function readFlag(key: string): boolean {
   try {
-    return localStorage.getItem(LATIN_KEY) === '1';
+    return localStorage.getItem(key) === '1';
   } catch {
     return false;
   }
+}
+
+function writeFlag(key: string, value: boolean): void {
+  try {
+    localStorage.setItem(key, value ? '1' : '0');
+  } catch {
+    // storage unavailable: preference is session-only
+  }
+}
+
+function readCollapsed(): boolean {
+  return readFlag(LATIN_KEY);
 }
 
 async function copyText(text: string): Promise<boolean> {
