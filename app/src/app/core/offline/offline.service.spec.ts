@@ -3,7 +3,14 @@ import { TestBed } from '@angular/core/testing';
 import { OfflineService } from './offline.service';
 import { MUSHAF_DB } from '../storage/db-token';
 import { MushafDb } from '../storage/db';
-import { buildFixture, FakeWeb, Fixture, installFakeWeb, setOnline, TEST_VERSION } from '../content/testing';
+import {
+  buildFixture,
+  FakeWeb,
+  Fixture,
+  installFakeWeb,
+  setOnline,
+  TEST_VERSION,
+} from '../content/testing';
 import { pageUrl } from '../content/page-cache';
 
 installFakeIndexedDb();
@@ -52,7 +59,10 @@ describe('OfflineService', () => {
     expect(s.persisted).toBe(true);
     expect(persistCalls).toBe(1);
     expect(web.caches.cache().entries.size).toBe(604);
-    const pkg = (await db.meta.get('offlinePackage'))!.value as { pinned: boolean; complete: boolean };
+    const pkg = (await db.meta.get('offlinePackage'))!.value as {
+      pinned: boolean;
+      complete: boolean;
+    };
     expect(pkg.pinned).toBe(true);
     expect(pkg.complete).toBe(true);
   });
@@ -116,7 +126,10 @@ describe('OfflineService', () => {
   it('refresh counts cached pages from Cache Storage', async () => {
     const cache = web.caches.cache();
     for (const p of [1, 2, 3]) {
-      cache.entries.set(pageUrl(p, TEST_VERSION), { buf: new ArrayBuffer(1), headers: new Headers() });
+      cache.entries.set(pageUrl(p, TEST_VERSION), {
+        buf: new ArrayBuffer(1),
+        headers: new Headers(),
+      });
     }
     await svc.refresh();
     expect(svc.status().cachedPages).toBe(3);

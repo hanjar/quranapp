@@ -45,8 +45,12 @@ export class OfflineService extends OfflineApi {
     if (typeof window !== 'undefined') {
       const listeners = new AbortController();
       inject(DestroyRef).onDestroy(() => listeners.abort());
-      window.addEventListener('online', () => this.patch({ online: true }), { signal: listeners.signal });
-      window.addEventListener('offline', () => this.patch({ online: false }), { signal: listeners.signal });
+      window.addEventListener('online', () => this.patch({ online: true }), {
+        signal: listeners.signal,
+      });
+      window.addEventListener('offline', () => this.patch({ online: false }), {
+        signal: listeners.signal,
+      });
     }
   }
 

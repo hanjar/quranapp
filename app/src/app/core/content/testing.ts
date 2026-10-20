@@ -30,7 +30,8 @@ export async function buildFixture(): Promise<Fixture> {
     juz: 1,
   }));
   const flat: { surah: number; ayah: number }[] = [];
-  for (let s = 1; s <= 114; s++) for (let a = 1; a <= AYAH_PER_SURAH; a++) flat.push({ surah: s, ayah: a });
+  for (let s = 1; s <= 114; s++)
+    for (let a = 1; a <= AYAH_PER_SURAH; a++) flat.push({ surah: s, ayah: a });
   const n = flat.length;
   const pages: PageMeta[] = Array.from({ length: 604 }, (_, i) => {
     const from = Math.floor((i * n) / 604);
@@ -59,7 +60,10 @@ export async function buildFixture(): Promise<Fixture> {
     const text = svgFor(p);
     svg.set(p, text);
     const bytes = enc.encode(text);
-    files[pageFileKey(p)] = { sha256: await sha256Hex(bytes.buffer as ArrayBuffer), bytes: bytes.length };
+    files[pageFileKey(p)] = {
+      sha256: await sha256Hex(bytes.buffer as ArrayBuffer),
+      bytes: bytes.length,
+    };
     total += bytes.length;
   }
   const edition: Edition = {

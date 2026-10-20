@@ -15,7 +15,17 @@ import { ReaderUiService } from '../../core/reader-ui.service';
       [disabled]="!canNext()"
       (click)="next.emit()"
     >
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <svg
+        width="22"
+        height="22"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="1.7"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        aria-hidden="true"
+      >
         <path d="M15 5l-7 7 7 7" />
       </svg>
     </button>
@@ -24,21 +34,51 @@ import { ReaderUiService } from '../../core/reader-ui.service';
       type="button"
       class="mf-icon-btn"
       [class.is-on]="pageBookmarked()"
-      [attr.aria-label]="pageBookmarked() ? 'Hapus penanda halaman ' + page() : 'Tandai halaman ' + page()"
+      [attr.aria-label]="
+        pageBookmarked() ? 'Hapus penanda halaman ' + page() : 'Tandai halaman ' + page()
+      "
       [attr.aria-pressed]="pageBookmarked()"
       (click)="toggleBookmark()"
     >
-      <svg width="21" height="21" viewBox="0 0 24 24" [attr.fill]="pageBookmarked() ? 'currentColor' : 'none'" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" aria-hidden="true">
+      <svg
+        width="21"
+        height="21"
+        viewBox="0 0 24 24"
+        [attr.fill]="pageBookmarked() ? 'currentColor' : 'none'"
+        stroke="currentColor"
+        stroke-width="1.6"
+        stroke-linejoin="round"
+        aria-hidden="true"
+      >
         <path d="M6.5 4h11v16l-5.5-4-5.5 4z" />
       </svg>
     </button>
 
-    <button type="button" class="pill" aria-label="Pilih halaman" (click)="ui.openSheet('browse', { browseTab: 'page' })">
+    <button
+      type="button"
+      class="pill"
+      aria-label="Pilih halaman"
+      (click)="ui.openSheet('browse', { browseTab: 'page' })"
+    >
       {{ pillText() }}
     </button>
 
-    <button type="button" class="mf-icon-btn" aria-label="Daftar isi" (click)="ui.openSheet('browse', { browseTab: 'surah' })">
-      <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true">
+    <button
+      type="button"
+      class="mf-icon-btn"
+      aria-label="Daftar isi"
+      (click)="ui.openSheet('browse', { browseTab: 'surah' })"
+    >
+      <svg
+        width="21"
+        height="21"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="1.6"
+        stroke-linecap="round"
+        aria-hidden="true"
+      >
         <path d="M5 7h14M5 12h14M5 17h9" />
       </svg>
     </button>
@@ -50,7 +90,17 @@ import { ReaderUiService } from '../../core/reader-ui.service';
       [disabled]="!canPrev()"
       (click)="prev.emit()"
     >
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <svg
+        width="22"
+        height="22"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="1.7"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        aria-hidden="true"
+      >
         <path d="M9 5l7 7-7 7" />
       </svg>
     </button>

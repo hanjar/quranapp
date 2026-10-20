@@ -172,7 +172,15 @@ export class UserDataService extends UserDataApi {
         const before = JSON.stringify({ ...prefsPayload(prev), updatedAt: 0 });
         const after = JSON.stringify({ ...prefsPayload(merged), updatedAt: 0 });
         if (account && before !== after) {
-          await enqueueOutbox(this.db, account, 'prefs', 'prefs', 'upsert', prefsPayload(merged), merged.rev);
+          await enqueueOutbox(
+            this.db,
+            account,
+            'prefs',
+            'prefs',
+            'upsert',
+            prefsPayload(merged),
+            merged.rev,
+          );
         }
         return merged;
       });
@@ -227,7 +235,15 @@ export class UserDataService extends UserDataApi {
         await this.db.positions.put(row);
         const account = await activeSyncAccount(this.db);
         if (account) {
-          await enqueueOutbox(this.db, account, 'position', EDITION, 'upsert', positionPayload(row), row.rev);
+          await enqueueOutbox(
+            this.db,
+            account,
+            'position',
+            EDITION,
+            'upsert',
+            positionPayload(row),
+            row.rev,
+          );
         }
         return row;
       });
@@ -273,7 +289,15 @@ export class UserDataService extends UserDataApi {
           const gone: Bookmark = { ...active, deletedAt: now, updatedAt: now };
           await this.db.bookmarks.put(gone);
           if (account) {
-            await enqueueOutbox(this.db, account, 'bookmark', gone.id, 'delete', bookmarkPayload(gone), gone.rev);
+            await enqueueOutbox(
+              this.db,
+              account,
+              'bookmark',
+              gone.id,
+              'delete',
+              bookmarkPayload(gone),
+              gone.rev,
+            );
           }
           return 'removed' as const;
         }
@@ -292,7 +316,15 @@ export class UserDataService extends UserDataApi {
         };
         await this.db.bookmarks.add(fresh);
         if (account) {
-          await enqueueOutbox(this.db, account, 'bookmark', fresh.id, 'upsert', bookmarkPayload(fresh), null);
+          await enqueueOutbox(
+            this.db,
+            account,
+            'bookmark',
+            fresh.id,
+            'upsert',
+            bookmarkPayload(fresh),
+            null,
+          );
         }
         return 'added' as const;
       });
@@ -311,7 +343,15 @@ export class UserDataService extends UserDataApi {
         await this.db.bookmarks.put(gone);
         const account = await activeSyncAccount(this.db);
         if (account) {
-          await enqueueOutbox(this.db, account, 'bookmark', id, 'delete', bookmarkPayload(gone), gone.rev);
+          await enqueueOutbox(
+            this.db,
+            account,
+            'bookmark',
+            id,
+            'delete',
+            bookmarkPayload(gone),
+            gone.rev,
+          );
         }
         return now;
       });
@@ -336,7 +376,15 @@ export class UserDataService extends UserDataApi {
           await this.db.bookmarks.put(back);
           const account = await activeSyncAccount(this.db);
           if (account) {
-            await enqueueOutbox(this.db, account, 'bookmark', id, 'upsert', bookmarkPayload(back), back.rev);
+            await enqueueOutbox(
+              this.db,
+              account,
+              'bookmark',
+              id,
+              'upsert',
+              bookmarkPayload(back),
+              back.rev,
+            );
           }
         });
         await this.refreshBookmarks();
@@ -382,7 +430,15 @@ export class UserDataService extends UserDataApi {
           const row: Bookmark = { ...b, id: uuid() };
           await this.db.bookmarks.add(row);
           if (account) {
-            await enqueueOutbox(this.db, account, 'bookmark', row.id, 'upsert', bookmarkPayload(row), null);
+            await enqueueOutbox(
+              this.db,
+              account,
+              'bookmark',
+              row.id,
+              'upsert',
+              bookmarkPayload(row),
+              null,
+            );
           }
           added++;
         }
@@ -396,7 +452,15 @@ export class UserDataService extends UserDataApi {
           };
           await this.db.positions.put(pos);
           if (account) {
-            await enqueueOutbox(this.db, account, 'position', EDITION, 'upsert', positionPayload(pos), pos.rev);
+            await enqueueOutbox(
+              this.db,
+              account,
+              'position',
+              EDITION,
+              'upsert',
+              positionPayload(pos),
+              pos.rev,
+            );
           }
         }
 
@@ -405,13 +469,22 @@ export class UserDataService extends UserDataApi {
         if (!prefsRow || prefsRow.updatedAt === 0) {
           const merged: Preferences = {
             ...parsed.preferences,
-            onboardingDone: parsed.preferences.onboardingDone || (prefsRow?.onboardingDone ?? false),
+            onboardingDone:
+              parsed.preferences.onboardingDone || (prefsRow?.onboardingDone ?? false),
             updatedAt: Date.now(),
             rev: prefsRow?.rev ?? null,
           };
           await this.db.prefs.put({ ...merged, key: 'prefs' });
           if (account) {
-            await enqueueOutbox(this.db, account, 'prefs', 'prefs', 'upsert', prefsPayload(merged), merged.rev);
+            await enqueueOutbox(
+              this.db,
+              account,
+              'prefs',
+              'prefs',
+              'upsert',
+              prefsPayload(merged),
+              merged.rev,
+            );
           }
         }
         return { added, skipped };

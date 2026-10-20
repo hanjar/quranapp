@@ -123,7 +123,12 @@ describe('SyncService', () => {
     const state = await db.sync.get('state');
     expect(state).toMatchObject({ enabled: true, accountId: 'A' });
     const sent = (client.pushBatch.mock.calls as [WireOp[]][]).flatMap((c) => c[0]);
-    expect(sent.map((o) => `${o.entity}:${o.entityId}`).sort()).toEqual(['bookmark:a', 'bookmark:b', 'position:hafs-kfqc', 'prefs:prefs']);
+    expect(sent.map((o) => `${o.entity}:${o.entityId}`).sort()).toEqual([
+      'bookmark:a',
+      'bookmark:b',
+      'position:hafs-kfqc',
+      'prefs:prefs',
+    ]);
     expect(await db.outbox.count()).toBe(0);
     expect((await db.bookmarks.get('a'))?.rev).not.toBeNull();
     expect(svc.status()).toBe('synced');
@@ -133,14 +138,16 @@ describe('SyncService', () => {
 
   it('batches pushes in groups of at most 100', async () => {
     await db.sync.put(enabledState('A'));
-    const ops = Array.from({ length: 230 }, (_, i) => makeOp('A', 'bookmark', `b${i}`, 'upsert', {}, null, i));
+    const ops = Array.from({ length: 230 }, (_, i) =>
+      makeOp('A', 'bookmark', `b${i}`, 'upsert', {}, null, i),
+    );
     await db.outbox.bulkAdd(ops);
     await svc.init();
     const sizes = (client.pushBatch.mock.calls as [WireOp[]][]).map((c) => c[0].length);
     expect(sizes).toEqual([100, 100, 30]);
   });
 
-  it('never sends another account\'s ops; a different session isolates and disables sync', async () => {
+  it("never sends another account's ops; a different session isolates and disables sync", async () => {
     await db.sync.put(enabledState('A'));
     await db.bookmarks.put(bm('a', { rev: 3 }));
     await db.outbox.add(makeOp('A', 'bookmark', 'a', 'upsert', {}, 3));
@@ -150,7 +157,11 @@ describe('SyncService', () => {
 
     expect(client.pushBatch).not.toHaveBeenCalled();
     expect(await db.outbox.count()).toBe(0);
-    expect(await db.sync.get('state')).toMatchObject({ enabled: false, accountId: null, cursor: 0 });
+    expect(await db.sync.get('state')).toMatchObject({
+      enabled: false,
+      accountId: null,
+      cursor: 0,
+    });
     expect(svc.status()).toBe('off');
     expect(svc.account()).toBeNull();
     expect((await db.bookmarks.get('a'))?.rev).toBeNull(); // kept locally as anonymous data
@@ -158,7 +169,10 @@ describe('SyncService', () => {
 
   it('only pushes ops of the current account', async () => {
     await db.sync.put(enabledState('A'));
-    await db.outbox.bulkAdd([makeOp('A', 'prefs', 'prefs', 'upsert', {}, null), makeOp('B', 'prefs', 'prefs', 'upsert', {}, null)]);
+    await db.outbox.bulkAdd([
+      makeOp('A', 'prefs', 'prefs', 'upsert', {}, null),
+      makeOp('B', 'prefs', 'prefs', 'upsert', {}, null),
+    ]);
     await svc.init();
     const sent = (client.pushBatch.mock.calls as [WireOp[]][]).flatMap((c) => c[0]);
     expect(sent).toHaveLength(1);
@@ -174,9 +188,21 @@ describe('SyncService', () => {
       id: 'hafs-kfqc',
       rev: 9,
       deleted: false,
-      data: { editionId: 'hafs-kfqc', page: 300, surah: null, ayah: null, updatedAt: 500, deviceId: 'dev-other' },
+      data: {
+        editionId: 'hafs-kfqc',
+        page: 300,
+        surah: null,
+        ayah: null,
+        updatedAt: 500,
+        deviceId: 'dev-other',
+      },
     };
-    client.pull.mockResolvedValueOnce({ changes: [remote], cursor: 9, hasMore: false, reset: false });
+    client.pull.mockResolvedValueOnce({
+      changes: [remote],
+      cursor: 9,
+      hasMore: false,
+      reset: false,
+    });
 
     await svc.init();
 
@@ -196,9 +222,21 @@ describe('SyncService', () => {
       id: 'hafs-kfqc',
       rev: 9,
       deleted: false,
-      data: { editionId: 'hafs-kfqc', page: 300, surah: null, ayah: null, updatedAt: 500, deviceId: 'dev-other' },
+      data: {
+        editionId: 'hafs-kfqc',
+        page: 300,
+        surah: null,
+        ayah: null,
+        updatedAt: 500,
+        deviceId: 'dev-other',
+      },
     };
-    client.pull.mockResolvedValueOnce({ changes: [remote], cursor: 9, hasMore: false, reset: false });
+    client.pull.mockResolvedValueOnce({
+      changes: [remote],
+      cursor: 9,
+      hasMore: false,
+      reset: false,
+    });
     await svc.init();
 
     await svc.resolveConflict('cloud');
@@ -216,9 +254,21 @@ describe('SyncService', () => {
       id: 'hafs-kfqc',
       rev: 9,
       deleted: false,
-      data: { editionId: 'hafs-kfqc', page: 300, surah: null, ayah: null, updatedAt: 500, deviceId: 'dev-other' },
+      data: {
+        editionId: 'hafs-kfqc',
+        page: 300,
+        surah: null,
+        ayah: null,
+        updatedAt: 500,
+        deviceId: 'dev-other',
+      },
     };
-    client.pull.mockResolvedValueOnce({ changes: [remote], cursor: 9, hasMore: false, reset: false });
+    client.pull.mockResolvedValueOnce({
+      changes: [remote],
+      cursor: 9,
+      hasMore: false,
+      reset: false,
+    });
     await svc.init();
 
     await svc.resolveConflict('device');
@@ -266,7 +316,10 @@ describe('SyncService', () => {
 
   it('skips ops whose nextAttemptAt is in the future', async () => {
     await db.sync.put(enabledState('A'));
-    await db.outbox.add({ ...makeOp('A', 'prefs', 'prefs', 'upsert', {}, null), nextAttemptAt: Date.now() + 60_000 });
+    await db.outbox.add({
+      ...makeOp('A', 'prefs', 'prefs', 'upsert', {}, null),
+      nextAttemptAt: Date.now() + 60_000,
+    });
     await svc.init();
     expect(client.pushBatch).not.toHaveBeenCalled();
     expect(svc.status()).toBe('pending');

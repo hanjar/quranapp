@@ -2,10 +2,27 @@ import { describe, expect, it } from 'vitest';
 import { SurahMeta } from '../../core/models';
 import { filterJuz, filterSurahs, formatDate, parsePageInput, verseReference } from './nav-helpers';
 
-const mk = (number: number, nameLatin: string, nameEnglish: string, nameArabic: string): SurahMeta => ({
-  number, nameLatin, nameEnglish, nameArabic, ayahCount: 5, startPage: number, endPage: number, juz: 1,
+const mk = (
+  number: number,
+  nameLatin: string,
+  nameEnglish: string,
+  nameArabic: string,
+): SurahMeta => ({
+  number,
+  nameLatin,
+  nameEnglish,
+  nameArabic,
+  ayahCount: 5,
+  startPage: number,
+  endPage: number,
+  juz: 1,
 });
-const SURAHS = [mk(1, 'Al-Fatihah', 'Al-Fatiha', 'الفاتحة'), mk(2, 'Al-Baqarah', 'Al-Baqara', 'البقرة'), mk(12, 'Yusuf', 'Yusuf', 'يوسف'), mk(36, 'Yasin', 'Ya-Sin', 'يس')];
+const SURAHS = [
+  mk(1, 'Al-Fatihah', 'Al-Fatiha', 'الفاتحة'),
+  mk(2, 'Al-Baqarah', 'Al-Baqara', 'البقرة'),
+  mk(12, 'Yusuf', 'Yusuf', 'يوسف'),
+  mk(36, 'Yasin', 'Ya-Sin', 'يس'),
+];
 
 describe('formatDate', () => {
   it('formats as "12 Okt 2026"', () => {
@@ -43,7 +60,12 @@ describe('filterJuz', () => {
 });
 
 describe('parsePageInput', () => {
-  it.each([['1', 1], ['604', 604], [' 42 ', 42], ['007', 7]])('accepts %j', (raw, n) => {
+  it.each([
+    ['1', 1],
+    ['604', 604],
+    [' 42 ', 42],
+    ['007', 7],
+  ])('accepts %j', (raw, n) => {
     expect(parsePageInput(raw)).toBe(n);
   });
   it.each(['', '0', '605', '-1', '4.5', 'abc', '12a', '99999'])('rejects %j', (raw) => {
@@ -53,6 +75,8 @@ describe('parsePageInput', () => {
 
 describe('verseReference', () => {
   it('builds the copy/share text', () => {
-    expect(verseReference({ nameLatin: 'Al-Baqarah', number: 2 }, 255, 42)).toBe('QS. Al-Baqarah 2:255 (hal. 42)');
+    expect(verseReference({ nameLatin: 'Al-Baqarah', number: 2 }, 255, 42)).toBe(
+      'QS. Al-Baqarah 2:255 (hal. 42)',
+    );
   });
 });

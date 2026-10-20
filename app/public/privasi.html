@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Kebijakan Privasi · Mushaf Digital</title>
+  <meta name="description" content="Kebijakan privasi Mushaf Digital: data apa yang disimpan, di mana, dan cara menghapusnya.">
+  <link rel="icon" type="image/svg+xml" href="icons/icon.svg">
+  <style>
+    :root { --ink: #10231c; --muted: #55685f; --line: #cfe3da; --primary: #0a7a5c; --paper: #f5f1e8; }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--paper); color: var(--ink); font: 16px/1.65 system-ui, -apple-system, 'Segoe UI', sans-serif; }
+    main { max-width: 720px; margin: 0 auto; padding: 32px 16px 64px; }
+    h1 { font-size: 30px; line-height: 1.2; margin: 0 0 4px; }
+    h2 { font-size: 19px; margin: 32px 0 8px; }
+    p, li { color: var(--ink); }
+    .meta { color: var(--muted); font-size: 14px; margin: 0 0 24px; }
+    ul { padding-left: 20px; }
+    a { color: var(--primary); }
+    .box { background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 16px; }
+    footer { margin-top: 40px; padding-top: 16px; border-top: 1px solid var(--line); color: var(--muted); font-size: 14px; }
+  </style>
+</head>
+<body>
+<main>
+  <h1>Kebijakan Privasi</h1>
+  <p class="meta">Mushaf Digital · quran.hanjar.net · berlaku sejak 20 Oktober 2026</p>
+
+  <div class="box">
+    <strong>Ringkasnya:</strong> Mushaf Digital bisa dipakai tanpa akun. Tanpa iklan, tanpa pelacakan, tanpa analitik.
+    Data bacaan hanya dikirim ke server kami jika Anda sendiri mengaktifkan sinkronisasi.
+  </div>
+
+  <h2>1. Tanpa akun (mode tamu)</h2>
+  <p>Posisi baca terakhir, penanda (ayat dan halaman), serta preferensi tampilan disimpan <strong>hanya di perangkat Anda</strong>
+    (IndexedDB peramban). Halaman mushaf yang sudah dibuka atau diunduh disimpan di cache peramban agar bisa dibaca offline.
+    Tidak ada data yang dikirim ke server kami.</p>
+
+  <h2>2. Jika Anda mengaktifkan sinkronisasi</h2>
+  <p>Sinkronisasi bersifat opsional dan memerlukan masuk dengan akun Google. Yang kami simpan:</p>
+  <ul>
+    <li><strong>Identitas akun:</strong> ID akun Google (pengenal unik), alamat email, dan nama tampilan, untuk mengenali Anda saat masuk.</li>
+    <li><strong>Data bacaan:</strong> penanda (surah, ayat, halaman, waktu dibuat), posisi baca terakhir per edisi, dan preferensi tampilan (tema, tata letak).</li>
+    <li><strong>Sesi:</strong> cookie sesi <code>mf_session</code> (HttpOnly, Secure). Kami hanya menyimpan hash-nya, bukan token aslinya.</li>
+  </ul>
+  <p>Kami <strong>tidak</strong> menyimpan riwayat setiap halaman yang Anda baca, kata sandi, kontak, atau data Google lain.
+    Aplikasi hanya meminta izin dasar Google: <code>openid</code>, <code>email</code>, dan <code>profile</code>.</p>
+
+  <h2>3. Penyimpanan dan pihak ketiga</h2>
+  <p>Aplikasi dan data sinkronisasi di-hosting di Cloudflare (Pages, Workers, dan basis data D1). Login memakai Google sebagai
+    penyedia identitas. Kami tidak menjual atau membagikan data Anda kepada pihak lain, dan tidak memakainya untuk iklan.
+    Huruf antarmuka dimuat dari Google Fonts.</p>
+
+  <h2>4. Hak Anda</h2>
+  <ul>
+    <li><strong>Ekspor:</strong> Pengaturan → Ekspor data (berkas JSON), kapan saja.</li>
+    <li><strong>Keluar:</strong> Akun &amp; sinkronisasi → Keluar. Anda bisa memilih menyimpan atau menghapus data di perangkat.</li>
+    <li><strong>Hapus data cloud:</strong> Akun &amp; sinkronisasi → Hapus data cloud. Akun dan seluruh data di server dihapus permanen.</li>
+    <li>Data penanda yang dihapus disimpan sebagai tanda hapus paling lama 180 hari agar tidak muncul kembali di perangkat lain, lalu dibersihkan otomatis.</li>
+  </ul>
+  <p>Kebijakan ini disusun dengan memperhatikan UU No. 27 Tahun 2022 tentang Pelindungan Data Pribadi.</p>
+
+  <h2>5. Kontak</h2>
+  <p>Pertanyaan atau permintaan terkait data: <a href="mailto:prakasiwi@gmail.com">prakasiwi@gmail.com</a>.
+    Kode sumber terbuka: <a href="https://github.com/hanjar/quranapp">github.com/hanjar/quranapp</a>.</p>
+
+  <footer>
+    Perubahan kebijakan akan dicantumkan di halaman ini beserta tanggal berlakunya. ·
+    <a href="/">Kembali ke Mushaf Digital</a>
+  </footer>
+</main>
+</body>
+</html>

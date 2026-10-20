@@ -3,7 +3,8 @@ import { APP_CONFIG } from '../config';
 import { parseRetryAfter } from './backoff';
 import { BatchResponse, MeUser, PullResponse, WireOp } from './sync-types';
 
-export type SyncErrorKind = 'network' | 'unauthorized' | 'rate-limited' | 'server' | 'client' | 'protocol';
+export type SyncErrorKind =
+  'network' | 'unauthorized' | 'rate-limited' | 'server' | 'client' | 'protocol';
 
 export class SyncHttpError extends Error {
   constructor(
@@ -85,7 +86,12 @@ export class SyncApiClient {
     const code = env?.error?.code ?? null;
     if (res.status === 401) throw new SyncHttpError('unauthorized', 401, code);
     if (res.status === 429) {
-      throw new SyncHttpError('rate-limited', 429, code, parseRetryAfter(res.headers.get('Retry-After')) ?? 0);
+      throw new SyncHttpError(
+        'rate-limited',
+        429,
+        code,
+        parseRetryAfter(res.headers.get('Retry-After')) ?? 0,
+      );
     }
     if (res.status >= 500) throw new SyncHttpError('server', res.status, code);
     if (!res.ok || env?.success === false) {

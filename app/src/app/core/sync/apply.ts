@@ -53,11 +53,23 @@ const TABLES = (db: MushafDb) => [db.bookmarks, db.positions, db.prefs, db.outbo
 
 // -- pending-op helpers -----------------------------------------------------
 
-function pendingFor(ctx: Ctx, entity: SyncEntity, id: string, action?: 'upsert' | 'delete'): OutboxOperation[] {
-  return ctx.pending.filter((o) => o.entity === entity && o.entityId === id && (!action || o.action === action));
+function pendingFor(
+  ctx: Ctx,
+  entity: SyncEntity,
+  id: string,
+  action?: 'upsert' | 'delete',
+): OutboxOperation[] {
+  return ctx.pending.filter(
+    (o) => o.entity === entity && o.entityId === id && (!action || o.action === action),
+  );
 }
 
-async function dropPending(ctx: Ctx, entity: SyncEntity, id: string, action?: 'upsert' | 'delete'): Promise<void> {
+async function dropPending(
+  ctx: Ctx,
+  entity: SyncEntity,
+  id: string,
+  action?: 'upsert' | 'delete',
+): Promise<void> {
   const ops = pendingFor(ctx, entity, id, action);
   if (!ops.length) return;
   await ctx.db.outbox.bulkDelete(ops.map((o) => o.opId));
@@ -75,10 +87,12 @@ async function bumpBaseRev(ctx: Ctx, entity: SyncEntity, id: string, rev: number
 
 // -- field readers (noPropertyAccessFromIndexSignature friendly) ------------
 
-const str = (d: Record<string, unknown>, k: string): string | null => (typeof d[k] === 'string' ? (d[k] as string) : null);
+const str = (d: Record<string, unknown>, k: string): string | null =>
+  typeof d[k] === 'string' ? (d[k] as string) : null;
 const num = (d: Record<string, unknown>, k: string): number | null =>
   typeof d[k] === 'number' && Number.isFinite(d[k]) ? (d[k] as number) : null;
-const bool = (d: Record<string, unknown>, k: string): boolean | null => (typeof d[k] === 'boolean' ? (d[k] as boolean) : null);
+const bool = (d: Record<string, unknown>, k: string): boolean | null =>
+  typeof d[k] === 'boolean' ? (d[k] as boolean) : null;
 
 // -- per-entity apply -------------------------------------------------------
 
@@ -93,7 +107,11 @@ async function applyBookmark(ctx: Ctx, ch: Change): Promise<void> {
     // Tombstone wins over any stale local edit.
     await dropPending(ctx, 'bookmark', ch.id, 'upsert');
     if (local && !(local.rev != null && local.rev > ch.rev)) {
-      await db.bookmarks.put({ ...local, deletedAt: local.deletedAt ?? (d ? num(d, 'updatedAt') : null) ?? now, rev: ch.rev });
+      await db.bookmarks.put({
+        ...local,
+        deletedAt: local.deletedAt ?? (d ? num(d, 'updatedAt') : null) ?? now,
+        rev: ch.rev,
+      });
       ctx.changed = true;
     }
     return;
@@ -101,7 +119,8 @@ async function applyBookmark(ctx: Ctx, ch: Change): Promise<void> {
   if (!d) return;
   if (local) {
     if (local.rev != null && local.rev > ch.rev) return; // stale
-    if (!force && local.deletedAt != null && pendingFor(ctx, 'bookmark', ch.id, 'delete').length) return; // local delete in flight
+    if (!force && local.deletedAt != null && pendingFor(ctx, 'bookmark', ch.id, 'delete').length)
+      return; // local delete in flight
   }
   const kind = str(d, 'kind');
   const key = str(d, 'key');
@@ -109,7 +128,11 @@ async function applyBookmark(ctx: Ctx, ch: Change): Promise<void> {
   if ((kind !== 'verse' && kind !== 'page') || !key || !isValidPage(page)) return;
 
   // Semantic dedupe: one active bookmark per key.
-  const same = await db.bookmarks.where('key').equals(key).filter((b) => b.id !== ch.id && b.deletedAt == null).toArray();
+  const same = await db.bookmarks
+    .where('key')
+    .equals(key)
+    .filter((b) => b.id !== ch.id && b.deletedAt == null)
+    .toArray();
   for (const s of same) {
     await db.bookmarks.delete(s.id);
     await dropPending(ctx, 'bookmark', s.id);
@@ -118,7 +141,7 @@ async function applyBookmark(ctx: Ctx, ch: Change): Promise<void> {
   const row: Bookmark = {
     id: ch.id,
     kind,
-    editionId: (str(d, 'editionId') as EditionId | null) ?? (local?.editionId ?? 'hafs-kfqc'),
+    editionId: (str(d, 'editionId') as EditionId | null) ?? local?.editionId ?? 'hafs-kfqc',
     page,
     surah: num(d, 'surah'),
     ayah: num(d, 'ayah'),
@@ -197,7 +220,8 @@ async function applyPosition(ctx: Ctx, ch: Change): Promise<void> {
   if (opts.holdPosition) return;
   if (remote.deviceId === opts.localDeviceId) {
     // Echo of our own write: just record the revision.
-    if (remote.updatedAt === local.updatedAt && local.rev !== remote.rev) await db.positions.update(editionId, { rev: remote.rev });
+    if (remote.updatedAt === local.updatedAt && local.rev !== remote.rev)
+      await db.positions.update(editionId, { rev: remote.rev });
     return;
   }
   if (remote.updatedAt <= local.updatedAt) return; // local is newer; it wins on push
@@ -232,7 +256,12 @@ async function makeCtx(db: MushafDb, accountId: string, opts: ApplyOptions): Pro
 
 // -- exported entry points --------------------------------------------------
 
-export function applyChanges(db: MushafDb, accountId: string, changes: Change[], opts: ApplyOptions): Promise<ApplyResult> {
+export function applyChanges(
+  db: MushafDb,
+  accountId: string,
+  changes: Change[],
+  opts: ApplyOptions,
+): Promise<ApplyResult> {
   return db.transaction('rw', TABLES(db), async () => {
     const ctx = await makeCtx(db, accountId, opts);
     for (const ch of changes) await applyOne(ctx, ch);
@@ -259,9 +288,21 @@ export function handleResults(
   opts: ApplyOptions,
 ): Promise<PushOutcome> {
   return db.transaction('rw', TABLES(db), async () => {
-    const ctx = await makeCtx(db, accountId, { ...opts, force: true, detectPositionConflict: false, holdPosition: false });
+    const ctx = await makeCtx(db, accountId, {
+      ...opts,
+      force: true,
+      detectPositionConflict: false,
+      holdPosition: false,
+    });
     const byId = new Map(results.map((r) => [r.opId, r]));
-    const out: PushOutcome = { applied: 0, duplicates: 0, conflicts: 0, rejected: [], missing: [], changed: false };
+    const out: PushOutcome = {
+      applied: 0,
+      duplicates: 0,
+      conflicts: 0,
+      rejected: [],
+      missing: [],
+      changed: false,
+    };
     const now = opts.now ?? Date.now();
 
     for (const op of ops) {
@@ -278,7 +319,8 @@ export function handleResults(
           out.applied++;
           if (r.rev != null) {
             if (op.entity === 'bookmark') await db.bookmarks.update(op.entityId, { rev: r.rev });
-            else if (op.entity === 'position') await db.positions.update(op.entityId, { rev: r.rev });
+            else if (op.entity === 'position')
+              await db.positions.update(op.entityId, { rev: r.rev });
             else await db.prefs.update('prefs', { rev: r.rev });
             await bumpBaseRev(ctx, op.entity, op.entityId, r.rev);
           }
@@ -297,7 +339,9 @@ export function handleResults(
               const row = await db.bookmarks.get(cur.id);
               if (row) {
                 await db.bookmarks.put({ ...row, deletedAt: now });
-                await db.outbox.add(makeOp(accountId, 'bookmark', cur.id, 'delete', null, cur.rev, now));
+                await db.outbox.add(
+                  makeOp(accountId, 'bookmark', cur.id, 'delete', null, cur.rev, now),
+                );
               }
             }
           }
@@ -312,7 +356,12 @@ export function handleResults(
           break;
         }
         case 'rejected': {
-          out.rejected.push({ opId: op.opId, entity: op.entity, entityId: op.entityId, error: r.error ?? 'rejected' });
+          out.rejected.push({
+            opId: op.opId,
+            entity: op.entity,
+            entityId: op.entityId,
+            error: r.error ?? 'rejected',
+          });
           break;
         }
       }
@@ -328,12 +377,19 @@ export function handleResults(
  * Local synced rows missing remotely are removed; unsynced rows are kept and
  * re-enqueued.
  */
-export function reconcileReset(db: MushafDb, accountId: string, changes: Change[], opts: ApplyOptions): Promise<ApplyResult> {
+export function reconcileReset(
+  db: MushafDb,
+  accountId: string,
+  changes: Change[],
+  opts: ApplyOptions,
+): Promise<ApplyResult> {
   return db.transaction('rw', TABLES(db), async () => {
     const ctx = await makeCtx(db, accountId, opts);
     for (const ch of changes) await applyOne(ctx, ch);
 
-    const remoteActive = new Set(changes.filter((c) => c.entity === 'bookmark' && !c.deleted).map((c) => c.id));
+    const remoteActive = new Set(
+      changes.filter((c) => c.entity === 'bookmark' && !c.deleted).map((c) => c.id),
+    );
     const now = opts.now ?? Date.now();
     for (const b of await db.bookmarks.toArray()) {
       if (b.rev != null) {

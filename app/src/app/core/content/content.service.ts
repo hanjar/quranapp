@@ -118,8 +118,7 @@ export class ContentService extends ContentApi {
     const version = this.manifest!.contentVersion;
     await deletePageCaches(version);
     const pkg = (await this.db.meta.get(META_OFFLINE_PACKAGE))?.value as
-      | OfflinePackageMeta
-      | undefined;
+      OfflinePackageMeta | undefined;
     if (pkg && pkg.contentVersion !== version) {
       await this.db.meta.delete(META_OFFLINE_PACKAGE);
       await this.db.meta.delete(META_PAGE_LRU);
@@ -239,8 +238,7 @@ export class ContentService extends ContentApi {
     this.lruChain = this.lruChain
       .then(async () => {
         const pkg = (await this.db.meta.get(META_OFFLINE_PACKAGE))?.value as
-          | OfflinePackageMeta
-          | undefined;
+          OfflinePackageMeta | undefined;
         if (pkg?.pinned && pkg.contentVersion === version) return;
         const stored = (await this.db.meta.get(META_PAGE_LRU))?.value;
         const lru = (Array.isArray(stored) ? (stored as number[]) : []).filter((p) => p !== page);

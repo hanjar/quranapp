@@ -14,38 +14,72 @@ type Confirm = 'signout' | 'delete' | null;
   styles: SHEET_STYLES,
   template: `
     @if (!sync.available) {
-      <div class="mf-note">Sinkronisasi cloud belum diatur pada versi ini. Semua data tersimpan di perangkat ini; gunakan Ekspor data di Pengaturan untuk mencadangkan.</div>
+      <div class="mf-note">
+        Sinkronisasi cloud belum diatur pada versi ini. Semua data tersimpan di perangkat ini;
+        gunakan Ekspor data di Pengaturan untuk mencadangkan.
+      </div>
     } @else if (!sync.account()) {
       @if (step() === 'intro') {
         <section aria-label="Sinkronisasi">
-          <p>Sinkronisasi bersifat opsional. Aktifkan bila ingin melanjutkan bacaan di perangkat lain.</p>
+          <p>
+            Sinkronisasi bersifat opsional. Aktifkan bila ingin melanjutkan bacaan di perangkat
+            lain.
+          </p>
           <ul>
             <li>Lanjutkan membaca dari halaman terakhir di perangkat mana pun</li>
             <li>Penanda ikut tersimpan dan tidak hilang saat data peramban dibersihkan</li>
             <li>Pilihan tampilan terbawa ke perangkat lain</li>
           </ul>
-          <div class="mf-note">Yang disimpan hanya posisi, penanda, dan preferensi. Tanpa iklan, tanpa pelacakan.</div>
+          <div class="mf-note">
+            Yang disimpan hanya posisi, penanda, dan preferensi. Tanpa iklan, tanpa pelacakan.
+          </div>
           <div class="actions">
-            <button type="button" class="mf-btn mf-btn--primary" (click)="step.set('login')">Aktifkan sinkronisasi</button>
-            <button type="button" class="mf-btn mf-btn--ghost" (click)="ui.closeSheet()">Tetap sebagai tamu</button>
+            <button type="button" class="mf-btn mf-btn--primary" (click)="step.set('login')">
+              Aktifkan sinkronisasi
+            </button>
+            <button type="button" class="mf-btn mf-btn--ghost" (click)="ui.closeSheet()">
+              Tetap sebagai tamu
+            </button>
           </div>
         </section>
       } @else {
         <section aria-label="Masuk">
-          <p>Masuk untuk mengaktifkan sinkronisasi. Bacaan lokal Anda tetap aman dan digabungkan dengan data cloud.</p>
-          <button type="button" class="mf-btn mf-btn--primary" (click)="sync.signIn('google')">Lanjutkan dengan Google</button>
+          <p>
+            Masuk untuk mengaktifkan sinkronisasi. Bacaan lokal Anda tetap aman dan digabungkan
+            dengan data cloud.
+          </p>
+          <button type="button" class="mf-btn mf-btn--primary" (click)="sync.signIn('google')">
+            Lanjutkan dengan Google
+          </button>
           @if (isLocalhost) {
             <div class="panel" aria-label="Masuk pengembangan">
               <span class="mf-eyebrow">Hanya pengembangan lokal</span>
               <label class="mf-visually-hidden" for="dev-email">Email</label>
-              <input id="dev-email" class="mf-input" type="email" autocomplete="email" placeholder="dev@example.com" [value]="devEmail()" (input)="devEmail.set($any($event.target).value)" />
-              <button type="button" class="mf-btn mf-btn--outline" [disabled]="!devEmail().trim() || busy()" (click)="devLogin()">Masuk (dev)</button>
+              <input
+                id="dev-email"
+                class="mf-input"
+                type="email"
+                autocomplete="email"
+                placeholder="dev@example.com"
+                [value]="devEmail()"
+                (input)="devEmail.set($any($event.target).value)"
+              />
+              <button
+                type="button"
+                class="mf-btn mf-btn--outline"
+                [disabled]="!devEmail().trim() || busy()"
+                (click)="devLogin()"
+              >
+                Masuk (dev)
+              </button>
             </div>
           }
           @if (error()) {
             <div class="mf-note" role="alert">{{ error() }}</div>
           }
-          <button type="button" class="mf-btn mf-btn--ghost" (click)="stayGuest()">Tetap sebagai tamu</button>
+          <button type="button" class="mf-btn mf-btn--ghost" (click)="stayGuest()">
+            Tetap sebagai tamu
+          </button>
         </section>
       }
     } @else {
@@ -53,7 +87,9 @@ type Confirm = 'signout' | 'delete' | null;
         <div class="who">
           <span class="avatar" aria-hidden="true">{{ initial() }}</span>
           <div class="stack" style="gap: 2px; min-width: 0">
-            <strong style="word-break: break-all">{{ sync.account()?.email ?? sync.account()?.name }}</strong>
+            <strong style="word-break: break-all">{{
+              sync.account()?.email ?? sync.account()?.name
+            }}</strong>
             <span class="muted" role="status">{{ statusLine() }}</span>
           </div>
         </div>
@@ -64,12 +100,29 @@ type Confirm = 'signout' | 'delete' | null;
         <section aria-label="Konflik posisi baca">
           <div class="panel warn">
             <strong>Perlu memilih posisi baca</strong>
-            <p>Posisi di perangkat ini berbeda dengan yang tersimpan di cloud. Pilih yang ingin dipakai.</p>
-            <button type="button" class="mf-btn mf-btn--outline" style="text-align: left; padding: 10px 16px" (click)="resolve('device')">
-              <strong>Gunakan posisi perangkat ini</strong><br /><span class="muted">{{ describe(c.device) }}</span>
+            <p>
+              Posisi di perangkat ini berbeda dengan yang tersimpan di cloud. Pilih yang ingin
+              dipakai.
+            </p>
+            <button
+              type="button"
+              class="mf-btn mf-btn--outline"
+              style="text-align: left; padding: 10px 16px"
+              (click)="resolve('device')"
+            >
+              <strong>Gunakan posisi perangkat ini</strong><br /><span class="muted">{{
+                describe(c.device)
+              }}</span>
             </button>
-            <button type="button" class="mf-btn mf-btn--outline" style="text-align: left; padding: 10px 16px" (click)="resolve('cloud')">
-              <strong>Gunakan posisi cloud</strong><br /><span class="muted">{{ describe(c.cloud) }}</span>
+            <button
+              type="button"
+              class="mf-btn mf-btn--outline"
+              style="text-align: left; padding: 10px 16px"
+              (click)="resolve('cloud')"
+            >
+              <strong>Gunakan posisi cloud</strong><br /><span class="muted">{{
+                describe(c.cloud)
+              }}</span>
             </button>
           </div>
         </section>
@@ -79,41 +132,73 @@ type Confirm = 'signout' | 'delete' | null;
         <section aria-label="Sesi berakhir">
           <div class="panel warn">
             <strong>Sesi berakhir</strong>
-            <p>Hubungkan ulang akun agar perubahan terbaru bisa dikirim. Data di perangkat ini tidak hilang.</p>
-            <button type="button" class="mf-btn mf-btn--primary" (click)="sync.signIn('google')">Hubungkan ulang</button>
+            <p>
+              Hubungkan ulang akun agar perubahan terbaru bisa dikirim. Data di perangkat ini tidak
+              hilang.
+            </p>
+            <button type="button" class="mf-btn mf-btn--primary" (click)="sync.signIn('google')">
+              Hubungkan ulang
+            </button>
           </div>
         </section>
       }
 
       <section aria-label="Tindakan akun">
-        <button type="button" class="row" [disabled]="busy()" (click)="syncNow()"><span>Sinkronkan sekarang</span><span class="end">{{ busy() ? 'Menyinkronkan…' : '' }}</span></button>
-        <button type="button" class="row" (click)="exportLocal()"><span>Ekspor data</span><span class="end">JSON</span></button>
+        <button type="button" class="row" [disabled]="busy()" (click)="syncNow()">
+          <span>Sinkronkan sekarang</span
+          ><span class="end">{{ busy() ? 'Menyinkronkan…' : '' }}</span>
+        </button>
+        <button type="button" class="row" (click)="exportLocal()">
+          <span>Ekspor data</span><span class="end">JSON</span>
+        </button>
 
         @if (confirm() === 'signout') {
           <div class="panel" role="alertdialog" aria-label="Keluar">
             <strong>Keluar dari akun?</strong>
             <p>Pilih apa yang dilakukan dengan data di perangkat ini.</p>
             <div class="actions">
-              <button type="button" class="mf-btn mf-btn--primary" (click)="signOut(false)">Keluar, simpan data lokal</button>
-              <button type="button" class="mf-btn mf-btn--outline" (click)="signOut(true)">Keluar &amp; hapus data lokal</button>
-              <button type="button" class="mf-btn mf-btn--ghost" (click)="confirm.set(null)">Batal</button>
+              <button type="button" class="mf-btn mf-btn--primary" (click)="signOut(false)">
+                Keluar, simpan data lokal
+              </button>
+              <button type="button" class="mf-btn mf-btn--outline" (click)="signOut(true)">
+                Keluar &amp; hapus data lokal
+              </button>
+              <button type="button" class="mf-btn mf-btn--ghost" (click)="confirm.set(null)">
+                Batal
+              </button>
             </div>
           </div>
         } @else {
-          <button type="button" class="row" (click)="confirm.set('signout')"><span>Keluar</span></button>
+          <button type="button" class="row" (click)="confirm.set('signout')">
+            <span>Keluar</span>
+          </button>
         }
 
         @if (confirm() === 'delete') {
           <div class="panel warn" role="alertdialog" aria-label="Hapus data cloud">
             <strong>Hapus data cloud?</strong>
-            <p>Akun dan semua posisi, penanda, serta preferensi di cloud dihapus permanen. Data di perangkat ini tidak berubah.</p>
+            <p>
+              Akun dan semua posisi, penanda, serta preferensi di cloud dihapus permanen. Data di
+              perangkat ini tidak berubah.
+            </p>
             <div class="actions">
-              <button type="button" class="mf-btn mf-btn--outline" (click)="confirm.set(null)">Batal</button>
-              <button type="button" class="mf-btn mf-btn--danger" [disabled]="busy()" (click)="deleteCloud()">Hapus data cloud</button>
+              <button type="button" class="mf-btn mf-btn--outline" (click)="confirm.set(null)">
+                Batal
+              </button>
+              <button
+                type="button"
+                class="mf-btn mf-btn--danger"
+                [disabled]="busy()"
+                (click)="deleteCloud()"
+              >
+                Hapus data cloud
+              </button>
             </div>
           </div>
         } @else {
-          <button type="button" class="row danger" (click)="confirm.set('delete')"><span>Hapus data cloud</span></button>
+          <button type="button" class="row danger" (click)="confirm.set('delete')">
+            <span>Hapus data cloud</span>
+          </button>
         }
         @if (error()) {
           <div class="mf-note" role="alert">{{ error() }}</div>
@@ -141,7 +226,9 @@ export class AccountSheet {
     return (a?.name ?? a?.email ?? '?').trim().charAt(0).toUpperCase() || '?';
   });
 
-  protected readonly statusLine = computed(() => statusText(this.sync.status(), this.sync.lastSuccessAt()));
+  protected readonly statusLine = computed(() =>
+    statusText(this.sync.status(), this.sync.lastSuccessAt()),
+  );
 
   protected describe(p: ReadingPosition): string {
     const idx = this.content.index();

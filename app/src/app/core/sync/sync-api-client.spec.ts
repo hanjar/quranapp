@@ -9,7 +9,11 @@ describe('SyncApiClient', () => {
   afterEach(() => vi.unstubAllGlobals());
 
   it('sends credentials + client header and unwraps the envelope', async () => {
-    const f = vi.fn().mockResolvedValue(res(200, { success: true, data: { user: { id: 'u1', email: 'a@b', name: 'A' } } }));
+    const f = vi
+      .fn()
+      .mockResolvedValue(
+        res(200, { success: true, data: { user: { id: 'u1', email: 'a@b', name: 'A' } } }),
+      );
     vi.stubGlobal('fetch', f);
     const user = await client.me();
     expect(user?.id).toBe('u1');
@@ -20,7 +24,9 @@ describe('SyncApiClient', () => {
   });
 
   it('posts JSON bodies', async () => {
-    const f = vi.fn().mockResolvedValue(res(200, { success: true, data: { results: [], cursor: 3 } }));
+    const f = vi
+      .fn()
+      .mockResolvedValue(res(200, { success: true, data: { results: [], cursor: 3 } }));
     vi.stubGlobal('fetch', f);
     const r = await client.pushBatch([]);
     expect(r.cursor).toBe(3);
@@ -30,13 +36,23 @@ describe('SyncApiClient', () => {
   });
 
   it('me() treats 401 as logged out', async () => {
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(res(401, { success: false, error: { code: 'unauthorized', message: 'x' } })));
+    vi.stubGlobal(
+      'fetch',
+      vi
+        .fn()
+        .mockResolvedValue(
+          res(401, { success: false, error: { code: 'unauthorized', message: 'x' } }),
+        ),
+    );
     expect(await client.me()).toBeNull();
   });
 
   it('types errors: 401, 429 + Retry-After, 5xx, network, 4xx', async () => {
     const kind = async (r: Response | Error) => {
-      vi.stubGlobal('fetch', r instanceof Error ? vi.fn().mockRejectedValue(r) : vi.fn().mockResolvedValue(r));
+      vi.stubGlobal(
+        'fetch',
+        r instanceof Error ? vi.fn().mockRejectedValue(r) : vi.fn().mockResolvedValue(r),
+      );
       try {
         await client.pull(0);
       } catch (e) {
@@ -50,7 +66,9 @@ describe('SyncApiClient', () => {
     expect(rl.retryAfterMs).toBe(12_000);
     expect((await kind(res(503, {}))).kind).toBe('server');
     expect((await kind(new TypeError('Failed to fetch'))).kind).toBe('network');
-    const c = await kind(res(400, { success: false, error: { code: 'bad_request', message: 'x' } }));
+    const c = await kind(
+      res(400, { success: false, error: { code: 'bad_request', message: 'x' } }),
+    );
     expect(c.kind).toBe('client');
     expect(c.code).toBe('bad_request');
   });

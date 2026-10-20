@@ -37,16 +37,65 @@ import { SheetHistory } from './sheet-history';
     </div>
   `,
   styles: `
-    :host { display: flex; flex-direction: column; gap: 14px; padding: var(--mf-space-1) var(--mf-space-5) var(--mf-space-6); color: var(--ui-ink); }
-    .q { min-height: 48px; border-radius: 24px; font-size: 15.5px; }
-    .hints { display: flex; flex-wrap: wrap; gap: 6px; }
-    .chip { min-height: var(--mf-tap); padding: 0 14px; border-radius: 22px; border: 1px solid var(--ui-line); background: transparent; font-size: 13px; color: var(--ui-ink); }
-    .results { display: flex; flex-direction: column; }
-    .res { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; min-height: 56px; padding: 8px 4px; border: none; border-bottom: 1px solid var(--ui-hair); background: transparent; text-align: left; color: var(--ui-ink); }
-    .res:hover { background: color-mix(in srgb, var(--ui-ink) 4%, transparent); }
-    .rt { font-size: 15px; font-weight: 500; }
-    .rs { font-size: 12.5px; color: var(--ui-muted); }
-    .none { padding: 20px 4px; font-size: 14px; color: var(--ui-muted); }
+    :host {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      padding: var(--mf-space-1) var(--mf-space-5) var(--mf-space-6);
+      color: var(--ui-ink);
+    }
+    .q {
+      min-height: 48px;
+      border-radius: 24px;
+      font-size: 15.5px;
+    }
+    .hints {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+    .chip {
+      min-height: var(--mf-tap);
+      padding: 0 14px;
+      border-radius: 22px;
+      border: 1px solid var(--ui-line);
+      background: transparent;
+      font-size: 13px;
+      color: var(--ui-ink);
+    }
+    .results {
+      display: flex;
+      flex-direction: column;
+    }
+    .res {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 2px;
+      min-height: 56px;
+      padding: 8px 4px;
+      border: none;
+      border-bottom: 1px solid var(--ui-hair);
+      background: transparent;
+      text-align: left;
+      color: var(--ui-ink);
+    }
+    .res:hover {
+      background: color-mix(in srgb, var(--ui-ink) 4%, transparent);
+    }
+    .rt {
+      font-size: 15px;
+      font-weight: 500;
+    }
+    .rs {
+      font-size: 12.5px;
+      color: var(--ui-muted);
+    }
+    .none {
+      padding: 20px 4px;
+      font-size: 14px;
+      color: var(--ui-muted);
+    }
   `,
 })
 export class SearchSheet {

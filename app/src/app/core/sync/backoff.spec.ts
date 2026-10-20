@@ -1,4 +1,10 @@
-import { BACKOFF_BASE_MS, BACKOFF_CAP_MS, backoffCeiling, backoffDelay, parseRetryAfter } from './backoff';
+import {
+  BACKOFF_BASE_MS,
+  BACKOFF_CAP_MS,
+  backoffCeiling,
+  backoffDelay,
+  parseRetryAfter,
+} from './backoff';
 
 describe('backoff', () => {
   it('doubles the jitter ceiling from 2 s and caps at 5 min', () => {

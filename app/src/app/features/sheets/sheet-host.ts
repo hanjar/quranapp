@@ -42,11 +42,25 @@ const FOCUSABLE =
 @Component({
   selector: 'app-sheet-host',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [VerseSheet, BrowseSheet, BookmarksSheet, SearchSheet, SettingsSheet, OfflineSheet, AccountSheet, AboutSheet],
+  imports: [
+    VerseSheet,
+    BrowseSheet,
+    BookmarksSheet,
+    SearchSheet,
+    SettingsSheet,
+    OfflineSheet,
+    AccountSheet,
+    AboutSheet,
+  ],
   host: { '(document:keydown.escape)': 'onEscape($event)' },
   template: `
     @if (rendered()) {
-      <div class="scrim" [class.on]="entered() && !isVerse()" aria-hidden="true" (click)="history.close()"></div>
+      <div
+        class="scrim"
+        [class.on]="entered() && !isVerse()"
+        aria-hidden="true"
+        (click)="history.close()"
+      ></div>
       <div
         #dialog
         class="sheet"
@@ -62,19 +76,46 @@ const FOCUSABLE =
         <div class="head">
           <h2 #heading id="mf-sheet-title" tabindex="-1" class="mf-display">{{ title() }}</h2>
           <button type="button" class="mf-icon-btn" aria-label="Tutup" (click)="history.close()">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" /></svg>
+            <svg
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.6"
+              stroke-linecap="round"
+              aria-hidden="true"
+            >
+              <path d="M6 6l12 12M18 6L6 18" />
+            </svg>
           </button>
         </div>
         <div class="body">
           @switch (shown()) {
-            @case ('verse') { <app-verse-sheet /> }
-            @case ('browse') { <app-browse-sheet /> }
-            @case ('bookmarks') { <app-bookmarks-sheet /> }
-            @case ('search') { <app-search-sheet /> }
-            @case ('settings') { <app-settings-sheet /> }
-            @case ('offline') { <app-offline-sheet /> }
-            @case ('account') { <app-account-sheet /> }
-            @case ('about') { <app-about-sheet /> }
+            @case ('verse') {
+              <app-verse-sheet />
+            }
+            @case ('browse') {
+              <app-browse-sheet />
+            }
+            @case ('bookmarks') {
+              <app-bookmarks-sheet />
+            }
+            @case ('search') {
+              <app-search-sheet />
+            }
+            @case ('settings') {
+              <app-settings-sheet />
+            }
+            @case ('offline') {
+              <app-offline-sheet />
+            }
+            @case ('account') {
+              <app-account-sheet />
+            }
+            @case ('about') {
+              <app-about-sheet />
+            }
           }
         </div>
       </div>
@@ -82,48 +123,106 @@ const FOCUSABLE =
   `,
   styles: `
     .scrim {
-      position: fixed; inset: 0; z-index: var(--mf-z-scrim);
+      position: fixed;
+      inset: 0;
+      z-index: var(--mf-z-scrim);
       background: color-mix(in srgb, var(--ui-ink) 28%, transparent);
-      opacity: 0; pointer-events: none;
+      opacity: 0;
+      pointer-events: none;
       transition: opacity var(--mf-dur-base) var(--mf-ease);
     }
-    .scrim.on { opacity: 1; pointer-events: auto; }
+    .scrim.on {
+      opacity: 1;
+      pointer-events: auto;
+    }
 
     .sheet {
-      position: fixed; z-index: var(--mf-z-sheet);
-      left: 0; right: 0; bottom: 0; top: auto;
+      position: fixed;
+      z-index: var(--mf-z-sheet);
+      left: 0;
+      right: 0;
+      bottom: 0;
+      top: auto;
       max-height: 88%;
-      display: flex; flex-direction: column; overflow: hidden;
-      background: var(--ui-surface); color: var(--ui-ink);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      background: var(--ui-surface);
+      color: var(--ui-ink);
       border-radius: var(--mf-radius-sheet) var(--mf-radius-sheet) 0 0;
       box-shadow: 0 -8px 32px color-mix(in srgb, var(--ui-ink) 12%, transparent);
       padding-bottom: var(--mf-safe-bottom);
-      padding-left: var(--mf-safe-left); padding-right: var(--mf-safe-right);
+      padding-left: var(--mf-safe-left);
+      padding-right: var(--mf-safe-right);
       transform: translateY(105%);
       transition: transform var(--mf-dur-base) var(--mf-ease);
     }
-    .sheet.verse { max-height: 52%; }
-    .sheet.open { transform: translateY(0); }
+    .sheet.verse {
+      max-height: 52%;
+    }
+    .sheet.open {
+      transform: translateY(0);
+    }
 
-    .grab { display: flex; justify-content: center; padding-top: 8px; flex: none; }
-    .grab span { width: 36px; height: 4px; border-radius: 2px; background: var(--ui-line); }
+    .grab {
+      display: flex;
+      justify-content: center;
+      padding-top: 8px;
+      flex: none;
+    }
+    .grab span {
+      width: 36px;
+      height: 4px;
+      border-radius: 2px;
+      background: var(--ui-line);
+    }
 
-    .head { display: flex; align-items: center; justify-content: space-between; padding: 8px 8px 4px 20px; flex: none; }
-    h2 { margin: 0; font-size: 22px; font-weight: 500; outline: none; }
-    .body { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+    .head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 8px 4px 20px;
+      flex: none;
+    }
+    h2 {
+      margin: 0;
+      font-size: 22px;
+      font-weight: 500;
+      outline: none;
+    }
+    .body {
+      flex: 1;
+      min-height: 0;
+      overflow-y: auto;
+      overscroll-behavior: contain;
+    }
 
     @media (min-width: 768px) {
       .sheet {
-        left: auto; right: 0; top: 0; bottom: 0; width: 400px; max-height: 100%;
-        border-radius: 0; border-left: 1px solid var(--ui-line);
+        left: auto;
+        right: 0;
+        top: 0;
+        bottom: 0;
+        width: 400px;
+        max-height: 100%;
+        border-radius: 0;
+        border-left: 1px solid var(--ui-line);
         padding-top: var(--mf-safe-top);
         box-shadow: -8px 0 32px color-mix(in srgb, var(--ui-ink) 10%, transparent);
         transform: translateX(105%);
       }
-      .sheet.verse { max-height: 100%; }
-      .sheet.open { transform: translateX(0); }
-      .grab { display: none; }
-      .head { padding-top: 12px; }
+      .sheet.verse {
+        max-height: 100%;
+      }
+      .sheet.open {
+        transform: translateX(0);
+      }
+      .grab {
+        display: none;
+      }
+      .head {
+        padding-top: 12px;
+      }
     }
   `,
 })
@@ -163,7 +262,8 @@ export class SheetHost implements OnDestroy {
       if (!this.wasOpen) {
         this.wasOpen = true;
         const active = document.activeElement;
-        this.previousFocus = active instanceof HTMLElement && active !== document.body ? active : null;
+        this.previousFocus =
+          active instanceof HTMLElement && active !== document.body ? active : null;
         this.history.opened();
       }
       this.shown.set(name);

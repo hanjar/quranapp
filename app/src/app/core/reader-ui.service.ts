@@ -3,14 +3,7 @@ import { Router } from '@angular/router';
 import { AyahRef, PAGE_COUNT } from './models';
 
 export type SheetName =
-  | 'verse'
-  | 'browse'
-  | 'bookmarks'
-  | 'search'
-  | 'settings'
-  | 'offline'
-  | 'account'
-  | 'about';
+  'verse' | 'browse' | 'bookmarks' | 'search' | 'settings' | 'offline' | 'account' | 'about';
 
 export type BrowseTab = 'surah' | 'juz' | 'page';
 
@@ -51,7 +44,9 @@ export class ReaderUiService {
 
   readonly sheetOpen = computed(() => this.sheet() !== null);
   /** Gestures on the page must be ignored while a modal surface is open. */
-  readonly gesturesBlocked = computed(() => this.tourOpen() || (this.sheet() !== null && this.sheet() !== 'verse'));
+  readonly gesturesBlocked = computed(
+    () => this.tourOpen() || (this.sheet() !== null && this.sheet() !== 'verse'),
+  );
 
   goToPage(page: number, opts: { highlight?: AyahRef | null; replaceUrl?: boolean } = {}): void {
     const p = Math.max(1, Math.min(PAGE_COUNT, Math.trunc(page)));

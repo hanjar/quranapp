@@ -400,7 +400,8 @@ export class ReaderShell {
     if (e.defaultPrevented || e.ctrlKey || e.metaKey || e.altKey) return;
     const t = e.target as HTMLElement | null;
     const tag = t?.tagName?.toLowerCase();
-    const typing = tag === 'input' || tag === 'textarea' || tag === 'select' || !!t?.isContentEditable;
+    const typing =
+      tag === 'input' || tag === 'textarea' || tag === 'select' || !!t?.isContentEditable;
 
     if (e.key === 'Escape') {
       if (typing) return;

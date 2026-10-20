@@ -1,10 +1,5 @@
 import { describe, expect, it, beforeEach } from 'vitest';
-import {
-  GestureClock,
-  GestureController,
-  GestureIntent,
-  VerseHit,
-} from './gesture-controller';
+import { GestureClock, GestureController, GestureIntent, VerseHit } from './gesture-controller';
 
 class FakeClock implements GestureClock {
   t = 1000;

@@ -212,7 +212,9 @@ describe('ReaderShell', () => {
   it('Escape chain: sheet, then zoom, then chrome', async () => {
     await mount('10');
     const esc = () =>
-      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
+      document.dispatchEvent(
+        new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }),
+      );
     ui.sheet.set('settings');
     ui.zoom.set(2);
     ui.chromeVisible.set(true);
@@ -233,7 +235,9 @@ describe('ReaderShell', () => {
     expect(ui.currentPage()).toBe(4);
     expect(goTo).not.toHaveBeenCalled();
     expect(userData.saved).toEqual([4]);
-    expect(fixture.nativeElement.querySelector('mf-page-view[aria-current="page"]').dataset.page).toBe('4');
+    expect(
+      fixture.nativeElement.querySelector('mf-page-view[aria-current="page"]').dataset.page,
+    ).toBe('4');
     expect(fixture.nativeElement.querySelectorAll('mf-page-view').length).toBe(2);
   });
 

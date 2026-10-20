@@ -21,11 +21,15 @@ const isObj = (v: unknown): v is Record<string, unknown> =>
 
 const isTime = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v) && v >= 0;
 
-const isSurah = (v: unknown): v is number => Number.isInteger(v) && (v as number) >= 1 && (v as number) <= 114;
-const isAyah = (v: unknown): v is number => Number.isInteger(v) && (v as number) >= 1 && (v as number) <= 286;
+const isSurah = (v: unknown): v is number =>
+  Number.isInteger(v) && (v as number) >= 1 && (v as number) <= 114;
+const isAyah = (v: unknown): v is number =>
+  Number.isInteger(v) && (v as number) >= 1 && (v as number) <= 286;
 
 const oneOf = <T extends string>(v: unknown, allowed: readonly T[], label: string): T =>
-  allowed.includes(v as T) ? (v as T) : fail(`Berkas tidak valid: pengaturan "${label}" tidak dikenal.`);
+  allowed.includes(v as T)
+    ? (v as T)
+    : fail(`Berkas tidak valid: pengaturan "${label}" tidak dikenal.`);
 
 export function validateBookmark(raw: unknown, i: number): Bookmark {
   const n = `penanda #${i + 1}`;
@@ -42,7 +46,9 @@ export function validateBookmark(raw: unknown, i: number): Bookmark {
     surah = raw['surah'];
     ayah = raw['ayah'];
   }
-  const createdAt = isTime(raw['createdAt']) ? raw['createdAt'] : fail(`Berkas tidak valid: waktu ${n} salah.`);
+  const createdAt = isTime(raw['createdAt'])
+    ? raw['createdAt']
+    : fail(`Berkas tidak valid: waktu ${n} salah.`);
   const updatedAt = isTime(raw['updatedAt']) ? raw['updatedAt'] : createdAt;
   return {
     id: '', // assigned on import
@@ -62,10 +68,12 @@ export function validateBookmark(raw: unknown, i: number): Bookmark {
 export function validatePosition(raw: unknown): ReadingPosition | null {
   if (raw === null || raw === undefined) return null;
   if (!isObj(raw)) return fail('Berkas tidak valid: posisi baca rusak.');
-  if (!isValidPage(raw['page'])) return fail('Berkas tidak valid: halaman posisi baca di luar 1–604.');
+  if (!isValidPage(raw['page']))
+    return fail('Berkas tidak valid: halaman posisi baca di luar 1–604.');
   const surah = raw['surah'] ?? null;
   const ayah = raw['ayah'] ?? null;
-  if (surah !== null && !isSurah(surah)) return fail('Berkas tidak valid: surah posisi baca salah.');
+  if (surah !== null && !isSurah(surah))
+    return fail('Berkas tidak valid: surah posisi baca salah.');
   if (ayah !== null && !isAyah(ayah)) return fail('Berkas tidak valid: ayat posisi baca salah.');
   if (!isTime(raw['updatedAt'])) return fail('Berkas tidak valid: waktu posisi baca salah.');
   return {
@@ -82,7 +90,9 @@ export function validatePosition(raw: unknown): ReadingPosition | null {
 export function validatePreferences(raw: unknown): Preferences {
   if (!isObj(raw)) return fail('Berkas tidak valid: pengaturan rusak.');
   const bool = (k: string): boolean =>
-    typeof raw[k] === 'boolean' ? (raw[k] as boolean) : fail(`Berkas tidak valid: pengaturan "${k}" salah.`);
+    typeof raw[k] === 'boolean'
+      ? (raw[k] as boolean)
+      : fail(`Berkas tidak valid: pengaturan "${k}" salah.`);
   return {
     paperTheme: oneOf(raw['paperTheme'], ['photo', 'ivory', 'antique'], 'paperTheme'),
     uiTheme: oneOf(raw['uiTheme'], ['klasik', 'segar', 'ceria', 'samudra'], 'uiTheme'),
@@ -90,7 +100,10 @@ export function validatePreferences(raw: unknown): Preferences {
     controlsAlwaysVisible: bool('controlsAlwaysVisible'),
     motion: oneOf(raw['motion'], ['system', 'reduce'], 'motion'),
     highContrast: bool('highContrast'),
-    onboardingDone: typeof raw['onboardingDone'] === 'boolean' ? raw['onboardingDone'] : DEFAULT_PREFERENCES.onboardingDone,
+    onboardingDone:
+      typeof raw['onboardingDone'] === 'boolean'
+        ? raw['onboardingDone']
+        : DEFAULT_PREFERENCES.onboardingDone,
     updatedAt: isTime(raw['updatedAt']) ? raw['updatedAt'] : 0,
     rev: null,
   };

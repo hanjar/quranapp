@@ -1,4 +1,13 @@
-import { ChangeDetectionStrategy, Component, ElementRef, effect, inject, signal, untracked, viewChild } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  ElementRef,
+  effect,
+  inject,
+  signal,
+  untracked,
+  viewChild,
+} from '@angular/core';
 import { UserDataApi } from '../../core/contracts';
 import { ReaderUiService } from '../../core/reader-ui.service';
 
@@ -32,28 +41,91 @@ export const TOUR_STEPS: TourStep[] = [
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { '(document:keydown)': 'onKey($event)' },
   styles: `
-    .scrim { position: fixed; inset: 0; z-index: var(--mf-z-tour); background: color-mix(in srgb, var(--ui-ink) 45%, transparent); display: flex; align-items: flex-end; justify-content: center; padding: 20px 20px calc(20px + var(--mf-safe-bottom)); }
-    .dlg { width: 100%; max-width: 400px; background: var(--ui-surface); color: var(--ui-ink); border-radius: var(--mf-radius-sheet); padding: 22px; display: flex; flex-direction: column; gap: 14px; font-family: var(--ui-font); }
-    .dlg:focus { outline: none; }
-    .step { font-size: 12px; font-weight: 600; letter-spacing: 0.05em; color: var(--ui-accent-ink); }
-    h2 { margin: 0; font-family: var(--ui-display); font-size: 24px; font-weight: 500; }
-    p { margin: 0; }
-    .body { font-size: 15px; line-height: 1.5; color: var(--ui-ink2); }
-    .alt { font-size: 13px; color: var(--ui-muted); }
-    .foot { display: flex; gap: 8px; justify-content: space-between; align-items: center; padding-top: 4px; }
-    .skip { min-height: var(--mf-tap); padding: 0 6px; border: none; background: transparent; color: var(--ui-primary); font-size: 14.5px; }
+    .scrim {
+      position: fixed;
+      inset: 0;
+      z-index: var(--mf-z-tour);
+      background: color-mix(in srgb, var(--ui-ink) 45%, transparent);
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+      padding: 20px 20px calc(20px + var(--mf-safe-bottom));
+    }
+    .dlg {
+      width: 100%;
+      max-width: 400px;
+      background: var(--ui-surface);
+      color: var(--ui-ink);
+      border-radius: var(--mf-radius-sheet);
+      padding: 22px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      font-family: var(--ui-font);
+    }
+    .dlg:focus {
+      outline: none;
+    }
+    .step {
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.05em;
+      color: var(--ui-accent-ink);
+    }
+    h2 {
+      margin: 0;
+      font-family: var(--ui-display);
+      font-size: 24px;
+      font-weight: 500;
+    }
+    p {
+      margin: 0;
+    }
+    .body {
+      font-size: 15px;
+      line-height: 1.5;
+      color: var(--ui-ink2);
+    }
+    .alt {
+      font-size: 13px;
+      color: var(--ui-muted);
+    }
+    .foot {
+      display: flex;
+      gap: 8px;
+      justify-content: space-between;
+      align-items: center;
+      padding-top: 4px;
+    }
+    .skip {
+      min-height: var(--mf-tap);
+      padding: 0 6px;
+      border: none;
+      background: transparent;
+      color: var(--ui-primary);
+      font-size: 14.5px;
+    }
   `,
   template: `
     @if (ui.tourOpen()) {
       <div class="scrim">
-        <div #dlg class="dlg" role="dialog" aria-modal="true" aria-labelledby="tour-title" tabindex="-1">
+        <div
+          #dlg
+          class="dlg"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="tour-title"
+          tabindex="-1"
+        >
           <div class="step">LANGKAH {{ i() + 1 }} DARI {{ total }}</div>
           <h2 id="tour-title">{{ step().title }}</h2>
           <p class="body">{{ step().body }}</p>
           <p class="alt">{{ step().alt }}</p>
           <div class="foot">
             <button type="button" class="skip" (click)="close()">Lewati</button>
-            <button type="button" class="mf-btn mf-btn--primary" (click)="next()">{{ last() ? 'Mulai membaca' : 'Berikutnya' }}</button>
+            <button type="button" class="mf-btn mf-btn--primary" (click)="next()">
+              {{ last() ? 'Mulai membaca' : 'Berikutnya' }}
+            </button>
           </div>
         </div>
       </div>
@@ -80,7 +152,8 @@ export class GestureTour {
       untracked(() => {
         if (open && el) {
           if (!this.opener) {
-            this.opener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+            this.opener =
+              document.activeElement instanceof HTMLElement ? document.activeElement : null;
             this.i.set(0);
           }
           el.focus();

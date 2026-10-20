@@ -64,7 +64,11 @@ function surahResult(s: SurahMeta): SearchResult {
 }
 
 function pageResult(page: number, ctx: SearchContext): SearchResult {
-  return { title: `Halaman ${page}`, sub: `${ctx.surahAt(page).nameLatin} · Juz ${ctx.juzAt(page)}`, page };
+  return {
+    title: `Halaman ${page}`,
+    sub: `${ctx.surahAt(page).nameLatin} · Juz ${ctx.juzAt(page)}`,
+    page,
+  };
 }
 
 export function parseSearch(raw: string, ctx: SearchContext): SearchResult[] {
@@ -101,7 +105,9 @@ export function parseSearch(raw: string, ctx: SearchContext): SearchResult[] {
     const j = +m[1];
     const page = j >= 1 && j <= 30 ? ctx.juzStartPage(j) : null;
     if (page === null) return [];
-    return [{ title: `Juz ${j}`, sub: `Mulai hal. ${page} · ${ctx.surahAt(page).nameLatin}`, page }];
+    return [
+      { title: `Juz ${j}`, sub: `Mulai hal. ${page} · ${ctx.surahAt(page).nameLatin}`, page },
+    ];
   }
 
   // bare number: surah n and page n

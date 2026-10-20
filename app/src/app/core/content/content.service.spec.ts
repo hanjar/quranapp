@@ -121,7 +121,8 @@ describe('ContentService', () => {
   it('heals a corrupted cache entry by refetching', async () => {
     await svc.load();
     web.caches.cache().entries.set(pageUrl(6, TEST_VERSION), {
-      buf: new TextEncoder().encode('<svg xmlns="http://www.w3.org/2000/svg"/>').buffer as ArrayBuffer,
+      buf: new TextEncoder().encode('<svg xmlns="http://www.w3.org/2000/svg"/>')
+        .buffer as ArrayBuffer,
       headers: new Headers(),
     });
     const el = await svc.getPage(6);

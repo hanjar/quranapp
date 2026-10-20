@@ -11,7 +11,14 @@ import { SheetHistory } from './sheet-history';
   template: `
     <div class="mf-segmented" role="tablist" aria-label="Jenis daftar isi">
       @for (t of tabs; track t.id) {
-        <button type="button" role="tab" [attr.aria-selected]="ui.browseTab() === t.id" (click)="setTab(t.id)">{{ t.label }}</button>
+        <button
+          type="button"
+          role="tab"
+          [attr.aria-selected]="ui.browseTab() === t.id"
+          (click)="setTab(t.id)"
+        >
+          {{ t.label }}
+        </button>
       }
     </div>
 
@@ -21,7 +28,9 @@ import { SheetHistory } from './sheet-history';
         type="search"
         [value]="filter()"
         (input)="filter.set($any($event.target).value)"
-        [placeholder]="ui.browseTab() === 'surah' ? 'Cari nama, nomor, atau huruf Arab' : 'Nomor juz'"
+        [placeholder]="
+          ui.browseTab() === 'surah' ? 'Cari nama, nomor, atau huruf Arab' : 'Nomor juz'
+        "
         aria-label="Saring"
         autocomplete="off"
       />
@@ -31,11 +40,19 @@ import { SheetHistory } from './sheet-history';
       @case ('surah') {
         <div class="list">
           @for (s of surahRows(); track s.number) {
-            <button type="button" class="row" [class.current]="s.number === currentSurah()" [attr.aria-current]="s.number === currentSurah() ? 'true' : null" (click)="open(s.startPage)">
+            <button
+              type="button"
+              class="row"
+              [class.current]="s.number === currentSurah()"
+              [attr.aria-current]="s.number === currentSurah() ? 'true' : null"
+              (click)="open(s.startPage)"
+            >
               <span class="num">{{ s.number }}</span>
               <span class="main">
                 <span class="name">{{ s.nameLatin }}</span>
-                <span class="info">{{ s.ayahCount }} ayat · Hal. {{ s.startPage }} · Juz {{ s.juz }}</span>
+                <span class="info"
+                  >{{ s.ayahCount }} ayat · Hal. {{ s.startPage }} · Juz {{ s.juz }}</span
+                >
               </span>
               <span class="ar" lang="ar" dir="rtl">{{ s.nameArabic }}</span>
             </button>
@@ -47,7 +64,13 @@ import { SheetHistory } from './sheet-history';
       @case ('juz') {
         <div class="juzgrid">
           @for (j of juzRows(); track j.number) {
-            <button type="button" class="juz" [class.current]="j.number === currentJuz()" [attr.aria-current]="j.number === currentJuz() ? 'true' : null" (click)="open(j.page)">
+            <button
+              type="button"
+              class="juz"
+              [class.current]="j.number === currentJuz()"
+              [attr.aria-current]="j.number === currentJuz() ? 'true' : null"
+              (click)="open(j.page)"
+            >
               <span class="jn">Juz {{ j.number }}</span>
               <span class="info">Hal. {{ j.page }} · {{ j.surahName }}</span>
             </button>
@@ -80,35 +103,137 @@ import { SheetHistory } from './sheet-history';
             (input)="onPageInput($any($event.target).value)"
             aria-label="Geser nomor halaman"
           />
-          <div id="browse-page-info" class="info" [class.err]="pageError()" [attr.role]="pageError() ? 'alert' : null">
+          <div
+            id="browse-page-info"
+            class="info"
+            [class.err]="pageError()"
+            [attr.role]="pageError() ? 'alert' : null"
+          >
             {{ pageError() ? 'Masukkan angka 1–' + pageCount + '.' : pageInfo() }}
           </div>
-          <button type="submit" class="mf-btn mf-btn--primary go">Buka halaman {{ validPage() ?? '' }}</button>
+          <button type="submit" class="mf-btn mf-btn--primary go">
+            Buka halaman {{ validPage() ?? '' }}
+          </button>
         </form>
       }
     }
   `,
   styles: `
-    :host { display: flex; flex-direction: column; gap: 14px; padding: var(--mf-space-1) var(--mf-space-5) var(--mf-space-6); color: var(--ui-ink); }
-    .list { display: flex; flex-direction: column; }
-    .row { display: flex; align-items: center; gap: 14px; min-height: 60px; padding: 6px 8px; border: none; border-bottom: 1px solid var(--ui-hair); background: transparent; text-align: left; color: var(--ui-ink); }
-    .row:hover, .row.current { background: color-mix(in srgb, var(--ui-primary) 6%, transparent); }
-    .num { width: 28px; font-size: 13px; color: var(--ui-accent-ink); font-weight: 600; text-align: center; }
-    .main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
-    .name { font-size: 15.5px; font-weight: 500; }
-    .info { font-size: 12.5px; color: var(--ui-muted); }
-    .ar { font-family: 'Amiri', serif; font-size: 20px; }
-    .empty { padding: 24px 8px; font-size: 14px; color: var(--ui-muted); text-align: center; }
-    .juzgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 8px; }
-    .juz { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; min-height: 60px; padding: 10px 12px; border-radius: var(--mf-radius-md); border: 1px solid var(--ui-line); background: var(--ui-surface); text-align: left; color: var(--ui-ink); }
-    .juz.current { border-color: var(--ui-primary); border-width: 2px; padding: 9px 11px; }
-    .jn { font-size: 15px; font-weight: 500; }
-    .pagetab { display: flex; flex-direction: column; gap: 16px; padding-top: 4px; }
-    .field { display: flex; flex-direction: column; gap: 6px; font-size: 13px; color: var(--ui-ink2); }
-    .big { min-height: 56px; font-size: 24px; font-family: var(--ui-display); }
-    input[type='range'] { width: 100%; min-height: var(--mf-tap); }
-    .info.err { color: var(--mf-danger); font-weight: 500; }
-    .go { min-height: 50px; }
+    :host {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      padding: var(--mf-space-1) var(--mf-space-5) var(--mf-space-6);
+      color: var(--ui-ink);
+    }
+    .list {
+      display: flex;
+      flex-direction: column;
+    }
+    .row {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      min-height: 60px;
+      padding: 6px 8px;
+      border: none;
+      border-bottom: 1px solid var(--ui-hair);
+      background: transparent;
+      text-align: left;
+      color: var(--ui-ink);
+    }
+    .row:hover,
+    .row.current {
+      background: color-mix(in srgb, var(--ui-primary) 6%, transparent);
+    }
+    .num {
+      width: 28px;
+      font-size: 13px;
+      color: var(--ui-accent-ink);
+      font-weight: 600;
+      text-align: center;
+    }
+    .main {
+      flex: 1;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    .name {
+      font-size: 15.5px;
+      font-weight: 500;
+    }
+    .info {
+      font-size: 12.5px;
+      color: var(--ui-muted);
+    }
+    .ar {
+      font-family: 'Amiri', serif;
+      font-size: 20px;
+    }
+    .empty {
+      padding: 24px 8px;
+      font-size: 14px;
+      color: var(--ui-muted);
+      text-align: center;
+    }
+    .juzgrid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+      gap: 8px;
+    }
+    .juz {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 2px;
+      min-height: 60px;
+      padding: 10px 12px;
+      border-radius: var(--mf-radius-md);
+      border: 1px solid var(--ui-line);
+      background: var(--ui-surface);
+      text-align: left;
+      color: var(--ui-ink);
+    }
+    .juz.current {
+      border-color: var(--ui-primary);
+      border-width: 2px;
+      padding: 9px 11px;
+    }
+    .jn {
+      font-size: 15px;
+      font-weight: 500;
+    }
+    .pagetab {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      padding-top: 4px;
+    }
+    .field {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      font-size: 13px;
+      color: var(--ui-ink2);
+    }
+    .big {
+      min-height: 56px;
+      font-size: 24px;
+      font-family: var(--ui-display);
+    }
+    input[type='range'] {
+      width: 100%;
+      min-height: var(--mf-tap);
+    }
+    .info.err {
+      color: var(--mf-danger);
+      font-weight: 500;
+    }
+    .go {
+      min-height: 50px;
+    }
   `,
 })
 export class BrowseSheet {
@@ -127,7 +252,9 @@ export class BrowseSheet {
   protected readonly pageInput = signal(String(this.ui.currentPage()));
   private readonly attempted = signal(false);
 
-  protected readonly surahRows = computed(() => filterSurahs(this.content.index()?.surahs ?? [], this.filter()));
+  protected readonly surahRows = computed(() =>
+    filterSurahs(this.content.index()?.surahs ?? [], this.filter()),
+  );
 
   protected readonly juzRows = computed(() => {
     const index = this.content.index();

@@ -32,19 +32,56 @@ const SYNC_LABEL: Record<SyncStatus, string> = {
     </button>
 
     <button type="button" class="mf-icon-btn" aria-label="Cari" (click)="ui.openSheet('search')">
-      <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true">
+      <svg
+        width="21"
+        height="21"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="1.6"
+        stroke-linecap="round"
+        aria-hidden="true"
+      >
         <circle cx="11" cy="11" r="6.5" />
         <path d="M20 20l-4.2-4.2" />
       </svg>
     </button>
-    <button type="button" class="mf-icon-btn" aria-label="Penanda" (click)="ui.openSheet('bookmarks')">
-      <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" aria-hidden="true">
+    <button
+      type="button"
+      class="mf-icon-btn"
+      aria-label="Penanda"
+      (click)="ui.openSheet('bookmarks')"
+    >
+      <svg
+        width="21"
+        height="21"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="1.6"
+        stroke-linejoin="round"
+        aria-hidden="true"
+      >
         <path d="M6.5 4h11v16l-5.5-4-5.5 4z" />
         <path d="M9.5 8.5h5" />
       </svg>
     </button>
-    <button type="button" class="mf-icon-btn" aria-label="Pengaturan" (click)="ui.openSheet('settings')">
-      <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true">
+    <button
+      type="button"
+      class="mf-icon-btn"
+      aria-label="Pengaturan"
+      (click)="ui.openSheet('settings')"
+    >
+      <svg
+        width="21"
+        height="21"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="1.6"
+        stroke-linecap="round"
+        aria-hidden="true"
+      >
         <path d="M4 8h10M18 8h2M4 16h3M11 16h9" />
         <circle cx="16" cy="8" r="2" />
         <circle cx="9" cy="16" r="2" />
@@ -57,7 +94,16 @@ const SYNC_LABEL: Record<SyncStatus, string> = {
         [attr.aria-label]="'Akun dan sinkronisasi, ' + syncLabel()"
         (click)="ui.openSheet('account')"
       >
-        <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true">
+        <svg
+          width="21"
+          height="21"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.6"
+          stroke-linecap="round"
+          aria-hidden="true"
+        >
           <circle cx="12" cy="9" r="3.5" />
           <path d="M5 20c1.2-3.5 4-5 7-5s5.8 1.5 7 5" />
         </svg>

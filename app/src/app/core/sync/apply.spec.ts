@@ -31,21 +31,51 @@ function bm(id: string, over: Partial<Bookmark> = {}): Bookmark {
     ...over,
   };
 }
-function bmChange(id: string, rev: number, over: Partial<Change> = {}, data: Record<string, unknown> = {}): Change {
+function bmChange(
+  id: string,
+  rev: number,
+  over: Partial<Change> = {},
+  data: Record<string, unknown> = {},
+): Change {
   return {
     entity: 'bookmark',
     id,
     rev,
     deleted: false,
-    data: { kind: 'page', editionId: 'hafs-kfqc', page: 10, surah: null, ayah: null, key: 'hafs-kfqc|page|10', createdAt: 1, updatedAt: 2, ...data },
+    data: {
+      kind: 'page',
+      editionId: 'hafs-kfqc',
+      page: 10,
+      surah: null,
+      ayah: null,
+      key: 'hafs-kfqc|page|10',
+      createdAt: 1,
+      updatedAt: 2,
+      ...data,
+    },
     ...over,
   };
 }
 function pos(over: Partial<ReadingPosition> = {}): ReadingPosition {
-  return { editionId: 'hafs-kfqc', page: 5, surah: null, ayah: null, updatedAt: 100, deviceId: DEV, rev: null, ...over };
+  return {
+    editionId: 'hafs-kfqc',
+    page: 5,
+    surah: null,
+    ayah: null,
+    updatedAt: 100,
+    deviceId: DEV,
+    rev: null,
+    ...over,
+  };
 }
 function posChange(rev: number, data: Record<string, unknown>): Change {
-  return { entity: 'position', id: 'hafs-kfqc', rev, deleted: false, data: { editionId: 'hafs-kfqc', surah: null, ayah: null, ...data } };
+  return {
+    entity: 'position',
+    id: 'hafs-kfqc',
+    rev,
+    deleted: false,
+    data: { editionId: 'hafs-kfqc', surah: null, ayah: null, ...data },
+  };
 }
 
 // Bundled chunk order may load Dexie before the fake-indexeddb globals exist.
@@ -75,14 +105,24 @@ describe('sync apply', () => {
     it('applies tombstones and drops stale pending upserts', async () => {
       await db.bookmarks.put(bm('a', { rev: 1 }));
       await db.outbox.add(makeOp(ACC, 'bookmark', 'a', 'upsert', {}, 1));
-      await applyChanges(db, ACC, [{ entity: 'bookmark', id: 'a', rev: 2, deleted: true, data: null }], opts());
+      await applyChanges(
+        db,
+        ACC,
+        [{ entity: 'bookmark', id: 'a', rev: 2, deleted: true, data: null }],
+        opts(),
+      );
       expect((await db.bookmarks.get('a'))?.deletedAt).not.toBeNull();
       expect((await db.bookmarks.get('a'))?.rev).toBe(2);
       expect(await db.outbox.count()).toBe(0);
     });
 
     it('does not create rows for unknown tombstones', async () => {
-      await applyChanges(db, ACC, [{ entity: 'bookmark', id: 'zz', rev: 2, deleted: true, data: null }], opts());
+      await applyChanges(
+        db,
+        ACC,
+        [{ entity: 'bookmark', id: 'zz', rev: 2, deleted: true, data: null }],
+        opts(),
+      );
       expect(await db.bookmarks.count()).toBe(0);
     });
 
@@ -107,25 +147,60 @@ describe('sync apply', () => {
       await applyChanges(
         db,
         ACC,
-        [{ entity: 'prefs', id: 'prefs', rev: 2, deleted: false, data: { paperTheme: 'antique', uiTheme: 'bogus', highContrast: true, updatedAt: 9 } }],
+        [
+          {
+            entity: 'prefs',
+            id: 'prefs',
+            rev: 2,
+            deleted: false,
+            data: { paperTheme: 'antique', uiTheme: 'bogus', highContrast: true, updatedAt: 9 },
+          },
+        ],
         opts(),
       );
       const p = await db.prefs.get('prefs');
-      expect(p).toMatchObject({ paperTheme: 'antique', uiTheme: 'segar', highContrast: true, onboardingDone: true, rev: 2, updatedAt: 9 });
+      expect(p).toMatchObject({
+        paperTheme: 'antique',
+        uiTheme: 'segar',
+        highContrast: true,
+        onboardingDone: true,
+        rev: 2,
+        updatedAt: 9,
+      });
     });
 
     it('keeps a pending local prefs edit and bumps its baseRev', async () => {
-      await db.prefs.put({ ...DEFAULT_PREFERENCES, key: 'prefs', paperTheme: 'photo', updatedAt: 50, rev: 1 });
+      await db.prefs.put({
+        ...DEFAULT_PREFERENCES,
+        key: 'prefs',
+        paperTheme: 'photo',
+        updatedAt: 50,
+        rev: 1,
+      });
       const op = makeOp(ACC, 'prefs', 'prefs', 'upsert', {}, 1);
       await db.outbox.add(op);
-      await applyChanges(db, ACC, [{ entity: 'prefs', id: 'prefs', rev: 4, deleted: false, data: { paperTheme: 'antique', updatedAt: 40 } }], opts());
+      await applyChanges(
+        db,
+        ACC,
+        [
+          {
+            entity: 'prefs',
+            id: 'prefs',
+            rev: 4,
+            deleted: false,
+            data: { paperTheme: 'antique', updatedAt: 40 },
+          },
+        ],
+        opts(),
+      );
       expect((await db.prefs.get('prefs'))?.paperTheme).toBe('photo');
       expect((await db.outbox.get(op.opId))?.baseRev).toBe(4);
     });
   });
 
   describe('position conflict rules', () => {
-    const remote = (over: Record<string, unknown> = {}) => posChange(3, { page: 200, updatedAt: 500, deviceId: 'dev-other', ...over });
+    const remote = (over: Record<string, unknown> = {}) =>
+      posChange(3, { page: 200, updatedAt: 500, deviceId: 'dev-other', ...over });
 
     it('cold start: newer remote page from another device => conflict, reader untouched', async () => {
       await db.positions.put(pos({ page: 5, updatedAt: 100 }));
@@ -172,20 +247,35 @@ describe('sync apply', () => {
 
     it('records the rev of our own echo', async () => {
       await db.positions.put(pos({ page: 5, updatedAt: 100 }));
-      await applyChanges(db, ACC, [posChange(8, { page: 5, updatedAt: 100, deviceId: DEV })], opts());
+      await applyChanges(
+        db,
+        ACC,
+        [posChange(8, { page: 5, updatedAt: 100, deviceId: DEV })],
+        opts(),
+      );
       expect((await db.positions.get('hafs-kfqc'))?.rev).toBe(8);
     });
   });
 
   describe('push result handling', () => {
-    const res = (opId: string, status: BatchResult['status'], extra: Partial<BatchResult> = {}): BatchResult => ({ opId, status, ...extra });
+    const res = (
+      opId: string,
+      status: BatchResult['status'],
+      extra: Partial<BatchResult> = {},
+    ): BatchResult => ({ opId, status, ...extra });
 
     it('applied: sets local rev, removes op, bumps baseRev of later ops', async () => {
       await db.bookmarks.put(bm('a'));
       const create = makeOp(ACC, 'bookmark', 'a', 'upsert', {}, null);
       const del = makeOp(ACC, 'bookmark', 'a', 'delete', null, null);
       await db.outbox.bulkAdd([create, del]);
-      const out = await handleResults(db, ACC, [create], [res(create.opId, 'applied', { rev: 7 })], opts());
+      const out = await handleResults(
+        db,
+        ACC,
+        [create],
+        [res(create.opId, 'applied', { rev: 7 })],
+        opts(),
+      );
       expect(out.applied).toBe(1);
       expect((await db.bookmarks.get('a'))?.rev).toBe(7);
       expect(await db.outbox.get(create.opId)).toBeUndefined();
@@ -198,7 +288,13 @@ describe('sync apply', () => {
       const a = makeOp(ACC, 'position', 'hafs-kfqc', 'upsert', {}, null);
       const b = makeOp(ACC, 'prefs', 'prefs', 'upsert', {}, null);
       await db.outbox.bulkAdd([a, b]);
-      await handleResults(db, ACC, [a, b], [res(a.opId, 'applied', { rev: 2 }), res(b.opId, 'applied', { rev: 3 })], opts());
+      await handleResults(
+        db,
+        ACC,
+        [a, b],
+        [res(a.opId, 'applied', { rev: 2 }), res(b.opId, 'applied', { rev: 3 })],
+        opts(),
+      );
       expect((await db.positions.get('hafs-kfqc'))?.rev).toBe(2);
       expect((await db.prefs.get('prefs'))?.rev).toBe(3);
     });
@@ -207,7 +303,13 @@ describe('sync apply', () => {
       await db.bookmarks.put(bm('local'));
       const op = makeOp(ACC, 'bookmark', 'local', 'upsert', {}, null);
       await db.outbox.add(op);
-      const out = await handleResults(db, ACC, [op], [res(op.opId, 'duplicate', { current: bmChange('server', 9) })], opts());
+      const out = await handleResults(
+        db,
+        ACC,
+        [op],
+        [res(op.opId, 'duplicate', { current: bmChange('server', 9) })],
+        opts(),
+      );
       expect(out.duplicates).toBe(1);
       expect(await db.bookmarks.get('local')).toBeUndefined();
       expect(await db.bookmarks.get('server')).toMatchObject({ rev: 9, deletedAt: null });
@@ -219,10 +321,21 @@ describe('sync apply', () => {
       const up = makeOp(ACC, 'bookmark', 'local', 'upsert', {}, null);
       const del = makeOp(ACC, 'bookmark', 'local', 'delete', null, null);
       await db.outbox.bulkAdd([up, del]);
-      await handleResults(db, ACC, [up], [res(up.opId, 'duplicate', { current: bmChange('server', 9) })], opts());
+      await handleResults(
+        db,
+        ACC,
+        [up],
+        [res(up.opId, 'duplicate', { current: bmChange('server', 9) })],
+        opts(),
+      );
       const ops = await db.outbox.toArray();
       expect(ops).toHaveLength(1);
-      expect(ops[0]).toMatchObject({ entity: 'bookmark', entityId: 'server', action: 'delete', baseRev: 9 });
+      expect(ops[0]).toMatchObject({
+        entity: 'bookmark',
+        entityId: 'server',
+        action: 'delete',
+        baseRev: 9,
+      });
       expect((await db.bookmarks.get('server'))?.deletedAt).not.toBeNull();
     });
 
@@ -230,8 +343,20 @@ describe('sync apply', () => {
       await db.prefs.put({ ...DEFAULT_PREFERENCES, key: 'prefs', paperTheme: 'photo', rev: 1 });
       const op = makeOp(ACC, 'prefs', 'prefs', 'upsert', {}, 1);
       await db.outbox.add(op);
-      const cur: Change = { entity: 'prefs', id: 'prefs', rev: 5, deleted: false, data: { paperTheme: 'antique', updatedAt: 30 } };
-      const out = await handleResults(db, ACC, [op], [res(op.opId, 'conflict', { current: cur })], opts());
+      const cur: Change = {
+        entity: 'prefs',
+        id: 'prefs',
+        rev: 5,
+        deleted: false,
+        data: { paperTheme: 'antique', updatedAt: 30 },
+      };
+      const out = await handleResults(
+        db,
+        ACC,
+        [op],
+        [res(op.opId, 'conflict', { current: cur })],
+        opts(),
+      );
       expect(out.conflicts).toBe(1);
       expect(await db.prefs.get('prefs')).toMatchObject({ paperTheme: 'antique', rev: 5 });
       expect(await db.outbox.count()).toBe(0);
@@ -250,7 +375,13 @@ describe('sync apply', () => {
       await db.bookmarks.put(bm('a'));
       const op = makeOp(ACC, 'bookmark', 'a', 'upsert', {}, null);
       await db.outbox.add(op);
-      const out = await handleResults(db, ACC, [op], [res(op.opId, 'rejected', { error: 'invalid_payload' })], opts());
+      const out = await handleResults(
+        db,
+        ACC,
+        [op],
+        [res(op.opId, 'rejected', { error: 'invalid_payload' })],
+        opts(),
+      );
       expect(out.rejected[0]).toMatchObject({ opId: op.opId, error: 'invalid_payload' });
       expect(await db.outbox.count()).toBe(0);
       expect(await db.bookmarks.get('a')).toBeDefined();
@@ -293,15 +424,27 @@ describe('sync apply', () => {
 
   describe('first-link merge enqueue', () => {
     it('enqueues active bookmarks, prefs (if edited) and position; skips tombstones/duplicates', async () => {
-      await db.bookmarks.bulkPut([bm('a'), bm('b', { key: 'k2', page: 2 }), bm('t', { key: 'k3', deletedAt: 9 })]);
+      await db.bookmarks.bulkPut([
+        bm('a'),
+        bm('b', { key: 'k2', page: 2 }),
+        bm('t', { key: 'k3', deletedAt: 9 }),
+      ]);
       await db.positions.put(pos());
       await db.prefs.put({ ...DEFAULT_PREFERENCES, key: 'prefs', updatedAt: 5 });
       await db.outbox.add(makeOp(ACC, 'bookmark', 'a', 'upsert', {}, null));
       const n = await enqueueLocalSnapshot(db, ACC);
       expect(n).toBe(3); // b, position, prefs
       const ops = await db.outbox.toArray();
-      expect(ops.filter((o) => o.entity === 'bookmark').map((o) => o.entityId).sort()).toEqual(['a', 'b']);
-      expect(ops.find((o) => o.entity === 'position')?.payload).toMatchObject({ page: 5, deviceId: DEV });
+      expect(
+        ops
+          .filter((o) => o.entity === 'bookmark')
+          .map((o) => o.entityId)
+          .sort(),
+      ).toEqual(['a', 'b']);
+      expect(ops.find((o) => o.entity === 'position')?.payload).toMatchObject({
+        page: 5,
+        deviceId: DEV,
+      });
       expect(ops.every((o) => o.accountId === ACC)).toBe(true);
     });
 

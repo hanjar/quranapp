@@ -2,7 +2,14 @@ import { DestroyRef, Injectable, inject, signal } from '@angular/core';
 import { liveQuery } from 'dexie';
 import { PositionConflict, SyncApi, UserDataApi } from '../contracts';
 import { APP_CONFIG } from '../config';
-import { Account, DEFAULT_EDITION, OutboxOperation, ReadingPosition, SyncState, SyncStatus } from '../models';
+import {
+  Account,
+  DEFAULT_EDITION,
+  OutboxOperation,
+  ReadingPosition,
+  SyncState,
+  SyncStatus,
+} from '../models';
 import { ReaderUiService } from '../reader-ui.service';
 import { applyChanges, handleResults, reconcileReset } from './apply';
 import { backoffDelay } from './backoff';
@@ -98,11 +105,17 @@ export class SyncService extends SyncApi {
     }
     await this.disableSync();
     if (opts.clearLocal) {
-      await this.db.transaction('rw', this.db.bookmarks, this.db.positions, this.db.prefs, async () => {
-        await this.db.bookmarks.clear();
-        await this.db.positions.clear();
-        await this.db.prefs.clear();
-      });
+      await this.db.transaction(
+        'rw',
+        this.db.bookmarks,
+        this.db.positions,
+        this.db.prefs,
+        async () => {
+          await this.db.bookmarks.clear();
+          await this.db.positions.clear();
+          await this.db.prefs.clear();
+        },
+      );
     }
     await this.userData.reload();
   }
@@ -124,10 +137,19 @@ export class SyncService extends SyncApi {
     if (choice === 'device') {
       const local = (await this.db.positions.get(c.device.editionId)) ?? c.device;
       await this.db.transaction('rw', this.db.outbox, async () => {
-        const stale = await this.db.outbox.filter((o) => o.accountId === st.accountId && o.entity === 'position').primaryKeys();
+        const stale = await this.db.outbox
+          .filter((o) => o.accountId === st.accountId && o.entity === 'position')
+          .primaryKeys();
         await this.db.outbox.bulkDelete(stale);
         await this.db.outbox.add(
-          makeOp(st.accountId as string, 'position', local.editionId, 'upsert', positionPayload(local), c.cloud.rev),
+          makeOp(
+            st.accountId as string,
+            'position',
+            local.editionId,
+            'upsert',
+            positionPayload(local),
+            c.cloud.rev,
+          ),
         );
       });
       await this.clearConflict();
@@ -135,7 +157,9 @@ export class SyncService extends SyncApi {
     } else {
       await this.db.transaction('rw', this.db.positions, this.db.outbox, async () => {
         await this.db.positions.put(c.cloud);
-        const stale = await this.db.outbox.filter((o) => o.accountId === st.accountId && o.entity === 'position').primaryKeys();
+        const stale = await this.db.outbox
+          .filter((o) => o.accountId === st.accountId && o.entity === 'position')
+          .primaryKeys();
         await this.db.outbox.bulkDelete(stale);
       });
       await this.clearConflict();
@@ -192,7 +216,13 @@ export class SyncService extends SyncApi {
   /** Flow F: link this device to an account, merging local data into it. */
   private async firstLink(user: MeUser): Promise<void> {
     await this.setAccount(user);
-    await this.patchState({ enabled: true, accountId: user.id, cursor: 0, status: 'idle', lastErrorCode: null });
+    await this.patchState({
+      enabled: true,
+      accountId: user.id,
+      cursor: 0,
+      status: 'idle',
+      lastErrorCode: null,
+    });
     await enqueueLocalSnapshot(this.db, user.id);
     this.coldStart = true;
     this.setStatus('pending');
@@ -203,16 +233,27 @@ export class SyncService extends SyncApi {
   private async disableSync(): Promise<void> {
     this.clearTimers();
     const st = await this.loadState();
-    await this.db.transaction('rw', [this.db.outbox, this.db.sync, this.db.meta, this.db.bookmarks, this.db.positions, this.db.prefs], async () => {
-      if (st.accountId) await this.db.outbox.where('accountId').equals(st.accountId).delete();
-      // Local rows keep their content but lose the account's revisions.
-      await this.db.bookmarks.filter((b) => b.deletedAt != null).delete();
-      await this.db.bookmarks.toCollection().modify({ rev: null });
-      await this.db.positions.toCollection().modify({ rev: null });
-      await this.db.prefs.toCollection().modify({ rev: null });
-      await this.db.meta.bulkDelete([META_ACCOUNT, META_CONFLICT]);
-      await this.db.sync.put({ ...DEFAULT_STATE });
-    });
+    await this.db.transaction(
+      'rw',
+      [
+        this.db.outbox,
+        this.db.sync,
+        this.db.meta,
+        this.db.bookmarks,
+        this.db.positions,
+        this.db.prefs,
+      ],
+      async () => {
+        if (st.accountId) await this.db.outbox.where('accountId').equals(st.accountId).delete();
+        // Local rows keep their content but lose the account's revisions.
+        await this.db.bookmarks.filter((b) => b.deletedAt != null).delete();
+        await this.db.bookmarks.toCollection().modify({ rev: null });
+        await this.db.positions.toCollection().modify({ rev: null });
+        await this.db.prefs.toCollection().modify({ rev: null });
+        await this.db.meta.bulkDelete([META_ACCOUNT, META_CONFLICT]);
+        await this.db.sync.put({ ...DEFAULT_STATE });
+      },
+    );
     this._account.set(null);
     this._conflict.set(null);
     this._lastSuccessAt.set(null);
@@ -296,7 +337,10 @@ export class SyncService extends SyncApi {
       const due = await this.db.outbox
         .where('accountId')
         .equals(accountId)
-        .filter((o) => o.nextAttemptAt <= now && !attempted.has(o.opId) && !(held && o.entity === 'position'))
+        .filter(
+          (o) =>
+            o.nextAttemptAt <= now && !attempted.has(o.opId) && !(held && o.entity === 'position'),
+        )
         .sortBy('createdAt');
       if (!due.length) return changed;
       const batch = due.slice(0, BATCH_SIZE);
@@ -308,7 +352,13 @@ export class SyncService extends SyncApi {
         await this.backoffOps(batch, e);
         throw e;
       }
-      const outcome = await handleResults(this.db, accountId, batch, res.results, this.applyOpts(false));
+      const outcome = await handleResults(
+        this.db,
+        accountId,
+        batch,
+        res.results,
+        this.applyOpts(false),
+      );
       changed = changed || outcome.changed;
       if (outcome.missing.length) await this.backoffOps(outcome.missing, null);
       if (outcome.rejected.length) {
@@ -509,7 +559,8 @@ export class SyncService extends SyncApi {
         if (!attempts.length) return;
         const now = Date.now();
         const wait = Math.max(SYNC_DEBOUNCE_MS, Math.min(...attempts) - now);
-        if (!this.inflight && ['idle', 'synced'].includes(this._status())) this.setStatus('pending');
+        if (!this.inflight && ['idle', 'synced'].includes(this._status()))
+          this.setStatus('pending');
         this.schedule('debounce', wait, false);
       },
       error: () => undefined,

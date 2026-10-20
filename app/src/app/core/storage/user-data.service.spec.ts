@@ -94,7 +94,13 @@ describe('UserDataService', () => {
     it('verse bookmarks store page + key', async () => {
       await svc.toggleVerseBookmark({ surah: 2, ayah: 255 }, 42);
       const b = svc.bookmarks()[0];
-      expect(b).toMatchObject({ kind: 'verse', page: 42, surah: 2, ayah: 255, key: 'hafs-kfqc|verse|2:255' });
+      expect(b).toMatchObject({
+        kind: 'verse',
+        page: 42,
+        surah: 2,
+        ayah: 255,
+        key: 'hafs-kfqc|verse|2:255',
+      });
       expect(svc.isVerseBookmarked({ surah: 2, ayah: 255 })).toBe(true);
       expect(svc.isVerseBookmarked({ surah: 2, ayah: 256 })).toBe(false);
     });
@@ -145,7 +151,15 @@ describe('UserDataService', () => {
     it('does not enqueue when sync is disabled or has no account', async () => {
       await svc.togglePageBookmark(1);
       await svc.setPrefs({ uiTheme: 'ceria' });
-      await db.sync.put({ key: 'state', enabled: false, accountId: 'acc1', cursor: 0, lastSuccessAt: null, status: 'off', lastErrorCode: null });
+      await db.sync.put({
+        key: 'state',
+        enabled: false,
+        accountId: 'acc1',
+        cursor: 0,
+        lastSuccessAt: null,
+        status: 'off',
+        lastErrorCode: null,
+      });
       await svc.togglePageBookmark(2);
       expect(await db.outbox.count()).toBe(0);
     });
@@ -353,12 +367,20 @@ describe('UserDataService', () => {
       ],
       [
         'surah out of range',
-        () => fileOf(validFile({ bookmarks: [{ kind: 'verse', page: 1, surah: 115, ayah: 1, createdAt: 1 }] })),
+        () =>
+          fileOf(
+            validFile({
+              bookmarks: [{ kind: 'verse', page: 1, surah: 115, ayah: 1, createdAt: 1 }],
+            }),
+          ),
         /1–114/,
       ],
       [
         'ayah < 1',
-        () => fileOf(validFile({ bookmarks: [{ kind: 'verse', page: 1, surah: 1, ayah: 0, createdAt: 1 }] })),
+        () =>
+          fileOf(
+            validFile({ bookmarks: [{ kind: 'verse', page: 1, surah: 1, ayah: 0, createdAt: 1 }] }),
+          ),
         /ayat/,
       ],
       [
@@ -372,11 +394,7 @@ describe('UserDataService', () => {
         () => fileOf(validFile({ preferences: { ...DEFAULT_PREFERENCES, uiTheme: 'neon' } })),
         /pengaturan/,
       ],
-      [
-        'too large',
-        () => fileOf(null, ' '.repeat(2 * 1024 * 1024 + 1)),
-        /2 MB/,
-      ],
+      ['too large', () => fileOf(null, ' '.repeat(2 * 1024 * 1024 + 1)), /2 MB/],
     ];
     for (const [name, make, msg] of rejects) {
       it('rejects ' + name + ' with an Indonesian message and writes nothing', async () => {

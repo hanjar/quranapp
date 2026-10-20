@@ -1,4 +1,11 @@
-import { Bookmark, OutboxOperation, Preferences, ReadingPosition, SyncEntity, uuid } from '../models';
+import {
+  Bookmark,
+  OutboxOperation,
+  Preferences,
+  ReadingPosition,
+  SyncEntity,
+  uuid,
+} from '../models';
 import { MushafDb } from '../storage/db';
 import { WireOp } from './sync-types';
 
@@ -76,18 +83,26 @@ export function prefsPayload(p: Preferences): Record<string, unknown> {
  * First-link merge (flow F): enqueue everything local so nothing is lost.
  * Skips entities that already have a pending op. Returns number of ops added.
  */
-export async function enqueueLocalSnapshot(db: MushafDb, accountId: string, now = Date.now()): Promise<number> {
+export async function enqueueLocalSnapshot(
+  db: MushafDb,
+  accountId: string,
+  now = Date.now(),
+): Promise<number> {
   return db.transaction('rw', db.bookmarks, db.positions, db.prefs, db.outbox, async () => {
     const pending = await db.outbox.where('accountId').equals(accountId).toArray();
-    const has = (e: SyncEntity, id: string) => pending.some((o) => o.entity === e && o.entityId === id);
+    const has = (e: SyncEntity, id: string) =>
+      pending.some((o) => o.entity === e && o.entityId === id);
     const ops: OutboxOperation[] = [];
     const bookmarks = await db.bookmarks.filter((b) => b.deletedAt == null).toArray();
     for (const b of bookmarks) {
-      if (!has('bookmark', b.id)) ops.push(makeOp(accountId, 'bookmark', b.id, 'upsert', bookmarkPayload(b), b.rev, now));
+      if (!has('bookmark', b.id))
+        ops.push(makeOp(accountId, 'bookmark', b.id, 'upsert', bookmarkPayload(b), b.rev, now));
     }
     for (const p of await db.positions.toArray()) {
       if (!has('position', p.editionId)) {
-        ops.push(makeOp(accountId, 'position', p.editionId, 'upsert', positionPayload(p), p.rev, now));
+        ops.push(
+          makeOp(accountId, 'position', p.editionId, 'upsert', positionPayload(p), p.rev, now),
+        );
       }
     }
     const prefs = await db.prefs.get('prefs');

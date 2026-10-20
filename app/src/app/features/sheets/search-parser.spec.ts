@@ -2,8 +2,25 @@ import { describe, expect, it } from 'vitest';
 import { AyahRef, SurahMeta } from '../../core/models';
 import { SearchContext, nameMatchRank, normalizeName, parseSearch } from './search-parser';
 
-function s(number: number, nameLatin: string, nameEnglish: string, nameArabic: string, ayahCount: number, startPage: number, juz: number): SurahMeta {
-  return { number, nameLatin, nameEnglish, nameArabic, ayahCount, startPage, endPage: startPage, juz };
+function s(
+  number: number,
+  nameLatin: string,
+  nameEnglish: string,
+  nameArabic: string,
+  ayahCount: number,
+  startPage: number,
+  juz: number,
+): SurahMeta {
+  return {
+    number,
+    nameLatin,
+    nameEnglish,
+    nameArabic,
+    ayahCount,
+    startPage,
+    endPage: startPage,
+    juz,
+  };
 }
 
 const SURAHS: SurahMeta[] = [
@@ -18,7 +35,9 @@ const SURAHS: SurahMeta[] = [
 // Sparse fake: build a 114-entry array so surahs[n-1] indexing works.
 const ALL: SurahMeta[] = Array.from({ length: 114 }, (_, i) => {
   const found = SURAHS.find((x) => x.number === i + 1);
-  return found ?? s(i + 1, `Surah ${i + 1}`, `Surah ${i + 1}`, 'س', 10, Math.min(604, i * 5 + 1), 1);
+  return (
+    found ?? s(i + 1, `Surah ${i + 1}`, `Surah ${i + 1}`, 'س', 10, Math.min(604, i * 5 + 1), 1)
+  );
 });
 
 const JUZ_PAGES = Array.from({ length: 30 }, (_, i) => (i === 0 ? 1 : i * 20 + 2));
@@ -26,7 +45,8 @@ const JUZ_PAGES = Array.from({ length: 30 }, (_, i) => (i === 0 ? 1 : i * 20 + 2
 const ctx: SearchContext = {
   surahs: ALL,
   juzStartPage: (j) => JUZ_PAGES[j - 1] ?? null,
-  pageOf: (r: AyahRef) => (r.surah === 2 && r.ayah === 255 ? 42 : r.surah === 36 && r.ayah === 1 ? 440 : r.surah * 3),
+  pageOf: (r: AyahRef) =>
+    r.surah === 2 && r.ayah === 255 ? 42 : r.surah === 36 && r.ayah === 1 ? 440 : r.surah * 3,
   surahAt: (p) => (p === 42 ? ALL[1] : p >= 440 && p < 445 ? ALL[35] : ALL[0]),
   juzAt: (p) => (p === 42 ? 3 : 1),
 };
@@ -84,12 +104,15 @@ describe('parseSearch', () => {
     expect(parseSearch('2:1', { ...ctx, pageOf: () => null })).toEqual([]);
   });
 
-  it.each(['hal 50', 'hal50', 'halaman 50', 'Halaman 50', 'h. 50', 'HAL. 50'])('parses page query %j', (q) => {
-    const [r] = parseSearch(q, ctx);
-    expect(r.page).toBe(50);
-    expect(r.title).toBe('Halaman 50');
-    expect(r.highlight).toBeUndefined();
-  });
+  it.each(['hal 50', 'hal50', 'halaman 50', 'Halaman 50', 'h. 50', 'HAL. 50'])(
+    'parses page query %j',
+    (q) => {
+      const [r] = parseSearch(q, ctx);
+      expect(r.page).toBe(50);
+      expect(r.title).toBe('Halaman 50');
+      expect(r.highlight).toBeUndefined();
+    },
+  );
 
   it('rejects pages out of range', () => {
     expect(parseSearch('hal 0', ctx)).toEqual([]);

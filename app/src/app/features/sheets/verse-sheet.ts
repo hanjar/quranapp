@@ -14,35 +14,124 @@ import { verseReference } from './nav-helpers';
         <div class="sub">{{ v.sub }}</div>
       </div>
       <div class="grid">
-        <button type="button" class="act" [class.on]="v.bookmarked" [attr.aria-pressed]="v.bookmarked" (click)="toggleBookmark()">
-          <svg width="22" height="22" viewBox="0 0 24 24" [attr.fill]="v.bookmarked ? 'currentColor' : 'none'" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" aria-hidden="true"><path d="M6.5 4h11v16l-5.5-4-5.5 4z" /></svg>
+        <button
+          type="button"
+          class="act"
+          [class.on]="v.bookmarked"
+          [attr.aria-pressed]="v.bookmarked"
+          (click)="toggleBookmark()"
+        >
+          <svg
+            width="22"
+            height="22"
+            viewBox="0 0 24 24"
+            [attr.fill]="v.bookmarked ? 'currentColor' : 'none'"
+            stroke="currentColor"
+            stroke-width="1.6"
+            stroke-linejoin="round"
+            aria-hidden="true"
+          >
+            <path d="M6.5 4h11v16l-5.5-4-5.5 4z" />
+          </svg>
           {{ v.bookmarked ? 'Ditandai' : 'Tandai' }}
         </button>
         <button type="button" class="act" (click)="copy()">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><rect x="8" y="8" width="11" height="11" rx="2" /><path d="M5 15V6a1 1 0 011-1h9" /></svg>
+          <svg
+            width="22"
+            height="22"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.6"
+            aria-hidden="true"
+          >
+            <rect x="8" y="8" width="11" height="11" rx="2" />
+            <path d="M5 15V6a1 1 0 011-1h9" />
+          </svg>
           Salin rujukan
         </button>
         <button type="button" class="act" (click)="share()">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11M7.5 8.5L12 4l4.5 4.5M5 13v6h14v-6" /></svg>
+          <svg
+            width="22"
+            height="22"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.6"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            aria-hidden="true"
+          >
+            <path d="M12 4v11M7.5 8.5L12 4l4.5 4.5M5 13v6h14v-6" />
+          </svg>
           Bagikan
         </button>
         <button type="button" class="act" (click)="history.close()">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" /></svg>
+          <svg
+            width="22"
+            height="22"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.6"
+            stroke-linecap="round"
+            aria-hidden="true"
+          >
+            <path d="M6 6l12 12M18 6L6 18" />
+          </svg>
           Tutup
         </button>
       </div>
     }
   `,
   styles: `
-    :host { display: flex; flex-direction: column; gap: var(--mf-space-4); padding: var(--mf-space-1) var(--mf-space-5) var(--mf-space-6); color: var(--ui-ink); }
-    .head { display: flex; flex-direction: column; gap: 2px; }
-    .title { font-size: 16px; font-weight: 500; }
-    .sub { font-size: 13.5px; color: var(--ui-muted); }
-    .grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--mf-space-1); }
-    .act { min-height: 64px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; border: none; border-radius: var(--mf-radius-md); background: transparent; font-size: 12.5px; color: var(--ui-ink); }
-    .act:hover { background: color-mix(in srgb, var(--ui-ink) 5%, transparent); }
-    .act.on { color: var(--ui-accent-ink); }
-    .act.on svg { color: var(--ui-accent-icon); }
+    :host {
+      display: flex;
+      flex-direction: column;
+      gap: var(--mf-space-4);
+      padding: var(--mf-space-1) var(--mf-space-5) var(--mf-space-6);
+      color: var(--ui-ink);
+    }
+    .head {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    .title {
+      font-size: 16px;
+      font-weight: 500;
+    }
+    .sub {
+      font-size: 13.5px;
+      color: var(--ui-muted);
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: var(--mf-space-1);
+    }
+    .act {
+      min-height: 64px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      border: none;
+      border-radius: var(--mf-radius-md);
+      background: transparent;
+      font-size: 12.5px;
+      color: var(--ui-ink);
+    }
+    .act:hover {
+      background: color-mix(in srgb, var(--ui-ink) 5%, transparent);
+    }
+    .act.on {
+      color: var(--ui-accent-ink);
+    }
+    .act.on svg {
+      color: var(--ui-accent-icon);
+    }
   `,
 })
 export class VerseSheet {
@@ -85,7 +174,9 @@ export class VerseSheet {
   protected async copy(): Promise<void> {
     const text = this.info()?.reference;
     if (!text) return;
-    this.ui.showToast({ message: (await copyText(text)) ? 'Rujukan disalin' : 'Rujukan gagal disalin' });
+    this.ui.showToast({
+      message: (await copyText(text)) ? 'Rujukan disalin' : 'Rujukan gagal disalin',
+    });
   }
 
   protected async share(): Promise<void> {
@@ -100,7 +191,9 @@ export class VerseSheet {
         // fall through to copy
       }
     }
-    this.ui.showToast({ message: (await copyText(text)) ? 'Rujukan disalin' : 'Rujukan gagal disalin' });
+    this.ui.showToast({
+      message: (await copyText(text)) ? 'Rujukan disalin' : 'Rujukan gagal disalin',
+    });
   }
 }
 

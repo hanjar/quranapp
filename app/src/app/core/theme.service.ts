@@ -24,10 +24,34 @@ export const PAPER_THEMES: PaperThemeOption[] = [
 ];
 
 export const UI_THEMES: UiThemeOption[] = [
-  { id: 'segar', name: 'Segar', fontName: 'Plus Jakarta Sans', primary: '#0A7A5C', accent: '#F2603E' },
-  { id: 'ceria', name: 'Ceria', fontName: 'Plus Jakarta Sans', primary: '#5B3FD9', accent: '#F2A100' },
-  { id: 'samudra', name: 'Samudra', fontName: 'Plus Jakarta Sans', primary: '#1560C8', accent: '#EC4677' },
-  { id: 'klasik', name: 'Klasik', fontName: 'Newsreader · IBM Plex Sans', primary: '#153B32', accent: '#A58B63' },
+  {
+    id: 'segar',
+    name: 'Segar',
+    fontName: 'Plus Jakarta Sans',
+    primary: '#0A7A5C',
+    accent: '#F2603E',
+  },
+  {
+    id: 'ceria',
+    name: 'Ceria',
+    fontName: 'Plus Jakarta Sans',
+    primary: '#5B3FD9',
+    accent: '#F2A100',
+  },
+  {
+    id: 'samudra',
+    name: 'Samudra',
+    fontName: 'Plus Jakarta Sans',
+    primary: '#1560C8',
+    accent: '#EC4677',
+  },
+  {
+    id: 'klasik',
+    name: 'Klasik',
+    fontName: 'Newsreader · IBM Plex Sans',
+    primary: '#153B32',
+    accent: '#A58B63',
+  },
 ];
 
 /** Mirrors preferences onto <html> data attributes consumed by styles.scss. */
