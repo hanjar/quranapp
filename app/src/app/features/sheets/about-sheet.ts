@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 import { SwUpdate } from '@angular/service-worker';
+import { withTimeout } from '../../core/async';
 import { BUILD_INFO } from '../../core/build-info';
 import { ContentApi } from '../../core/contracts';
 import { ReaderUiService } from '../../core/reader-ui.service';
@@ -145,13 +146,20 @@ export class AboutSheet {
       this.updateNote.set('Pembaruan otomatis tidak aktif di mode pengembangan.');
       return;
     }
+    // First visit after install: the worker is registered but not yet in control,
+    // and checkForUpdate() can wait indefinitely. A reload hands control to it.
+    if (!navigator.serviceWorker?.controller) {
+      this.ui.showToast({ message: 'Memuat ulang ke versi terbaru…', duration: 3000 });
+      document.location.reload();
+      return;
+    }
     this.checking.set(true);
     this.updateNote.set(null);
     try {
-      const found = await this.sw.checkForUpdate();
+      const found = await withTimeout(this.sw.checkForUpdate(), 10_000);
       if (found) {
         this.ui.showToast({ message: 'Memasang versi terbaru…', duration: 3000 });
-        await this.sw.activateUpdate();
+        await withTimeout(this.sw.activateUpdate(), 10_000);
         document.location.reload();
         return;
       }
