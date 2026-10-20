@@ -1,0 +1,63 @@
+# Content pipeline
+
+The Mushaf pages are NOT committed. `scripts/build-content.mjs` downloads a pinned upstream
+commit, validates it, and writes `app/public/content/hafs-kfqc/` (gitignored, served at
+`content/hafs-kfqc/...`).
+
+## Dataset
+
+- Upstream: <https://github.com/quranpedia/quran-svg>, path `mushafs/hafs/kfqc`
+  (Hafs, King Fahd Complex Madinah mushaf), 604 pages.
+- Pinned commit of the current build: `b4155f07e4aea087d2c458069acff9f7c7e749f6`
+  (`contentVersion` = `b4155f07e4ae`). The script resolves `main` unless `--commit` is given;
+  pin the commit explicitly for reproducible CI/deploys.
+- Files used: `svg/001..604.svg`, `json/001..604.json`, `json/surah.json`.
+  `NNN-surahK.svg` variants are ignored.
+
+## Output (`app/public/content/hafs-kfqc/`)
+
+| File | Content |
+|---|---|
+| `svg/NNN.svg` | upstream SVG, byte-for-byte |
+| `pages.json` | `PageMeta[]` (first/last ayah, surahs, juz, juzStarts) derived from per-page json |
+| `juz.json` | `JuzMeta[]`, canonical Hafs juz start ayahs; page = first page containing it |
+| `surahs.json` | `SurahMeta[]`; Arabic/English names, ayahCount, startPage from upstream; endPage derived; Indonesian transliteration from the design prototype |
+| `edition.json` | `Edition` (source, licence, attribution) |
+| `manifest.json` | sha256 + bytes of every file, `totalBytes` |
+
+Current full build: 608 files, 372,955,568 bytes (355.7 MB), largest page 585 (774 KB).
+
+## Rebuild / verify
+
+```
+node scripts/build-content.mjs                    # latest main, all 604 pages
+node scripts/build-content.mjs --commit <40-hex>  # reproducible
+node scripts/build-content.mjs --pages 1-10       # quick partial build (manifest has "partial": true)
+node scripts/verify-content.mjs [dir]             # re-hash output against manifest.json (CI/deploy)
+node --test scripts/test/*.test.mjs               # unit tests
+```
+
+Raw downloads are cached in `.content-cache/<sha>/` (gitignored); re-runs skip existing files.
+Output is written to a temp folder and swapped in only after every check passes.
+
+## Checks that fail the build
+
+SVG security (never silently stripped): `<script`, `<foreignObject`, `<image`, `<iframe`,
+embed/object/media, `<!ENTITY`, `on*=` attributes, `javascript:`, `href`/`xlink:href` not starting
+with `#`, `url(` outside `#`, `<style>` with `@import`; and at least one `.ayahPolygon` path with
+integer `surah`/`ayah`.
+Integrity: 604 pages, 114 surahs, sum of ayahCount = 6236, every ayah 1..ayahCount on at least one
+page, no unknown ayahs, pages monotonic by first ayah, 30 juz with ascending pages. A verse that
+continues onto the next page legitimately appears on both pages.
+
+## What we do NOT do to the text
+
+No re-shaping, re-typesetting, recolouring, glyph editing, or SVG optimisation: the Qur'anic glyph
+paths are served exactly as published (the manifest hashes prove it). All metadata is derived from
+upstream data, except the Indonesian transliteration list and the juz start table (constants in
+`scripts/lib/derive.mjs`). No translation, tafsir, or other text is added.
+
+## Licensing
+
+See `/NOTICE.md`. Artwork (c) King Fahd Glorious Qur'an Printing Complex (free for digital use, not
+for commercial printing of physical mushafs); polygons/metadata CC BY 4.0 from quranpedia/quran-svg.

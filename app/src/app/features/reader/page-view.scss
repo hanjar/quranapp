@@ -1,0 +1,161 @@
+:host {
+  display: block;
+  position: relative;
+  flex: none;
+  /* Fit: min(available width / pages, available height * aspect). Container is the reader stage. */
+  width: min(calc(100cqw / var(--mf-pages, 1)), calc(100cqh * 0.62727));
+  aspect-ratio: 345 / 550;
+  container-type: size;
+  background: var(--mf-paper);
+  box-shadow: 0 1px 4px color-mix(in srgb, var(--ui-ink) 14%, transparent);
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.page {
+  position: absolute;
+  inset: 0;
+}
+
+.frame {
+  position: absolute;
+  border-style: solid;
+  border-color: var(--mf-frame-ink);
+  pointer-events: none;
+}
+.frame--outer {
+  inset: 1.2% 2.4%;
+  border-width: 1.5px;
+  border-radius: 2px;
+}
+.frame--inner {
+  inset: 2% 3.4%;
+  border-width: 0.75px;
+  border-radius: 2px;
+}
+:host(.is-cover) {
+  .frame--outer {
+    inset: 3.5% 6%;
+    border-radius: 40% 40% 6px 6px / 14% 14% 6px 6px;
+  }
+  .frame--inner {
+    inset: 4.7% 7.2%;
+    border-radius: 40% 40% 6px 6px / 14% 14% 6px 6px;
+  }
+  .art {
+    inset: 8% 10% 8%;
+  }
+}
+
+.art {
+  position: absolute;
+  inset: 2.6% 4.2% 4.6%;
+}
+.art ::ng-deep svg.mf-page-svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* Verse polygons live inside the dynamically inserted svg. */
+.art ::ng-deep .ayahPolygon {
+  pointer-events: all;
+  cursor: pointer;
+  transition:
+    fill var(--mf-dur-fast),
+    stroke var(--mf-dur-fast);
+}
+.art ::ng-deep .ayahPolygon.is-bookmarked {
+  fill: var(--mf-verse-bookmarked);
+  fill-opacity: 1;
+}
+.art ::ng-deep .ayahPolygon.is-selected,
+.art ::ng-deep .ayahPolygon.is-focus {
+  fill: var(--mf-verse-select);
+  fill-opacity: 1;
+  /* ring so selection never relies on colour alone */
+  stroke: var(--mf-verse-select-ring);
+  stroke-width: 1.4px;
+  stroke-linejoin: round;
+}
+.art ::ng-deep .ayahPolygon.is-focus:not(.is-selected) {
+  stroke-dasharray: 3 2;
+}
+
+.num {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0.3%;
+  text-align: center;
+  font-size: clamp(9px, 2.1cqh, 15px);
+  color: var(--ui-muted);
+  pointer-events: none;
+  line-height: 1.6;
+}
+
+:host(.is-active) .num {
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  color: var(--ui-ink);
+}
+
+.skeleton {
+  position: absolute;
+  inset: 8% 9%;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  pointer-events: none;
+}
+.skeleton__line {
+  display: block;
+  height: 3.2%;
+  min-height: 4px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--ui-ink) 8%, transparent);
+}
+
+.state {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  padding: 24px;
+  text-align: center;
+  container-type: normal;
+  svg {
+    stroke: var(--ui-primary);
+  }
+}
+.state__title {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 500;
+}
+.state__body {
+  margin: 0;
+  max-width: 320px;
+  font-size: 14.5px;
+  line-height: 1.5;
+  color: var(--ui-ink2);
+}
+.state__ghost {
+  width: 52px;
+  height: 68px;
+  border: 1.5px dashed var(--ui-accent);
+  border-radius: 4px;
+}
+.state__link {
+  text-decoration: underline;
+}
+
+.verse-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}

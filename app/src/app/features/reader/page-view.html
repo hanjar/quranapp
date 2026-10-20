@@ -1,0 +1,68 @@
+<div class="page">
+  <span class="frame frame--outer" aria-hidden="true"></span>
+  <span class="frame frame--inner" aria-hidden="true"></span>
+
+  <div
+    #art
+    class="art"
+    role="img"
+    [attr.aria-label]="label()"
+    [attr.aria-busy]="state() === 'loading'"
+  ></div>
+
+  @switch (state()) {
+    @case ('loading') {
+      <div class="skeleton" aria-hidden="true">
+        @for (i of [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]; track i) {
+          <span class="skeleton__line"></span>
+        }
+      </div>
+    }
+    @case ('offline') {
+      <div class="state" role="alert">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke-width="1.6" stroke-linecap="round" aria-hidden="true">
+          <path d="M7 18h10a4 4 0 00.5-8 5.5 5.5 0 00-10.7 1.4A3.3 3.3 0 007 18z" />
+          <path d="M4 4l16 16" />
+        </svg>
+        <h2 class="state__title mf-display">Halaman {{ page() }} belum tersimpan</h2>
+        <p class="state__body">Anda sedang offline. Halaman ini akan tersedia setelah tersambung kembali.</p>
+        @if (lastCachedPage(); as last) {
+          <button type="button" class="mf-btn mf-btn--primary" (click)="openLastCached()">
+            Buka halaman tersimpan · {{ last }}
+          </button>
+        }
+        <button type="button" class="mf-btn mf-btn--ghost state__link" (click)="openOfflineStatus()">
+          Status offline
+        </button>
+      </div>
+    }
+    @case ('error') {
+      <div class="state" role="alert">
+        <span class="state__ghost" aria-hidden="true"></span>
+        <h2 class="state__title mf-display">Halaman tidak dapat ditampilkan</h2>
+        <p class="state__body">
+          @if (errorKind() === 'integrity') {
+            Berkas halaman {{ page() }} tidak lolos pemeriksaan integritas. Teks tidak akan ditampilkan dari sumber lain.
+          } @else {
+            Berkas halaman {{ page() }} gagal dimuat. Teks tidak akan ditampilkan dari sumber lain.
+          }
+        </p>
+        <button type="button" class="mf-btn mf-btn--primary" (click)="retry()">Coba lagi</button>
+      </div>
+    }
+  }
+
+  <span class="num" aria-hidden="true">{{ page() }}</span>
+
+  @if (verses().length) {
+    <ul class="mf-visually-hidden verse-list" [attr.aria-label]="'Ayat pada halaman ' + page()">
+      @for (v of verses(); track key(v)) {
+        <li>
+          <button type="button" (click)="pick(v)" (focus)="setFocus(v)" (blur)="setFocus(null)">
+            Ayat {{ v.surah }}:{{ v.ayah }}
+          </button>
+        </li>
+      }
+    </ul>
+  }
+</div>

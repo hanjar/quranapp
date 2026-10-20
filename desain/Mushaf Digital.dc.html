@@ -1,0 +1,1203 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,400;6..72,500;6..72,600&family=IBM+Plex+Sans:wght@400;500;600&family=Amiri:wght@400&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+html,body{margin:0;height:100%;background:#E4E1DA;color:#252525;font-family:'IBM Plex Sans',system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+*{box-sizing:border-box}
+:root{--ui-primary:#153B32;--ui-on:#F5F1E8;--ui-accent:#A58B63;--ui-accent-ink:#7A6340;--ui-accent-icon:#A58B63;--ui-ink:#252525;--ui-ink2:#4A463F;--ui-muted:#5E5A52;--ui-line:#D9D3C6;--ui-display:'Newsreader',serif;--ui-font:'IBM Plex Sans',system-ui,sans-serif}
+a{color:#153B32}a:hover{color:#A58B63}
+button{font-family:inherit}
+button:focus-visible,input:focus-visible,[tabindex]:focus-visible{outline:2px solid var(--ui-primary);outline-offset:2px}
+input[type=range]{accent-color:#153B32}
+@media (prefers-reduced-motion: reduce){*{transition-duration:0ms !important}}
+</style>
+</helmet>
+<div style="display:flex;height:100vh;width:100%;overflow:hidden">
+  <aside style="width:292px;flex-shrink:0;height:100%;overflow-y:auto;background:#FBFAF7;border-right:1px solid #DDD8CD;padding:20px 18px 32px;display:flex;flex-direction:column;gap:22px">
+    <div style="display:flex;flex-direction:column;gap:4px">
+      <div style="font-family:'Newsreader',serif;font-size:24px;font-weight:500;line-height:1.1">Mushaf Digital</div>
+      <div style="font-size:13px;color:#5E5A52">Prototipe interaktif · Hafs 604 halaman</div>
+    </div>
+    <div style="display:flex;gap:4px;padding:4px;background:#EFECE5;border-radius:12px">
+      <button onClick="{{ viewProto }}" style="flex:1;min-height:36px;border:none;border-radius:9px;font-size:14px;font-weight:500;cursor:pointer;background:{{ viewTabs.protoBg }};color:#252525">Prototipe</button>
+      <button onClick="{{ viewSpec }}" style="flex:1;min-height:36px;border:none;border-radius:9px;font-size:14px;font-weight:500;cursor:pointer;background:{{ viewTabs.specBg }};color:#252525">Handoff</button>
+    </div>
+    <section style="display:flex;flex-direction:column;gap:8px">
+      <div style="font-size:12px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:#5E5A52">Perangkat</div>
+      <sc-for list="{{ devices }}" as="d" hint-placeholder-count="5">
+        <button onClick="{{ d.pick }}" style="display:flex;justify-content:space-between;align-items:center;min-height:38px;padding:0 12px;border-radius:10px;font-size:14px;cursor:pointer;background:{{ d.bg }};color:{{ d.fg }};border:1px solid {{ d.bd }}"><span>{{ d.label }}</span><span style="font-size:12px;opacity:0.85">{{ d.size }}</span></button>
+      </sc-for>
+    </section>
+    <section style="display:flex;flex-direction:column;gap:8px">
+      <div style="font-size:12px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:#5E5A52">Tema mushaf (kertas)</div>
+      <div style="display:flex;gap:8px">
+        <sc-for list="{{ themeList }}" as="t" hint-placeholder-count="3">
+          <button onClick="{{ t.pick }}" aria-label="{{ t.name }}" style="flex:1;display:flex;flex-direction:column;gap:6px;align-items:flex-start;padding:8px;border-radius:10px;cursor:pointer;background:#FFFFFF;border:{{ t.ring }}">
+            <span style="display:block;width:100%;height:28px;border-radius:6px;border:1px solid #D9D3C6;background:{{ t.hex }}"></span>
+            <span style="font-size:11.5px;line-height:1.2;text-align:left;color:#252525">{{ t.short }}</span>
+          </button>
+        </sc-for>
+      </div>
+    </section>
+    <section style="display:flex;flex-direction:column;gap:8px">
+      <div style="font-size:12px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:#5E5A52">Tema menu</div>
+      <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px">
+        <sc-for list="{{ uiList }}" as="u" hint-placeholder-count="4">
+          <button onClick="{{ u.pick }}" aria-label="{{ u.name }}" style="display:flex;align-items:center;gap:8px;padding:7px 8px;border-radius:10px;cursor:pointer;background:#FFFFFF;border:{{ u.ring }};text-align:left">
+            <span style="display:flex;flex-shrink:0"><span style="width:14px;height:14px;border-radius:7px;background:{{ u.c1 }}"></span><span style="width:14px;height:14px;border-radius:7px;margin-left:-4px;border:1.5px solid #FFFFFF;background:{{ u.c2 }}"></span></span>
+            <span style="font-size:12px;line-height:1.2;color:#252525">{{ u.short }}</span>
+          </button>
+        </sc-for>
+      </div>
+    </section>
+    <section style="display:flex;flex-direction:column;gap:8px">
+      <div style="font-size:12px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:#5E5A52">Alur demo</div>
+      <sc-for list="{{ flows }}" as="f" hint-placeholder-count="3">
+        <div style="display:flex;flex-direction:column;gap:4px;padding:10px;border-radius:10px;border:1px solid #DDD8CD;background:#FFFFFF">
+          <div style="font-size:13.5px;font-weight:600">{{ f.name }}</div>
+          <sc-for list="{{ f.steps }}" as="st">
+            <button onClick="{{ st.run }}" style="display:flex;gap:8px;align-items:flex-start;text-align:left;padding:6px 6px;border:none;border-radius:8px;cursor:pointer;font-size:13px;line-height:1.35;background:{{ st.bg }};color:#252525"><span style="font-weight:600;color:#A58B63;min-width:14px">{{ st.n }}</span><span>{{ st.label }}</span></button>
+          </sc-for>
+        </div>
+      </sc-for>
+    </section>
+    <section style="display:flex;flex-direction:column;gap:6px">
+      <div style="font-size:12px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:#5E5A52">Lompat ke layar</div>
+      <sc-for list="{{ screens }}" as="sc" hint-placeholder-count="12">
+        <button onClick="{{ sc.go }}" style="display:flex;gap:10px;align-items:center;min-height:34px;padding:0 10px;border:none;border-radius:8px;background:transparent;cursor:pointer;font-size:13.5px;color:#252525;text-align:left" style-hover="background:#EFECE5"><span style="width:20px;font-weight:600;color:#153B32">{{ sc.id }}</span><span>{{ sc.label }}</span></button>
+      </sc-for>
+      <div style="font-size:12px;color:#5E5A52;padding:6px 10px 2px">M · Keadaan kosong &amp; galat</div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px;padding:0 10px">
+        <sc-for list="{{ errScreens }}" as="er">
+          <button onClick="{{ er.go }}" style="min-height:30px;padding:0 10px;border-radius:15px;border:1px solid #D9D3C6;background:#FFFFFF;font-size:12.5px;cursor:pointer;color:#252525">{{ er.label }}</button>
+        </sc-for>
+      </div>
+    </section>
+    <section style="display:flex;flex-direction:column;gap:6px">
+      <div style="font-size:12px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:#5E5A52">Simulasi</div>
+      <sc-for list="{{ sims }}" as="sm" hint-placeholder-count="4">
+        <button onClick="{{ sm.toggle }}" role="switch" aria-checked="{{ sm.on }}" style="display:flex;justify-content:space-between;align-items:center;min-height:38px;padding:0 10px;border:none;border-radius:8px;background:transparent;cursor:pointer;font-size:13.5px;color:#252525">
+          <span>{{ sm.label }}</span>
+          <span style="width:36px;height:22px;border-radius:11px;position:relative;transition:background 160ms;background:{{ sm.track }}"><span style="position:absolute;top:3px;width:16px;height:16px;border-radius:8px;background:#FFFFFF;transition:left 160ms;left:{{ sm.knob }}"></span></span>
+        </button>
+      </sc-for>
+      <button onClick="{{ relaunch }}" style="margin-top:4px;min-height:40px;border-radius:20px;border:1px solid #153B32;background:transparent;color:#153B32;font-size:14px;font-weight:500;cursor:pointer">Luncurkan ulang aplikasi</button>
+    </section>
+    <div style="font-size:12px;line-height:1.5;color:#5E5A52;border-top:1px solid #DDD8CD;padding-top:14px">Halaman mushaf di prototipe ini adalah <strong>placeholder netral</strong>, bukan teks Al-Qur'an. Ganti dengan aset SVG Hafs terverifikasi.</div>
+  </aside>
+
+  <sc-if value="{{ isProto }}" hint-placeholder-val="{{ true }}">
+  <main ref="{{ stageRef }}" style="flex:1;min-width:0;height:100%;position:relative;overflow:hidden;display:flex;align-items:center;justify-content:center;background:#E4E1DA">
+    <div style="position:absolute;top:14px;left:18px;font-size:12.5px;color:#5E5A52">{{ deviceCaption }}</div>
+    <div style="flex-shrink:0;transform-origin:center center;transform:scale({{ scale }});width:{{ frameW }}px;height:{{ frameH }}px;padding:{{ bezel }}px;background:#1E1E1E;border-radius:{{ frameR }}px;box-shadow:0 24px 60px rgba(30,30,30,0.18)">
+    <div data-screen-label="App" ref="{{ appRef }}" style="font-family:var(--ui-font);width:{{ dw }}px;height:{{ dh }}px;position:relative;overflow:hidden;border-radius:{{ innerR }}px;background:{{ surround }};color:{{ ink }}">
+
+      <sc-if value="{{ isWelcome }}">
+      <div data-screen-label="A Peluncuran" style="position:absolute;inset:0;background:{{ welcomeBg }};display:flex;align-items:center;justify-content:center;padding:48px 24px">
+        <div style="width:100%;max-width:420px;display:flex;flex-direction:column;gap:28px">
+          <div style="display:flex;flex-direction:column;gap:14px;align-items:center;text-align:center">
+            <div style="display:flex;align-items:center;gap:10px"><span style="width:40px;height:1px;background:var(--ui-accent)"></span><span style="width:6px;height:6px;transform:rotate(45deg);border:1px solid var(--ui-accent)"></span><span style="width:40px;height:1px;background:var(--ui-accent)"></span></div>
+            <h1 style="margin:0;font-family:var(--ui-display);font-weight:500;font-size:44px;line-height:1;letter-spacing:-0.01em">Mushaf</h1>
+            <p style="margin:0;font-family:var(--ui-display);font-size:19px;line-height:1.4;color:var(--ui-ink2);text-wrap:pretty">Bacaan yang tenang, setia pada halaman mushaf cetak.</p>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:10px">
+            <div style="font-size:13px;font-weight:500;color:var(--ui-ink2)">Pilih warna kertas</div>
+            <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px">
+              <sc-for list="{{ themeList }}" as="t" hint-placeholder-count="3">
+                <button onClick="{{ t.pick }}" aria-pressed="{{ t.on }}" style="display:flex;flex-direction:column;gap:8px;padding:8px;border-radius:14px;background:transparent;cursor:pointer;border:{{ t.ring }};text-align:left">
+                  <span style="display:block;height:64px;border-radius:8px;border:1px solid var(--ui-line);background:{{ t.hex }}"></span>
+                  <span style="font-size:13px;line-height:1.25;color:var(--ui-ink)">{{ t.name }}</span>
+                </button>
+              </sc-for>
+            </div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:10px">
+            <sc-if value="{{ hasProgress }}">
+              <button onClick="{{ continueReading }}" style="min-height:52px;border-radius:26px;background:var(--ui-primary);color:var(--ui-on);border:none;font-size:15.5px;font-weight:500;cursor:pointer">Lanjutkan · {{ resumeLabel }}</button>
+              <button onClick="{{ startReading }}" style="min-height:48px;border-radius:24px;background:transparent;color:var(--ui-primary);border:1px solid var(--ui-primary);font-size:15px;font-weight:500;cursor:pointer">Mulai dari awal</button>
+            </sc-if>
+            <sc-if value="{{ noProgress }}">
+              <button onClick="{{ startReading }}" style="min-height:52px;border-radius:26px;background:var(--ui-primary);color:var(--ui-on);border:none;font-size:15.5px;font-weight:500;cursor:pointer">Mulai membaca</button>
+            </sc-if>
+            <button onClick="{{ openTour }}" style="min-height:44px;border:none;background:transparent;color:var(--ui-primary);font-size:14.5px;text-decoration:underline;text-underline-offset:3px;cursor:pointer">Lihat panduan gestur</button>
+          </div>
+          <p style="margin:0;text-align:center;font-size:13px;color:var(--ui-muted)">Tanpa akun. Progres tersimpan di perangkat ini.</p>
+        </div>
+      </div>
+      </sc-if>
+
+      <sc-if value="{{ isReader }}">
+      <div data-screen-label="B Pembaca" onPointerDown="{{ onPD }}" onPointerMove="{{ onPM }}" onPointerUp="{{ onPU }}" onPointerCancel="{{ onPC }}" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;touch-action:none;user-select:none;-webkit-user-select:none;padding-top:{{ safeT }}px;padding-bottom:{{ safeB }}px;cursor:default">
+        <sc-if value="{{ showPages }}">
+        <div ref="{{ wrapRef }}" style="display:flex;flex-direction:row-reverse;transition:transform {{ dur }}ms ease;transform:{{ zoomTf }};transform-origin:{{ zoomOrigin }}">
+          <sc-for list="{{ pages }}" as="pg" hint-placeholder-count="1">
+            <div role="img" aria-label="{{ pg.aria }}" style="position:relative;width:{{ pg.w }}px;height:{{ pg.h }}px;background:{{ paper }};box-shadow:{{ pg.shadow }}">
+              <div style="position:absolute;inset:{{ pg.inset }};border:1.5px solid {{ frameInk }};border-radius:{{ pg.frameR }}"></div>
+              <div style="position:absolute;inset:{{ pg.inset2 }};border:0.75px solid {{ frameInk }};border-radius:{{ pg.frameR }}"></div>
+              <div style="position:absolute;inset:{{ pg.textInset }};display:flex;flex-direction:column">
+                <sc-for list="{{ pg.rows }}" as="row">
+                  <div style="flex:1;display:flex;align-items:stretch;justify-content:center;min-height:0">
+                    <sc-if value="{{ row.isTitle }}">
+                      <div style="flex:1;margin:12% 0;border:1px solid {{ frameInk }};border-radius:3px;display:flex;align-items:center;justify-content:center;gap:6%;background:rgba(62,110,153,0.06)">
+                        <span style="font-family:'Newsreader',serif;font-size:{{ pg.fs }}px;color:{{ frameInk }}">{{ row.name }}</span>
+                        <span style="font-size:{{ pg.fsS }}px;color:#5E6B78;letter-spacing:0.04em;text-transform:uppercase">aset judul</span>
+                      </div>
+                    </sc-if>
+                    <sc-if value="{{ row.isBasmala }}">
+                      <div style="flex:1;display:flex;align-items:center;justify-content:center;gap:8px">
+                        <span style="width:46%;height:22%;border-radius:999px;background:{{ barInk }}"></span>
+                        <span style="font-size:{{ pg.fsS }}px;color:#6E675B;letter-spacing:0.04em;text-transform:uppercase">basmalah · aset</span>
+                      </div>
+                    </sc-if>
+                    <sc-if value="{{ row.isLine }}">
+                      <div style="display:flex;direction:rtl;width:{{ row.width }}">
+                        <sc-for list="{{ row.segs }}" as="sg">
+                          <div data-verse="{{ sg.key }}" style="flex:{{ sg.w }} 1 0;min-width:0;display:flex;align-items:center;gap:3px;padding:0 2px;border-radius:3px;cursor:pointer;background:{{ sg.bg }};box-shadow:{{ sg.ring }};transition:background 140ms">
+                            <span style="flex:1;height:26%;border-radius:999px;background:{{ barInk }}"></span>
+                            <sc-if value="{{ sg.end }}"><span style="flex-shrink:0;width:{{ pg.mark }}px;height:{{ pg.mark }}px;border-radius:50%;border:1px solid {{ frameInk }}"></span></sc-if>
+                          </div>
+                        </sc-for>
+                      </div>
+                    </sc-if>
+                  </div>
+                </sc-for>
+              </div>
+              <div style="position:absolute;left:0;right:0;bottom:{{ pg.footB }};display:flex;justify-content:center;align-items:center;gap:8px;pointer-events:none">
+                <span style="font-size:{{ pg.fsS }}px;color:#5E5A52">{{ pg.num }}</span>
+              </div>
+              <div style="position:absolute;left:0;right:0;top:{{ pg.footB }};text-align:center;font-size:{{ pg.fsS }}px;color:#6E675B;pointer-events:none;letter-spacing:0.03em">Placeholder · bukan teks mushaf</div>
+            </div>
+          </sc-for>
+        </div>
+        </sc-if>
+
+        <sc-if value="{{ errOffline }}">
+        <div data-screen-label="M Offline tanpa cache" style="max-width:320px;display:flex;flex-direction:column;gap:14px;align-items:center;text-align:center;padding:24px">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke-width="1.6" stroke-linecap="round" style="stroke:var(--ui-primary);"><path d="M7 18h10a4 4 0 00.5-8 5.5 5.5 0 00-10.7 1.4A3.3 3.3 0 007 18z"></path><path d="M4 4l16 16"></path></svg>
+          <div style="font-family:var(--ui-display);font-size:22px;font-weight:500">Halaman {{ page }} belum tersimpan</div>
+          <div style="font-size:14.5px;line-height:1.5;color:var(--ui-ink2)">Anda sedang offline. Halaman ini akan tersedia setelah tersambung kembali.</div>
+          <button onClick="{{ goLastCached }}" style="min-height:46px;padding:0 20px;border-radius:23px;background:var(--ui-primary);color:var(--ui-on);border:none;font-size:14.5px;font-weight:500;cursor:pointer">Buka halaman tersimpan · {{ lastCached }}</button>
+          <button onClick="{{ openOffline }}" style="min-height:44px;border:none;background:transparent;color:var(--ui-primary);font-size:14px;text-decoration:underline;cursor:pointer">Status offline</button>
+        </div>
+        </sc-if>
+        <sc-if value="{{ errArt }}">
+        <div data-screen-label="M Artwork tidak tersedia" style="max-width:320px;display:flex;flex-direction:column;gap:14px;align-items:center;text-align:center;padding:24px">
+          <div style="width:52px;height:68px;border:1.5px dashed var(--ui-accent);border-radius:4px"></div>
+          <div style="font-family:var(--ui-display);font-size:22px;font-weight:500">Halaman tidak dapat ditampilkan</div>
+          <div style="font-size:14.5px;line-height:1.5;color:var(--ui-ink2)">Berkas halaman {{ page }} gagal dimuat atau tidak lolos pemeriksaan integritas. Teks tidak akan ditampilkan dari sumber lain.</div>
+          <button onClick="{{ retryArt }}" style="min-height:46px;padding:0 22px;border-radius:23px;background:var(--ui-primary);color:var(--ui-on);border:none;font-size:14.5px;font-weight:500;cursor:pointer">Coba lagi</button>
+        </div>
+        </sc-if>
+      </div>
+
+      <div aria-hidden="true" style="position:absolute;left:5px;top:50%;width:3px;height:32px;margin-top:-16px;border-radius:2px;background:var(--ui-accent);opacity:{{ edgeOp }};pointer-events:none"></div>
+      <div aria-hidden="true" style="position:absolute;right:5px;top:50%;width:3px;height:32px;margin-top:-16px;border-radius:2px;background:var(--ui-accent);opacity:{{ edgeOp }};pointer-events:none"></div>
+
+      <sc-if value="{{ zoomed }}">
+        <button onClick="{{ resetZoom }}" style="position:absolute;top:{{ zoomPillTop }}px;left:50%;transform:translateX(-50%);min-height:36px;padding:0 14px;border-radius:18px;border:1px solid var(--ui-line);background:{{ sheetBg }};color:var(--ui-ink);font-size:13.5px;cursor:pointer;z-index:5">2× · Atur ulang zoom</button>
+      </sc-if>
+
+      <header data-screen-label="C Kontrol atas" style="position:absolute;left:0;right:0;top:0;z-index:10;padding:{{ safeTop }}px 8px 6px 16px;display:flex;align-items:center;gap:4px;background:{{ chromeBg }};border-bottom:1px solid {{ hair }};transition:transform {{ dur }}ms ease;transform:{{ chromeTopTf }}">
+        <button onClick="{{ toWelcome }}" aria-label="Kembali ke beranda" style="flex:1;min-width:0;min-height:44px;display:flex;flex-direction:column;justify-content:center;align-items:flex-start;border:none;background:transparent;color:var(--ui-ink);cursor:pointer;text-align:left;padding:0">
+          <span style="font-family:var(--ui-display);font-size:19px;font-weight:500;line-height:1.15;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%">{{ titleSurah }}</span>
+          <span style="font-size:12.5px;color:var(--ui-muted)">{{ titleSub }}</span>
+        </button>
+        <button onClick="{{ openSearch }}" aria-label="Cari" style="width:44px;height:44px;display:flex;align-items:center;justify-content:center;border:none;background:transparent;color:var(--ui-ink);border-radius:22px;cursor:pointer" style-hover="background:color-mix(in srgb,var(--ui-ink) 6%,transparent)"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="11" cy="11" r="6.5"></circle><path d="M20 20l-4.2-4.2"></path></svg></button>
+        <button onClick="{{ openBookmarks }}" aria-label="Penanda" style="width:44px;height:44px;display:flex;align-items:center;justify-content:center;border:none;background:transparent;color:var(--ui-ink);border-radius:22px;cursor:pointer" style-hover="background:color-mix(in srgb,var(--ui-ink) 6%,transparent)"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M6.5 4h11v16l-5.5-4-5.5 4z"></path><path d="M9.5 8.5h5"></path></svg></button>
+        <button onClick="{{ openProgress }}" aria-label="Progres membaca" style="width:44px;height:44px;display:flex;align-items:center;justify-content:center;border:none;background:transparent;color:var(--ui-ink);border-radius:22px;cursor:pointer" style-hover="background:color-mix(in srgb,var(--ui-ink) 6%,transparent)"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M12 4a8 8 0 1 1-8 8"></path><path d="M12 8v4l3 2"></path></svg></button>
+        <button onClick="{{ openSettings }}" aria-label="Pengaturan" style="width:44px;height:44px;display:flex;align-items:center;justify-content:center;border:none;background:transparent;color:var(--ui-ink);border-radius:22px;cursor:pointer" style-hover="background:color-mix(in srgb,var(--ui-ink) 6%,transparent)"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M4 8h10M18 8h2M4 16h3M11 16h9"></path><circle cx="16" cy="8" r="2"></circle><circle cx="9" cy="16" r="2"></circle></svg></button>
+        <button onClick="{{ openAccount }}" aria-label="Akun dan sinkronisasi" style="position:relative;width:44px;height:44px;display:flex;align-items:center;justify-content:center;border:none;background:transparent;color:var(--ui-ink);border-radius:22px;cursor:pointer" style-hover="background:color-mix(in srgb,var(--ui-ink) 6%,transparent)"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="12" cy="9" r="3.5"></circle><path d="M5 20c1.2-3.5 4-5 7-5s5.8 1.5 7 5"></path></svg><span style="position:absolute;top:10px;right:10px;width:8px;height:8px;border-radius:4px;border:1.5px solid {{ chromeSolid }};background:{{ syncDot }}"></span></button>
+      </header>
+
+      <div style="position:absolute;right:10px;bottom:{{ zoomCtlB }}px;z-index:9;display:flex;flex-direction:column;gap:6px;transition:opacity {{ dur }}ms;opacity:{{ chromeOp }};pointer-events:{{ chromePE }}">
+        <button onClick="{{ zoomIn }}" aria-label="Perbesar" style="width:44px;height:44px;border-radius:22px;border:1px solid {{ hair }};background:{{ chromeSolid }};color:var(--ui-ink);cursor:pointer;font-size:20px;line-height:1">+</button>
+        <button onClick="{{ resetZoom }}" aria-label="Ukuran normal" style="width:44px;height:44px;border-radius:22px;border:1px solid {{ hair }};background:{{ chromeSolid }};color:var(--ui-ink);cursor:pointer;font-size:20px;line-height:1">−</button>
+      </div>
+
+      <nav data-screen-label="C Kontrol bawah" aria-label="Navigasi halaman" style="position:absolute;left:0;right:0;bottom:0;z-index:10;padding:8px 8px {{ safeBot }}px;display:flex;align-items:center;justify-content:space-between;gap:2px;background:{{ chromeBg }};border-top:1px solid {{ hair }};transition:transform {{ dur }}ms ease;transform:{{ chromeBotTf }}">
+        <button onClick="{{ next }}" aria-label="Halaman berikutnya" style="width:44px;height:44px;display:flex;align-items:center;justify-content:center;border:none;background:transparent;color:var(--ui-ink);border-radius:22px;cursor:pointer" style-hover="background:color-mix(in srgb,var(--ui-ink) 6%,transparent)"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"></path></svg></button>
+        <button onClick="{{ togglePageBm }}" aria-label="{{ pageBmLabel }}" aria-pressed="{{ pageBm }}" style="width:44px;height:44px;display:flex;align-items:center;justify-content:center;border:none;background:transparent;color:{{ pageBmColor }};border-radius:22px;cursor:pointer" style-hover="background:color-mix(in srgb,var(--ui-ink) 6%,transparent)"><svg width="21" height="21" viewBox="0 0 24 24" fill="{{ pageBmFill }}" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M6.5 4h11v16l-5.5-4-5.5 4z"></path></svg></button>
+        <button onClick="{{ openAudio }}" aria-label="Audio dan terjemahan" style="width:44px;height:44px;display:flex;align-items:center;justify-content:center;border:none;background:transparent;color:var(--ui-ink);border-radius:22px;cursor:pointer" style-hover="background:color-mix(in srgb,var(--ui-ink) 6%,transparent)"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M4 15v-3a8 8 0 0116 0v3"></path><rect x="3.5" y="14" width="4" height="6" rx="1.5"></rect><rect x="16.5" y="14" width="4" height="6" rx="1.5"></rect></svg></button>
+        <button onClick="{{ openPagePicker }}" aria-label="Pilih halaman" style="min-width:84px;height:40px;padding:0 12px;border-radius:20px;border:1px solid {{ hair }};background:{{ chromeSolid }};color:var(--ui-ink);font-size:14px;font-weight:500;cursor:pointer;white-space:nowrap">{{ pagePill }}</button>
+        <button onClick="{{ openBrowse }}" aria-label="Daftar isi" style="width:44px;height:44px;display:flex;align-items:center;justify-content:center;border:none;background:transparent;color:var(--ui-ink);border-radius:22px;cursor:pointer" style-hover="background:color-mix(in srgb,var(--ui-ink) 6%,transparent)"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M5 7h14M5 12h14M5 17h9"></path></svg></button>
+        <button onClick="{{ prev }}" aria-label="Halaman sebelumnya" style="width:44px;height:44px;display:flex;align-items:center;justify-content:center;border:none;background:transparent;color:var(--ui-ink);border-radius:22px;cursor:pointer" style-hover="background:color-mix(in srgb,var(--ui-ink) 6%,transparent)"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"></path></svg></button>
+      </nav>
+
+      <sc-if value="{{ hasToast }}">
+      <div role="status" data-screen-label="G Lanjut membaca" style="position:absolute;left:50%;transform:translateX(-50%);bottom:{{ toastB }}px;z-index:20;width:max-content;max-width:calc(100% - 32px);display:flex;align-items:center;gap:12px;padding:8px 8px 8px 16px;border-radius:24px;background:var(--ui-ink);color:var(--ui-on);font-size:14px;box-shadow:0 6px 20px color-mix(in srgb,var(--ui-ink) 20%,transparent)">
+        <span>{{ toast.msg }}</span>
+        <sc-if value="{{ toast.hasAction }}"><button onClick="{{ toastAction }}" style="min-height:36px;padding:0 12px;border-radius:18px;border:none;background:rgba(245,241,232,0.14);color:var(--ui-on);font-size:13.5px;font-weight:500;cursor:pointer">{{ toast.action }}</button></sc-if>
+        <button onClick="{{ hideToast }}" aria-label="Tutup" style="width:36px;height:36px;border:none;background:transparent;color:var(--ui-on);cursor:pointer;font-size:18px">×</button>
+      </div>
+      </sc-if>
+      </sc-if>
+
+      <div onClick="{{ closeSheet }}" aria-hidden="true" style="position:absolute;inset:0;z-index:30;background:color-mix(in srgb,var(--ui-ink) 28%,transparent);transition:opacity {{ dur }}ms;opacity:{{ backdropOp }};pointer-events:{{ backdropPE }}"></div>
+      <div role="dialog" aria-modal="true" aria-label="{{ sheetLabel }}" style="position:absolute;z-index:31;display:flex;flex-direction:column;overflow:hidden;background:{{ sheetBg }};box-shadow:0 -8px 32px color-mix(in srgb,var(--ui-ink) 12%,transparent);transition:transform {{ dur }}ms cubic-bezier(.2,.8,.2,1);left:{{ sp.left }};right:{{ sp.right }};top:{{ sp.top }};bottom:{{ sp.bottom }};width:{{ sp.width }};max-height:{{ sp.maxH }};border-radius:{{ sp.radius }};transform:{{ sp.tf }};border-left:{{ sp.bl }}">
+        <sc-if value="{{ sp.grab }}"><div style="display:flex;justify-content:center;padding-top:8px"><span style="width:36px;height:4px;border-radius:2px;background:var(--ui-line)"></span></div></sc-if>
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 8px 4px 20px;flex-shrink:0">
+          <h2 style="margin:0;font-family:var(--ui-display);font-size:22px;font-weight:500">{{ sheetLabel }}</h2>
+          <button onClick="{{ closeSheet }}" aria-label="Tutup" style="width:44px;height:44px;display:flex;align-items:center;justify-content:center;border:none;background:transparent;color:var(--ui-ink);border-radius:22px;cursor:pointer" style-hover="background:color-mix(in srgb,var(--ui-ink) 6%,transparent)"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"></path></svg></button>
+        </div>
+        <div style="flex:1;min-height:0;overflow-y:auto;padding:4px 20px 24px">
+
+          <sc-if value="{{ sh.verse }}">
+          <div data-screen-label="D Ayat dipilih" style="display:flex;flex-direction:column;gap:16px">
+            <div style="display:flex;flex-direction:column;gap:2px">
+              <div style="font-size:16px;font-weight:500">{{ verse.title }}</div>
+              <div style="font-size:13.5px;color:var(--ui-muted)">{{ verse.sub }}</div>
+            </div>
+            <div style="display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:4px">
+              <button onClick="{{ bmVerse }}" style="min-height:64px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;border:none;border-radius:12px;background:transparent;cursor:pointer;font-size:12.5px;color:{{ verse.bmColor }}" style-hover="background:color-mix(in srgb,var(--ui-ink) 5%,transparent)"><svg width="22" height="22" viewBox="0 0 24 24" fill="{{ verse.bmFill }}" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M6.5 4h11v16l-5.5-4-5.5 4z"></path></svg>{{ verse.bmLabel }}</button>
+              <button onClick="{{ playVerse }}" style="min-height:64px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;border:none;border-radius:12px;background:transparent;cursor:pointer;font-size:12.5px;color:var(--ui-ink)" style-hover="background:color-mix(in srgb,var(--ui-ink) 5%,transparent)"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M8 5.5v13l10-6.5z"></path></svg>Putar</button>
+              <button onClick="{{ translateVerse }}" style="min-height:64px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;border:none;border-radius:12px;background:transparent;cursor:pointer;font-size:12.5px;color:var(--ui-ink)" style-hover="background:color-mix(in srgb,var(--ui-ink) 5%,transparent)"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 18l4.5-12L13 18M5.6 14h5.8M15 9h6M18 7v2c0 3.5-1.6 6.5-4 8"></path></svg>Terjemahan</button>
+              <button onClick="{{ copyRef }}" style="min-height:64px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;border:none;border-radius:12px;background:transparent;cursor:pointer;font-size:12.5px;color:var(--ui-ink)" style-hover="background:color-mix(in srgb,var(--ui-ink) 5%,transparent)"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="8" y="8" width="11" height="11" rx="2"></rect><path d="M5 15V6a1 1 0 011-1h9"></path></svg>Salin ref.</button>
+              <button onClick="{{ shareRef }}" style="min-height:64px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;border:none;border-radius:12px;background:transparent;cursor:pointer;font-size:12.5px;color:var(--ui-ink)" style-hover="background:color-mix(in srgb,var(--ui-ink) 5%,transparent)"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11M7.5 8.5L12 4l4.5 4.5M5 13v6h14v-6"></path></svg>Bagikan</button>
+            </div>
+            <sc-if value="{{ verse.unknown }}"><div style="font-size:13px;line-height:1.45;color:var(--ui-muted);padding:10px 12px;border-radius:10px;background:color-mix(in srgb,var(--ui-accent) 12%,transparent)">Nomor ayat di halaman ini menunggu data poligon dari aset terverifikasi.</div></sc-if>
+          </div>
+          </sc-if>
+
+          <sc-if value="{{ sh.browse }}">
+          <div data-screen-label="E Daftar isi" style="display:flex;flex-direction:column;gap:14px">
+            <div role="tablist" style="display:flex;gap:4px;padding:4px;background:color-mix(in srgb,var(--ui-ink) 6%,transparent);border-radius:12px">
+              <sc-for list="{{ browseTabs }}" as="bt"><button role="tab" aria-selected="{{ bt.on }}" onClick="{{ bt.pick }}" style="flex:1;min-height:40px;border:none;border-radius:9px;font-size:14px;font-weight:500;cursor:pointer;color:var(--ui-ink);background:{{ bt.bg }}">{{ bt.label }}</button></sc-for>
+            </div>
+            <sc-if value="{{ browseNotPage }}">
+              <input value="{{ filter }}" onChange="{{ onFilter }}" placeholder="{{ filterPh }}" aria-label="Saring" style="min-height:44px;padding:0 14px;border-radius:12px;border:1px solid var(--ui-line);background:#FFFFFF;font-size:15px;color:var(--ui-ink);font-family:inherit">
+            </sc-if>
+            <sc-if value="{{ bTab.surah }}">
+              <div style="display:flex;flex-direction:column">
+                <sc-for list="{{ surahRows }}" as="r" hint-placeholder-count="8">
+                  <button onClick="{{ r.go }}" style="display:flex;align-items:center;gap:14px;min-height:60px;padding:6px 8px;border:none;border-bottom:1px solid {{ hair }};background:{{ r.bg }};cursor:pointer;text-align:left;color:var(--ui-ink)" style-hover="background:color-mix(in srgb,var(--ui-ink) 4%,transparent)">
+                    <span style="width:28px;font-size:13px;color:var(--ui-accent-ink);font-weight:600;text-align:center">{{ r.n }}</span>
+                    <span style="flex:1;min-width:0;display:flex;flex-direction:column;gap:2px"><span style="font-size:15.5px;font-weight:500">{{ r.name }}</span><span style="font-size:12.5px;color:var(--ui-muted)">{{ r.info }}</span></span>
+                    <span lang="ar" dir="rtl" style="font-family:'Amiri',serif;font-size:20px;color:var(--ui-ink)">{{ r.ar }}</span>
+                  </button>
+                </sc-for>
+                <sc-if value="{{ noSurahRows }}"><div style="padding:24px 8px;font-size:14px;color:var(--ui-muted);text-align:center">Tidak ada surah yang cocok.</div></sc-if>
+              </div>
+            </sc-if>
+            <sc-if value="{{ bTab.juz }}">
+              <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px">
+                <sc-for list="{{ juzRows }}" as="j" hint-placeholder-count="12">
+                  <button onClick="{{ j.go }}" style="display:flex;flex-direction:column;align-items:flex-start;gap:2px;min-height:60px;padding:10px 12px;border-radius:12px;border:1px solid {{ j.bd }};background:#FFFFFF;cursor:pointer;color:var(--ui-ink);text-align:left"><span style="font-size:15px;font-weight:500">Juz {{ j.n }}</span><span style="font-size:12.5px;color:var(--ui-muted)">{{ j.info }}</span></button>
+                </sc-for>
+              </div>
+            </sc-if>
+            <sc-if value="{{ bTab.page }}">
+              <div style="display:flex;flex-direction:column;gap:16px;padding-top:4px">
+                <label style="display:flex;flex-direction:column;gap:6px;font-size:13px;color:var(--ui-ink2)">Nomor halaman (1–604)
+                  <input type="number" min="1" max="604" inputmode="numeric" value="{{ pageInput }}" onChange="{{ onPageInput }}" style="min-height:56px;padding:0 16px;border-radius:12px;border:1px solid var(--ui-line);background:#FFFFFF;font-size:24px;font-family:var(--ui-display);color:var(--ui-ink)">
+                </label>
+                <input type="range" min="1" max="604" value="{{ pageInput }}" onChange="{{ onPageInput }}" aria-label="Geser nomor halaman" style="width:100%;direction:rtl">
+                <div style="font-size:13.5px;color:var(--ui-muted)">{{ pageInputInfo }}</div>
+                <button onClick="{{ goPageInput }}" style="min-height:50px;border-radius:25px;background:var(--ui-primary);color:var(--ui-on);border:none;font-size:15px;font-weight:500;cursor:pointer">Buka halaman {{ pageInput }}</button>
+              </div>
+            </sc-if>
+          </div>
+          </sc-if>
+
+          <sc-if value="{{ sh.bookmarks }}">
+          <div data-screen-label="F Penanda" style="display:flex;flex-direction:column;gap:14px">
+            <button onClick="{{ goLastRead }}" style="display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:14px;border:1px solid var(--ui-primary);background:transparent;cursor:pointer;text-align:left;color:var(--ui-ink)">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke-width="1.6" stroke-linecap="round" style="stroke:var(--ui-primary);"><circle cx="12" cy="12" r="8"></circle><path d="M12 8v4l2.5 2"></path></svg>
+              <span style="flex:1;display:flex;flex-direction:column;gap:2px"><span style="font-size:12px;font-weight:600;letter-spacing:0.05em;text-transform:uppercase;color:var(--ui-primary)">Posisi terakhir</span><span style="font-size:15px;font-weight:500">{{ lastReadLabel }}</span></span>
+              <span style="font-size:13px;color:var(--ui-primary)">Buka</span>
+            </button>
+            <div role="tablist" style="display:flex;gap:4px;padding:4px;background:color-mix(in srgb,var(--ui-ink) 6%,transparent);border-radius:12px">
+              <sc-for list="{{ bmTabs }}" as="bt"><button role="tab" aria-selected="{{ bt.on }}" onClick="{{ bt.pick }}" style="flex:1;min-height:40px;border:none;border-radius:9px;font-size:14px;font-weight:500;cursor:pointer;color:var(--ui-ink);background:{{ bt.bg }}">{{ bt.label }}</button></sc-for>
+            </div>
+            <div role="tablist" aria-label="Folder penanda" style="display:flex;gap:6px;overflow-x:auto;margin:0 -20px;padding:0 20px 2px;scrollbar-width:none">
+              <sc-for list="{{ folderChips }}" as="fc" hint-placeholder-count="3"><button role="tab" onClick="{{ fc.pick }}" style="flex-shrink:0;display:flex;align-items:center;gap:6px;min-height:36px;padding:0 14px;border-radius:18px;border:1px solid {{ fc.bd }};background:{{ fc.bg }};color:{{ fc.fg }};font-size:13.5px;font-weight:500;cursor:pointer;white-space:nowrap"><span>{{ fc.name }}</span><span style="font-size:12px;opacity:0.75">{{ fc.n }}</span></button></sc-for>
+              <button onClick="{{ newFolder }}" aria-label="Buat folder baru" style="flex-shrink:0;display:flex;align-items:center;gap:6px;min-height:36px;padding:0 14px;border-radius:18px;border:1px dashed var(--ui-accent);background:transparent;color:var(--ui-primary);font-size:13.5px;font-weight:500;cursor:pointer;white-space:nowrap"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 5v14M5 12h14"></path></svg>Folder baru</button>
+            </div>
+            <sc-if value="{{ editingFolder }}">
+              <div style="display:flex;flex-direction:column;gap:8px;padding:12px;border-radius:14px;background:color-mix(in srgb,var(--ui-primary) 5%,transparent)">
+                <label style="font-size:12px;font-weight:600;letter-spacing:0.05em;text-transform:uppercase;color:var(--ui-muted)">{{ folderEditTitle }}</label>
+                <input value="{{ folderEditName }}" onChange="{{ onFolderName }}" onKeyDown="{{ onFolderKey }}" autofocus="{{ true }}" maxlength="32" placeholder="mis. Murajaah pekan ini" aria-label="Nama folder" style="min-height:44px;padding:0 14px;border-radius:12px;border:1px solid var(--ui-line);background:#FFFFFF;font-size:15px;color:var(--ui-ink);font-family:inherit">
+                <div style="display:flex;justify-content:flex-end;gap:8px">
+                  <button onClick="{{ cancelFolder }}" style="min-height:40px;padding:0 16px;border-radius:20px;border:none;background:transparent;color:var(--ui-ink);font-size:14px;font-weight:500;cursor:pointer">Batal</button>
+                  <button onClick="{{ saveFolder }}" style="min-height:40px;padding:0 18px;border-radius:20px;border:none;background:var(--ui-primary);color:#FFFFFF;font-size:14px;font-weight:500;cursor:pointer">Simpan</button>
+                </div>
+              </div>
+            </sc-if>
+            <sc-if value="{{ hasCurFolder }}">
+              <div style="display:flex;align-items:center;gap:4px;margin-top:-4px">
+                <span style="flex:1;min-width:0;display:flex;align-items:center;gap:8px;font-family:var(--ui-display);font-size:17px;color:var(--ui-primary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M3.5 7.5a1.5 1.5 0 0 1 1.5-1.5h4l2 2h8a1.5 1.5 0 0 1 1.5 1.5v8A1.5 1.5 0 0 1 19 19H5a1.5 1.5 0 0 1-1.5-1.5z"></path></svg>{{ curFolderName }}</span>
+                <button onClick="{{ renameFolder }}" style="min-height:40px;padding:0 12px;border-radius:20px;border:none;background:transparent;color:var(--ui-primary);font-size:13.5px;font-weight:500;cursor:pointer;white-space:nowrap" style-hover="background:color-mix(in srgb,var(--ui-primary) 6%,transparent)">Ganti nama</button>
+                <button onClick="{{ deleteFolder }}" style="min-height:40px;padding:0 12px;border-radius:20px;border:none;background:transparent;color:#8A3B2E;font-size:13.5px;font-weight:500;cursor:pointer;white-space:nowrap" style-hover="background:rgba(138,59,46,0.06)">Hapus folder</button>
+              </div>
+            </sc-if>
+            <sc-for list="{{ bmRows }}" as="b">
+              <div style="display:flex;flex-direction:column;border-bottom:1px solid {{ hair }}">
+              <div style="display:flex;align-items:center;gap:8px;padding:10px 0 10px 4px">
+                <svg width="18" height="18" viewBox="0 0 24 24" stroke-width="1.4" stroke-linejoin="round" style="fill:var(--ui-accent-icon);stroke:var(--ui-accent-icon);flex-shrink:0"><path d="M6.5 4h11v16l-5.5-4-5.5 4z"></path></svg>
+                <button onClick="{{ b.go }}" style="flex:1;min-width:0;display:flex;flex-direction:column;gap:2px;border:none;background:transparent;cursor:pointer;text-align:left;color:var(--ui-ink);padding:2px 4px;min-height:44px;justify-content:center">
+                  <span style="font-size:15px;font-weight:500">{{ b.title }}</span>
+                  <span style="font-size:12.5px;color:var(--ui-muted)">{{ b.sub }}</span>
+                  <span style="font-size:12px;color:var(--ui-accent-ink);display:flex;align-items:center;gap:4px"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M3.5 7.5a1.5 1.5 0 0 1 1.5-1.5h4l2 2h8a1.5 1.5 0 0 1 1.5 1.5v8A1.5 1.5 0 0 1 19 19H5a1.5 1.5 0 0 1-1.5-1.5z"></path></svg>{{ b.folderTag }}</span>
+                </button>
+                <button onClick="{{ b.toggleMove }}" aria-label="Pindahkan ke folder" aria-expanded="{{ b.moving }}" style="width:44px;height:44px;display:flex;align-items:center;justify-content:center;border:none;background:transparent;color:var(--ui-primary);cursor:pointer;border-radius:22px;flex-shrink:0" style-hover="background:color-mix(in srgb,var(--ui-primary) 6%,transparent)"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M3.5 7.5a1.5 1.5 0 0 1 1.5-1.5h4l2 2h8a1.5 1.5 0 0 1 1.5 1.5v8A1.5 1.5 0 0 1 19 19H5a1.5 1.5 0 0 1-1.5-1.5z"></path></svg></button>
+                <button onClick="{{ b.remove }}" aria-label="Hapus penanda" style="width:44px;height:44px;border:none;background:transparent;color:var(--ui-muted);cursor:pointer;border-radius:22px" style-hover="background:color-mix(in srgb,var(--ui-ink) 6%,transparent)"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M5 7h14M10 7V5h4v2M7 7l1 12h8l1-12"></path></svg></button>
+              </div>
+              <sc-if value="{{ b.moving }}">
+                <div style="display:flex;flex-direction:column;gap:8px;padding:0 4px 12px 30px">
+                  <span style="font-size:12px;font-weight:600;letter-spacing:0.05em;text-transform:uppercase;color:var(--ui-muted)">Pindahkan ke</span>
+                  <div style="display:flex;flex-wrap:wrap;gap:6px">
+                    <sc-for list="{{ b.moveChips }}" as="mc"><button onClick="{{ mc.pick }}" style="min-height:36px;padding:0 14px;border-radius:18px;border:1px solid {{ mc.bd }};background:{{ mc.bg }};color:{{ mc.fg }};font-size:13.5px;font-weight:500;cursor:pointer;white-space:nowrap">{{ mc.name }}</button></sc-for>
+                    <button onClick="{{ b.newFolder }}" style="min-height:36px;padding:0 14px;border-radius:18px;border:1px dashed var(--ui-accent);background:transparent;color:var(--ui-primary);font-size:13.5px;font-weight:500;cursor:pointer;white-space:nowrap">+ Folder baru</button>
+                  </div>
+                </div>
+              </sc-if>
+              </div>
+            </sc-for>
+            <sc-if value="{{ bmEmpty }}">
+              <div data-screen-label="M Penanda kosong" style="display:flex;flex-direction:column;align-items:center;gap:10px;text-align:center;padding:28px 12px">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke-width="1.4" stroke-linejoin="round" style="stroke:var(--ui-accent-icon);"><path d="M6.5 4h11v16l-5.5-4-5.5 4z"></path></svg>
+                <div style="font-family:var(--ui-display);font-size:19px">{{ bmEmptyTitle }}</div>
+                <div style="font-size:14px;line-height:1.5;color:var(--ui-ink2);max-width:280px">{{ bmEmptyHint }}</div>
+              </div>
+            </sc-if>
+            <div style="display:flex;flex-direction:column;gap:6px;padding-top:6px">
+              <div style="font-size:12px;font-weight:600;letter-spacing:0.05em;text-transform:uppercase;color:var(--ui-muted)">Riwayat baca</div>
+              <sc-for list="{{ historyRows }}" as="h">
+                <button onClick="{{ h.go }}" style="display:flex;justify-content:space-between;align-items:center;min-height:44px;border:none;background:transparent;cursor:pointer;color:var(--ui-ink);font-size:14px;padding:0 4px;border-bottom:1px solid {{ hair }}"><span>{{ h.label }}</span><span style="font-size:12.5px;color:var(--ui-muted)">{{ h.at }}</span></button>
+              </sc-for>
+            </div>
+          </div>
+          </sc-if>
+
+          <sc-if value="{{ sh.search }}">
+          <div data-screen-label="I Cari" style="display:flex;flex-direction:column;gap:14px">
+            <input value="{{ query }}" onChange="{{ onQuery }}" autofocus="{{ true }}" placeholder="Surah, 2:255, hal 50, juz 30" aria-label="Cari surah atau rujukan ayat" style="min-height:48px;padding:0 16px;border-radius:24px;border:1px solid var(--ui-line);background:#FFFFFF;font-size:15.5px;color:var(--ui-ink);font-family:inherit">
+            <div style="display:flex;flex-wrap:wrap;gap:6px">
+              <sc-for list="{{ searchHints }}" as="q"><button onClick="{{ q.use }}" style="min-height:34px;padding:0 12px;border-radius:17px;border:1px solid var(--ui-line);background:transparent;font-size:13px;cursor:pointer;color:var(--ui-ink)">{{ q.label }}</button></sc-for>
+              <span title="Sumber terjemahan belum terhubung" style="display:inline-flex;align-items:center;min-height:34px;padding:0 12px;border-radius:17px;border:1px dashed var(--ui-line);font-size:13px;color:#6E675B">Cari terjemahan · belum tersedia</span>
+            </div>
+            <div style="display:flex;flex-direction:column">
+              <sc-for list="{{ results }}" as="r">
+                <button onClick="{{ r.go }}" style="display:flex;flex-direction:column;align-items:flex-start;gap:2px;min-height:56px;padding:8px 4px;border:none;border-bottom:1px solid {{ hair }};background:transparent;cursor:pointer;text-align:left;color:var(--ui-ink)" style-hover="background:color-mix(in srgb,var(--ui-ink) 4%,transparent)"><span style="font-size:15px;font-weight:500">{{ r.title }}</span><span style="font-size:12.5px;color:var(--ui-muted)">{{ r.sub }}</span></button>
+              </sc-for>
+              <sc-if value="{{ noResults }}"><div style="padding:20px 4px;font-size:14px;color:var(--ui-muted)">Tidak ditemukan. Coba nama surah atau format 2:255.</div></sc-if>
+            </div>
+          </div>
+          </sc-if>
+
+          <sc-if value="{{ sh.settings }}">
+          <div data-screen-label="H Pengaturan" style="display:flex;flex-direction:column;gap:24px">
+            <section style="display:flex;flex-direction:column;gap:10px">
+              <div style="display:flex;flex-direction:column;gap:2px"><div style="font-size:13px;font-weight:600;color:var(--ui-ink2)">Tema menu</div><div style="font-size:12.5px;color:var(--ui-muted)">Warna dan huruf untuk menu, lembar, dan kontrol. Halaman mushaf tidak berubah.</div></div>
+              <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px">
+                <sc-for list="{{ uiList }}" as="u" hint-placeholder-count="4">
+                  <button onClick="{{ u.pick }}" aria-pressed="{{ u.on }}" style="display:flex;flex-direction:column;gap:10px;padding:10px;border-radius:14px;background:transparent;cursor:pointer;border:{{ u.ring }};text-align:left;color:var(--ui-ink)">
+                    <span style="display:flex;flex-direction:column;justify-content:space-between;height:64px;padding:10px;border-radius:10px;background:{{ u.bg }}">
+                      <span style="font-family:{{ u.font }};font-size:17px;font-weight:600;line-height:1;color:{{ u.ink }}">Aa</span>
+                      <span style="display:flex;gap:5px"><span style="width:18px;height:18px;border-radius:9px;background:{{ u.c1 }}"></span><span style="width:18px;height:18px;border-radius:9px;background:{{ u.c2 }}"></span><span style="flex:1;height:18px;border-radius:9px;background:{{ u.c1 }};opacity:0.18"></span></span>
+                    </span>
+                    <span style="display:flex;flex-direction:column;gap:2px"><span style="font-size:13.5px;font-weight:500;line-height:1.2">{{ u.name }}</span><span style="font-size:12px;color:var(--ui-muted)">{{ u.fontName }}</span></span>
+                  </button>
+                </sc-for>
+              </div>
+            </section>
+            <section style="display:flex;flex-direction:column;gap:10px">
+              <div style="display:flex;flex-direction:column;gap:2px"><div style="font-size:13px;font-weight:600;color:var(--ui-ink2)">Tema mushaf · warna kertas</div><div style="font-size:12.5px;color:var(--ui-muted)">Hanya latar halaman mushaf.</div></div>
+              <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px">
+                <sc-for list="{{ themeList }}" as="t">
+                  <button onClick="{{ t.pick }}" aria-pressed="{{ t.on }}" style="display:flex;flex-direction:column;gap:8px;padding:8px;border-radius:14px;background:transparent;cursor:pointer;border:{{ t.ring }};text-align:left;color:var(--ui-ink)">
+                    <span style="display:block;height:76px;border-radius:8px;border:1px solid var(--ui-line);background:{{ t.hex }}"></span>
+                    <span style="font-size:13.5px;font-weight:500;line-height:1.2">{{ t.name }}</span>
+                    <span style="font-size:12px;color:var(--ui-muted);font-variant-numeric:tabular-nums">{{ t.hex }}</span>
+                  </button>
+                </sc-for>
+              </div>
+            </section>
+            <section style="display:flex;flex-direction:column;gap:10px">
+              <div style="font-size:13px;font-weight:600;color:var(--ui-ink2)">Tampilan halaman</div>
+              <div style="display:flex;gap:4px;padding:4px;background:color-mix(in srgb,var(--ui-ink) 6%,transparent);border-radius:12px">
+                <sc-for list="{{ modeTabs }}" as="m"><button onClick="{{ m.pick }}" aria-pressed="{{ m.on }}" style="flex:1;min-height:40px;border:none;border-radius:9px;font-size:14px;font-weight:500;cursor:pointer;color:var(--ui-ink);background:{{ m.bg }}">{{ m.label }}</button></sc-for>
+              </div>
+              <div style="font-size:12.5px;color:var(--ui-muted);line-height:1.45">Otomatis: dua halaman pada layar lanskap ≥ 900 px, satu halaman lainnya.</div>
+            </section>
+            <section style="display:flex;flex-direction:column">
+              <div style="font-size:13px;font-weight:600;color:var(--ui-ink2);padding-bottom:4px">Membaca</div>
+              <button onClick="{{ resetZoom }}" style="display:flex;justify-content:space-between;align-items:center;min-height:52px;border:none;border-bottom:1px solid {{ hair }};background:transparent;cursor:pointer;font-size:15px;color:var(--ui-ink);padding:0"><span>Atur ulang zoom</span><span style="font-size:13px;color:var(--ui-muted)">{{ zoomLabel }}</span></button>
+              <button onClick="{{ toggleReduced }}" role="switch" aria-checked="{{ reduced }}" style="display:flex;justify-content:space-between;align-items:center;min-height:52px;border:none;border-bottom:1px solid {{ hair }};background:transparent;cursor:pointer;font-size:15px;color:var(--ui-ink);padding:0"><span>Kurangi gerakan</span><span style="width:40px;height:24px;border-radius:12px;position:relative;background:{{ reducedTrack }}"><span style="position:absolute;top:3px;width:18px;height:18px;border-radius:9px;background:#FFFFFF;left:{{ reducedKnob }}"></span></span></button>
+              <button onClick="{{ toggleContrast }}" role="switch" aria-checked="{{ contrast }}" style="display:flex;justify-content:space-between;align-items:center;min-height:52px;border:none;border-bottom:1px solid {{ hair }};background:transparent;cursor:pointer;font-size:15px;color:var(--ui-ink);padding:0"><span>Kontras tinggi antarmuka</span><span style="width:40px;height:24px;border-radius:12px;position:relative;background:{{ contrastTrack }}"><span style="position:absolute;top:3px;width:18px;height:18px;border-radius:9px;background:#FFFFFF;left:{{ contrastKnob }}"></span></span></button>
+              <button onClick="{{ openTour }}" style="display:flex;justify-content:space-between;align-items:center;min-height:52px;border:none;border-bottom:1px solid {{ hair }};background:transparent;cursor:pointer;font-size:15px;color:var(--ui-ink);padding:0"><span>Panduan gestur</span><span style="font-size:18px;color:var(--ui-muted)">›</span></button>
+              <button onClick="{{ openOffline }}" style="display:flex;justify-content:space-between;align-items:center;min-height:52px;border:none;border-bottom:1px solid {{ hair }};background:transparent;cursor:pointer;font-size:15px;color:var(--ui-ink);padding:0"><span>Offline &amp; penyimpanan</span><span style="font-size:13px;color:var(--ui-muted)">{{ offlineShort }} ›</span></button>
+              <button onClick="{{ openAccount }}" style="display:flex;justify-content:space-between;align-items:center;min-height:52px;border:none;background:transparent;cursor:pointer;font-size:15px;color:var(--ui-ink);padding:0"><span>Akun &amp; sinkronisasi</span><span style="font-size:13px;color:var(--ui-muted)">{{ accountShort }} ›</span></button>
+            </section>
+          </div>
+          </sc-if>
+
+          <sc-if value="{{ sh.audio }}">
+          <div data-screen-label="J Audio dan terjemahan" style="display:flex;flex-direction:column;gap:16px">
+            <div role="tablist" style="display:flex;gap:4px;padding:4px;background:color-mix(in srgb,var(--ui-ink) 6%,transparent);border-radius:12px">
+              <sc-for list="{{ audioTabs }}" as="at"><button role="tab" aria-selected="{{ at.on }}" onClick="{{ at.pick }}" style="flex:1;min-height:40px;border:none;border-radius:9px;font-size:14px;font-weight:500;cursor:pointer;color:var(--ui-ink);background:{{ at.bg }}">{{ at.label }}</button></sc-for>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:2px"><div style="font-size:16px;font-weight:500">{{ audio.title }}</div><div style="font-size:13px;color:var(--ui-muted)">{{ audio.sub }}</div></div>
+            <sc-if value="{{ aTab.audio }}">
+              <sc-if value="{{ audioOk }}">
+              <div style="display:flex;flex-direction:column;gap:14px">
+                <div style="height:4px;border-radius:2px;background:color-mix(in srgb,var(--ui-ink) 10%,transparent);overflow:hidden"><div style="height:100%;background:var(--ui-primary);width:{{ audio.prog }}"></div></div>
+                <div style="display:flex;align-items:center;justify-content:center;gap:20px">
+                  <button onClick="{{ audioNextVerse }}" aria-label="Ayat berikutnya" style="width:44px;height:44px;border:none;background:transparent;cursor:pointer;color:var(--ui-ink);font-size:18px">‹</button>
+                  <button onClick="{{ togglePlay }}" aria-label="{{ audio.playLabel }}" style="width:60px;height:60px;border-radius:30px;border:none;background:var(--ui-primary);color:var(--ui-on);cursor:pointer;display:flex;align-items:center;justify-content:center">
+                    <sc-if value="{{ audio.playing }}"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M8 5v14M16 5v14"></path></svg></sc-if>
+                    <sc-if value="{{ audio.paused }}"><svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5.5v13l10-6.5z"></path></svg></sc-if>
+                  </button>
+                  <button onClick="{{ audioPrevVerse }}" aria-label="Ayat sebelumnya" style="width:44px;height:44px;border:none;background:transparent;cursor:pointer;color:var(--ui-ink);font-size:18px">›</button>
+                </div>
+                <label style="display:flex;flex-direction:column;gap:6px;font-size:13px;color:var(--ui-ink2)">Qari
+                  <select disabled="{{ true }}" style="min-height:44px;padding:0 12px;border-radius:12px;border:1px dashed var(--ui-line);background:transparent;font-size:14.5px;color:#6E675B;font-family:inherit"><option>Menunggu data qari berlisensi</option></select>
+                </label>
+              </div>
+              </sc-if>
+              <sc-if value="{{ audioBad }}">
+              <div data-screen-label="M Audio tidak tersedia" style="display:flex;flex-direction:column;gap:10px;padding:14px;border-radius:12px;background:color-mix(in srgb,var(--ui-accent) 12%,transparent)">
+                <div style="font-size:15px;font-weight:500">Audio tidak tersedia</div>
+                <div style="font-size:13.5px;line-height:1.5;color:var(--ui-ink2)">{{ audioBadMsg }}</div>
+                <button onClick="{{ retryAudio }}" style="align-self:flex-start;min-height:40px;padding:0 16px;border-radius:20px;border:1px solid var(--ui-primary);background:transparent;color:var(--ui-primary);font-size:14px;cursor:pointer">Coba lagi</button>
+              </div>
+              </sc-if>
+            </sc-if>
+            <sc-if value="{{ aTab.trans }}">
+              <div style="display:flex;flex-direction:column;gap:10px;padding:16px;border-radius:12px;border:1px dashed var(--ui-line)">
+                <div style="font-size:12px;font-weight:600;letter-spacing:0.05em;text-transform:uppercase;color:#6E675B">Area terjemahan</div>
+                <div style="font-size:14.5px;line-height:1.55;color:var(--ui-ink2);text-wrap:pretty">Terjemahan Bahasa Indonesia untuk ayat ini tampil di sini setelah sumber resmi dan lisensinya terhubung. Prototipe tidak menampilkan teks terjemahan buatan.</div>
+              </div>
+            </sc-if>
+            <div style="font-size:12.5px;color:var(--ui-muted)">Lembar ini tidak menutupi ayat yang sedang diputar; halaman tetap dapat dibalik.</div>
+          </div>
+          </sc-if>
+
+          <sc-if value="{{ sh.account }}">
+          <div data-screen-label="K Akun dan sinkronisasi" style="display:flex;flex-direction:column;gap:18px">
+            <sc-if value="{{ acc.guest }}">
+              <div style="display:flex;flex-direction:column;gap:6px">
+                <div style="font-size:12px;font-weight:600;letter-spacing:0.05em;text-transform:uppercase;color:var(--ui-muted)">Mode tamu</div>
+                <div style="font-family:var(--ui-display);font-size:20px;line-height:1.3">Semua tersimpan di perangkat ini.</div>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:10px;font-size:14.5px;line-height:1.45">
+                <div style="display:flex;gap:10px"><span style="color:var(--ui-accent-ink)">—</span><span>Lanjutkan bacaan di ponsel dan tablet.</span></div>
+                <div style="display:flex;gap:10px"><span style="color:var(--ui-accent-ink)">—</span><span>Penanda ayat dan halaman ikut tersinkron.</span></div>
+                <div style="display:flex;gap:10px"><span style="color:var(--ui-accent-ink)">—</span><span>Yang disimpan hanya posisi, penanda, dan preferensi. Tanpa iklan, tanpa pelacakan.</span></div>
+              </div>
+              <button onClick="{{ startLogin }}" style="min-height:50px;border-radius:25px;background:var(--ui-primary);color:var(--ui-on);border:none;font-size:15px;font-weight:500;cursor:pointer">Aktifkan sinkronisasi</button>
+            </sc-if>
+            <sc-if value="{{ acc.login }}">
+              <div style="font-size:14.5px;line-height:1.5;color:var(--ui-ink2)">Masuk tanpa kata sandi. Kami kirim tautan ke email Anda.</div>
+              <input value="{{ email }}" onChange="{{ onEmail }}" type="email" placeholder="nama@email.com" aria-label="Email" style="min-height:48px;padding:0 16px;border-radius:12px;border:1px solid var(--ui-line);background:#FFFFFF;font-size:15.5px;color:var(--ui-ink);font-family:inherit">
+              <button onClick="{{ doLogin }}" style="min-height:50px;border-radius:25px;background:var(--ui-primary);color:var(--ui-on);border:none;font-size:15px;font-weight:500;cursor:pointer">Kirim tautan masuk</button>
+              <button onClick="{{ doLogin }}" style="min-height:48px;border-radius:24px;background:transparent;color:var(--ui-ink);border:1px solid var(--ui-line);font-size:15px;cursor:pointer">Lanjutkan dengan Google</button>
+              <button onClick="{{ cancelLogin }}" style="min-height:44px;border:none;background:transparent;color:var(--ui-primary);font-size:14px;cursor:pointer">Tetap sebagai tamu</button>
+            </sc-if>
+            <sc-if value="{{ acc.signed }}">
+              <div style="display:flex;align-items:center;gap:12px">
+                <span style="width:44px;height:44px;border-radius:22px;background:var(--ui-primary);color:var(--ui-on);display:flex;align-items:center;justify-content:center;font-weight:600">{{ acc.initial }}</span>
+                <span style="display:flex;flex-direction:column;gap:2px"><span style="font-size:15.5px;font-weight:500">{{ email }}</span><span style="font-size:13px;color:{{ acc.statusColor }}">{{ acc.status }}</span></span>
+              </div>
+              <sc-if value="{{ acc.conflict }}">
+              <div data-screen-label="M Konflik sinkronisasi" style="display:flex;flex-direction:column;gap:10px;padding:14px;border-radius:14px;border:1px solid var(--ui-accent);background:color-mix(in srgb,var(--ui-accent) 8%,transparent)">
+                <div style="font-size:15px;font-weight:500">Posisi baca berbeda</div>
+                <div style="font-size:13.5px;line-height:1.45;color:var(--ui-ink2)">Pilih posisi yang ingin dipakai. Penanda dari keduanya tetap digabung.</div>
+                <button onClick="{{ useDevice }}" style="display:flex;flex-direction:column;align-items:flex-start;gap:2px;padding:12px 14px;border-radius:12px;border:1px solid var(--ui-primary);background:#FFFFFF;cursor:pointer;text-align:left;color:var(--ui-ink)"><span style="font-size:14.5px;font-weight:500;color:var(--ui-primary)">Gunakan posisi perangkat ini</span><span style="font-size:13px;color:var(--ui-muted)">{{ acc.deviceLabel }}</span></button>
+                <button onClick="{{ useCloud }}" style="display:flex;flex-direction:column;align-items:flex-start;gap:2px;padding:12px 14px;border-radius:12px;border:1px solid var(--ui-line);background:#FFFFFF;cursor:pointer;text-align:left;color:var(--ui-ink)"><span style="font-size:14.5px;font-weight:500">Gunakan posisi cloud</span><span style="font-size:13px;color:var(--ui-muted)">Yasin · Hal. 442 · Tablet, kemarin 21.14</span></button>
+              </div>
+              </sc-if>
+              <sc-if value="{{ acc.disconnected }}">
+              <div data-screen-label="M Akun terputus" style="display:flex;flex-direction:column;gap:10px;padding:14px;border-radius:14px;background:color-mix(in srgb,var(--ui-accent) 12%,transparent)">
+                <div style="font-size:15px;font-weight:500">Sinkronisasi terputus</div>
+                <div style="font-size:13.5px;line-height:1.45;color:var(--ui-ink2)">Sesi masuk berakhir. Data tetap aman di perangkat ini.</div>
+                <button onClick="{{ reconnect }}" style="align-self:flex-start;min-height:40px;padding:0 16px;border-radius:20px;background:var(--ui-primary);color:var(--ui-on);border:none;font-size:14px;cursor:pointer">Hubungkan ulang</button>
+              </div>
+              </sc-if>
+              <div style="display:flex;flex-direction:column">
+                <button onClick="{{ syncNow }}" style="display:flex;justify-content:space-between;align-items:center;min-height:52px;border:none;border-bottom:1px solid {{ hair }};background:transparent;cursor:pointer;font-size:15px;color:var(--ui-ink);padding:0"><span>Sinkronkan sekarang</span><span style="font-size:13px;color:var(--ui-muted)">{{ acc.syncHint }}</span></button>
+                <button onClick="{{ simConflict }}" style="display:flex;justify-content:space-between;align-items:center;min-height:52px;border:none;border-bottom:1px solid {{ hair }};background:transparent;cursor:pointer;font-size:15px;color:var(--ui-ink);padding:0"><span>Simulasikan konflik</span><span style="font-size:12px;color:#6E675B">demo</span></button>
+                <button onClick="{{ exportData }}" style="display:flex;justify-content:space-between;align-items:center;min-height:52px;border:none;border-bottom:1px solid {{ hair }};background:transparent;cursor:pointer;font-size:15px;color:var(--ui-ink);padding:0"><span>Ekspor data</span><span style="font-size:13px;color:var(--ui-muted)">JSON</span></button>
+                <button onClick="{{ signOut }}" style="display:flex;justify-content:space-between;align-items:center;min-height:52px;border:none;border-bottom:1px solid {{ hair }};background:transparent;cursor:pointer;font-size:15px;color:var(--ui-ink);padding:0"><span>Keluar</span><span style="font-size:13px;color:var(--ui-muted)">data lokal tetap ada</span></button>
+                <button onClick="{{ askDelete }}" style="display:flex;align-items:center;min-height:52px;border:none;background:transparent;cursor:pointer;font-size:15px;color:#8A2E1F;padding:0">Hapus akun</button>
+              </div>
+              <sc-if value="{{ confirmDelete }}">
+                <div style="display:flex;flex-direction:column;gap:10px;padding:14px;border-radius:14px;border:1px solid #8A2E1F">
+                  <div style="font-size:14.5px;line-height:1.45">Hapus akun dan semua data cloud? Data di perangkat ini tidak terhapus.</div>
+                  <div style="display:flex;gap:8px"><button onClick="{{ doDelete }}" style="min-height:44px;padding:0 16px;border-radius:22px;border:none;background:#8A2E1F;color:#FFFFFF;font-size:14px;cursor:pointer">Hapus permanen</button><button onClick="{{ cancelDelete }}" style="min-height:44px;padding:0 16px;border-radius:22px;border:1px solid var(--ui-line);background:transparent;color:var(--ui-ink);font-size:14px;cursor:pointer">Batal</button></div>
+                </div>
+              </sc-if>
+            </sc-if>
+            <div style="font-size:12.5px;line-height:1.5;color:var(--ui-muted)">Sinkronisasi hanya mengirim perubahan, bukan setiap balikan halaman.</div>
+          </div>
+          </sc-if>
+
+          <sc-if value="{{ sh.progress }}">
+          <div data-screen-label="N Progres membaca" style="display:flex;flex-direction:column;gap:22px">
+            <div style="display:flex;flex-direction:column;gap:10px">
+              <div style="font-size:12px;font-weight:600;letter-spacing:0.05em;text-transform:uppercase;color:var(--ui-accent-ink)">{{ prog.round }}</div>
+              <div style="display:flex;align-items:baseline;gap:10px;flex-wrap:wrap">
+                <span style="font-family:var(--ui-display);font-size:44px;font-weight:500;line-height:1;color:var(--ui-primary);font-variant-numeric:tabular-nums">{{ prog.pct }}</span>
+                <span style="font-size:14px;color:var(--ui-ink2);white-space:nowrap">{{ prog.count }} dari 604 halaman</span>
+              </div>
+              <div style="height:8px;border-radius:4px;background:color-mix(in srgb,var(--ui-ink) 10%,transparent);overflow:hidden"><div style="height:100%;border-radius:4px;background:var(--ui-primary);width:{{ prog.pctW }}"></div></div>
+              <div style="font-size:13.5px;line-height:1.5;color:var(--ui-ink2);text-wrap:pretty">{{ prog.eta }}</div>
+              <button onClick="{{ prog.resume }}" style="display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:14px;border:1px solid var(--ui-primary);background:transparent;cursor:pointer;text-align:left;color:var(--ui-ink);margin-top:4px">
+                <span style="flex:1;display:flex;flex-direction:column;gap:2px"><span style="font-size:12px;font-weight:600;letter-spacing:0.05em;text-transform:uppercase;color:var(--ui-primary)">Belum dibaca berikutnya</span><span style="font-size:15px;font-weight:500">{{ prog.nextLabel }}</span></span>
+                <span style="font-size:13px;color:var(--ui-primary)">Buka</span>
+              </button>
+            </div>
+
+            <div style="display:flex;flex-direction:column;gap:12px;padding-top:18px;border-top:1px solid {{ hair }}">
+              <div style="display:flex;align-items:center;justify-content:space-between;gap:10px">
+                <div style="display:flex;flex-direction:column;gap:2px">
+                  <span style="font-size:15px;font-weight:500">Target harian</span>
+                  <span style="font-size:13px;color:var(--ui-muted)">{{ prog.todayLabel }}</span>
+                </div>
+                <div style="display:flex;align-items:center;gap:2px;border:1px solid {{ hair }};border-radius:22px;padding:2px">
+                  <button onClick="{{ prog.dec }}" aria-label="Kurangi target" style="width:40px;height:40px;border:none;border-radius:20px;background:transparent;color:var(--ui-ink);font-size:18px;cursor:pointer" style-hover="background:color-mix(in srgb,var(--ui-ink) 6%,transparent)">−</button>
+                  <span style="min-width:64px;text-align:center;font-size:14px;font-weight:500;font-variant-numeric:tabular-nums">{{ prog.target }} hal.</span>
+                  <button onClick="{{ prog.inc }}" aria-label="Tambah target" style="width:40px;height:40px;border:none;border-radius:20px;background:transparent;color:var(--ui-ink);font-size:18px;cursor:pointer" style-hover="background:color-mix(in srgb,var(--ui-ink) 6%,transparent)">+</button>
+                </div>
+              </div>
+              <div role="img" aria-label="{{ prog.weekAria }}" style="display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:8px;align-items:end;height:132px;position:relative">
+                <sc-for list="{{ prog.week }}" as="d" hint-placeholder-count="7">
+                  <div style="display:flex;flex-direction:column;align-items:center;gap:6px;height:100%;justify-content:flex-end">
+                    <span style="height:16px;line-height:16px;font-size:11.5px;color:var(--ui-muted);font-variant-numeric:tabular-nums">{{ d.n }}</span>
+                    <div style="width:100%;max-width:28px;border-radius:6px 6px 2px 2px;background:{{ d.bg }};height:{{ d.h }}"></div>
+                    <span style="height:18px;line-height:18px;font-size:12px;white-space:nowrap;font-weight:{{ d.fw }};color:{{ d.fg }};border-bottom:2px solid {{ d.ul }}">{{ d.day }}</span>
+                  </div>
+                </sc-for>
+                <div style="position:absolute;left:0;right:0;bottom:{{ prog.targetLine }};border-top:1px dashed var(--ui-accent);pointer-events:none"></div>
+              </div>
+              <div style="display:flex;flex-wrap:wrap;gap:6px 16px;font-size:12.5px;color:var(--ui-muted);white-space:nowrap">
+                <span style="display:flex;align-items:center;gap:6px"><span style="width:10px;height:10px;border-radius:3px;background:var(--ui-primary)"></span>Target tercapai</span>
+                <span style="display:flex;align-items:center;gap:6px"><span style="width:14px;border-top:1px dashed var(--ui-accent)"></span>Target</span>
+              </div>
+            </div>
+
+            <div style="display:flex;flex-direction:column;gap:12px;padding-top:18px;border-top:1px solid {{ hair }}">
+              <div style="display:flex;justify-content:space-between;align-items:baseline;gap:10px">
+                <span style="font-size:15px;font-weight:500">Peta juz</span>
+                <span style="font-size:13px;color:var(--ui-muted)">{{ prog.juzDone }} juz selesai</span>
+              </div>
+              <div style="display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:6px">
+                <sc-for list="{{ prog.juz }}" as="j" hint-placeholder-count="30">
+                  <button onClick="{{ j.go }}" aria-label="{{ j.aria }}" style="position:relative;aspect-ratio:1;min-height:44px;border-radius:10px;border:1px solid {{ j.bd }};background:{{ j.bg }};color:{{ j.fg }};font-size:14px;font-weight:500;font-variant-numeric:tabular-nums;cursor:pointer;overflow:hidden;display:flex;align-items:center;justify-content:center">
+                    <span style="position:absolute;left:0;right:0;bottom:0;height:{{ j.fill }};background:color-mix(in srgb,var(--ui-primary) 16%,transparent)"></span>
+                    <span style="position:relative">{{ j.n }}</span>
+                  </button>
+                </sc-for>
+              </div>
+              <div style="font-size:12.5px;color:var(--ui-muted)">Isian menunjukkan bagian juz yang sudah dibaca. Ketuk juz untuk membuka halaman pertama yang belum dibaca.</div>
+            </div>
+          </div>
+          </sc-if>
+
+          <sc-if value="{{ sh.offline }}">
+          <div data-screen-label="L Offline dan unduhan" style="display:flex;flex-direction:column;gap:18px">
+            <div style="display:flex;align-items:center;gap:10px"><span style="width:10px;height:10px;border-radius:5px;background:{{ off.dot }}"></span><span style="font-size:15px;font-weight:500">{{ off.status }}</span></div>
+            <div style="display:flex;flex-direction:column;gap:8px">
+              <div style="display:flex;justify-content:space-between;font-size:14px"><span>Siap dibaca offline</span><span style="font-variant-numeric:tabular-nums">{{ off.count }} dari 604 halaman</span></div>
+              <div style="height:6px;border-radius:3px;background:color-mix(in srgb,var(--ui-ink) 10%,transparent);overflow:hidden"><div style="height:100%;background:var(--ui-primary);width:{{ off.pct }}"></div></div>
+              <div style="display:flex;justify-content:space-between;font-size:13px;color:var(--ui-muted)"><span>Penyimpanan terpakai</span><span>{{ off.mb }}</span></div>
+            </div>
+            <sc-if value="{{ off.failed }}">
+              <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 14px;border-radius:12px;background:color-mix(in srgb,var(--ui-accent) 12%,transparent)"><span style="font-size:14px">3 halaman gagal diunduh.</span><button onClick="{{ retryDl }}" style="min-height:40px;padding:0 14px;border-radius:20px;border:1px solid var(--ui-primary);background:transparent;color:var(--ui-primary);font-size:14px;cursor:pointer">Coba lagi</button></div>
+            </sc-if>
+            <button onClick="{{ downloadJuz }}" style="min-height:50px;border-radius:25px;background:var(--ui-primary);color:var(--ui-on);border:none;font-size:15px;font-weight:500;cursor:pointer">{{ off.dlLabel }}</button>
+            <div style="font-size:13px;line-height:1.5;color:var(--ui-ink2);text-wrap:pretty">Halaman yang sudah dibuka disimpan otomatis. Halaman yang belum pernah dibuka atau diunduh mungkin tidak tersedia saat offline.</div>
+          </div>
+          </sc-if>
+        </div>
+      </div>
+
+      <sc-if value="{{ tourOn }}">
+      <div data-screen-label="A Panduan gestur" style="position:absolute;inset:0;z-index:40;background:color-mix(in srgb,var(--ui-ink) 45%,transparent);display:flex;align-items:flex-end;justify-content:center;padding:20px">
+        <div role="dialog" aria-label="Panduan gestur" style="width:100%;max-width:400px;background:{{ sheetBg }};border-radius:20px;padding:22px;display:flex;flex-direction:column;gap:14px">
+          <div style="font-size:12px;font-weight:600;letter-spacing:0.05em;color:var(--ui-accent-ink)">{{ tour.step }}</div>
+          <div style="font-family:var(--ui-display);font-size:24px;font-weight:500">{{ tour.t }}</div>
+          <div style="font-size:15px;line-height:1.5;color:var(--ui-ink2)">{{ tour.d }}</div>
+          <div style="font-size:13px;color:var(--ui-muted)">{{ tour.alt }}</div>
+          <div style="display:flex;gap:8px;justify-content:space-between;align-items:center;padding-top:4px">
+            <button onClick="{{ closeTour }}" style="min-height:44px;padding:0 6px;border:none;background:transparent;color:var(--ui-primary);font-size:14.5px;cursor:pointer">Lewati</button>
+            <button onClick="{{ tourNext }}" style="min-height:46px;padding:0 22px;border-radius:23px;background:var(--ui-primary);color:var(--ui-on);border:none;font-size:14.5px;font-weight:500;cursor:pointer">{{ tour.cta }}</button>
+          </div>
+        </div>
+      </div>
+      </sc-if>
+    </div>
+    </div>
+  </main>
+  </sc-if>
+
+  <sc-if value="{{ isSpec }}">
+  <main data-screen-label="Handoff" style="flex:1;min-width:0;height:100%;overflow-y:auto;background:#FBFAF7">
+    <div style="max-width:980px;margin:0 auto;padding:40px 32px 80px;display:flex;flex-direction:column;gap:44px">
+      <header style="display:flex;flex-direction:column;gap:10px">
+        <div style="font-size:12px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:#A58B63">Developer handoff · Angular PWA</div>
+        <h1 style="margin:0;font-family:'Newsreader',serif;font-weight:500;font-size:40px;line-height:1.1">Mushaf Digital — spesifikasi desain</h1>
+        <p style="margin:0;font-size:15.5px;line-height:1.6;color:#4A463F;max-width:680px;text-wrap:pretty">Pembaca adalah beranda. Halaman SVG tata letak tetap; semua interaksi ada di lapisan overlay terpisah. Antarmuka tidak pernah menggambar ulang, mengalirkan ulang, atau menimpa teks.</p>
+      </header>
+
+      <section style="display:flex;flex-direction:column;gap:16px">
+        <h2 style="margin:0;font-family:'Newsreader',serif;font-size:26px;font-weight:500">1 · Token desain</h2>
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:12px">
+          <sc-for list="{{ tokenColors }}" as="tc">
+            <div style="display:flex;gap:12px;align-items:center;padding:10px;border:1px solid #E2DDD2;border-radius:12px;background:#FFFFFF">
+              <span style="width:44px;height:44px;border-radius:8px;border:1px solid #D9D3C6;flex-shrink:0;background:{{ tc.hex }}"></span>
+              <span style="display:flex;flex-direction:column;gap:2px;min-width:0"><code style="font-size:12.5px;color:#252525">{{ tc.name }}</code><span style="font-size:12.5px;color:#5E5A52">{{ tc.hex }} · {{ tc.use }}</span></span>
+            </div>
+          </sc-for>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:20px">
+          <div style="display:flex;flex-direction:column;gap:8px">
+            <div style="font-size:13px;font-weight:600;color:#4A463F">Spasi (basis 4)</div>
+            <code style="font-size:13px;line-height:1.8;color:#252525">--mf-space-1 4 · -2 8 · -3 12 · -4 16 · -5 20 · -6 24 · -8 32 · -12 48</code>
+            <div style="font-size:13px;font-weight:600;color:#4A463F;padding-top:6px">Radius</div>
+            <code style="font-size:13px;line-height:1.8">--mf-radius-sm 8 · -md 12 · -lg 14 · -sheet 20 · -pill 999</code>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:8px">
+            <div style="font-size:13px;font-weight:600;color:#4A463F">Gerak</div>
+            <code style="font-size:13px;line-height:1.8">--mf-dur-fast 140ms · -base 260ms · ease cubic-bezier(.2,.8,.2,1)</code>
+            <div style="font-size:13px;font-weight:600;color:#4A463F;padding-top:6px">Lapisan z</div>
+            <code style="font-size:13px;line-height:1.8">page 0 · overlay 1 · chrome 10 · toast 20 · scrim 30 · sheet 31 · tour 40</code>
+          </div>
+        </div>
+      </section>
+
+      <section style="display:flex;flex-direction:column;gap:14px">
+        <h2 style="margin:0;font-family:'Newsreader',serif;font-size:26px;font-weight:500">2 · Tipografi</h2>
+        <sc-for list="{{ typeScale }}" as="ty">
+          <div style="display:grid;grid-template-columns:200px minmax(0,1fr);gap:16px;align-items:baseline;padding:10px 0;border-bottom:1px solid #E2DDD2">
+            <code style="font-size:12.5px;color:#5E5A52">{{ ty.spec }}</code>
+            <span style="font-family:{{ ty.ff }};font-size:{{ ty.size }};font-weight:{{ ty.fw }};line-height:1.3">{{ ty.sample }}</span>
+          </div>
+        </sc-for>
+        <div style="font-size:13.5px;line-height:1.55;color:#4A463F">Latin: Newsreader (judul editorial) + IBM Plex Sans (kontrol). Nama surah Arab: Amiri, hanya dari data terverifikasi. Glif Al-Qur'an hanya dari aset SVG yang disetujui.</div>
+      </section>
+
+      <section style="display:flex;flex-direction:column;gap:14px">
+        <h2 style="margin:0;font-family:'Newsreader',serif;font-size:26px;font-weight:500">3 · Komponen</h2>
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:10px">
+          <sc-for list="{{ components }}" as="c">
+            <div style="display:flex;flex-direction:column;gap:4px;padding:14px;border:1px solid #E2DDD2;border-radius:12px;background:#FFFFFF">
+              <code style="font-size:13.5px;font-weight:600;color:#153B32">{{ c.name }}</code>
+              <span style="font-size:13.5px;line-height:1.45;color:#252525">{{ c.desc }}</span>
+              <span style="font-size:12.5px;line-height:1.45;color:#5E5A52">State: {{ c.states }}</span>
+            </div>
+          </sc-for>
+        </div>
+      </section>
+
+      <section style="display:flex;flex-direction:column;gap:14px">
+        <h2 style="margin:0;font-family:'Newsreader',serif;font-size:26px;font-weight:500">4 · Gestur &amp; state machine</h2>
+        <div style="display:flex;flex-direction:column">
+          <sc-for list="{{ gestures }}" as="g">
+            <div style="display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1.6fr) minmax(0,1.2fr);gap:14px;padding:10px 0;border-bottom:1px solid #E2DDD2;font-size:13.5px;line-height:1.45">
+              <span style="font-weight:500">{{ g.input }}</span><span>{{ g.result }}</span><span style="color:#5E5A52">{{ g.alt }}</span>
+            </div>
+          </sc-for>
+        </div>
+        <pre style="margin:0;padding:16px;border-radius:12px;background:#F1EEE7;font-size:12.5px;line-height:1.6;overflow-x:auto;color:#252525">IMMERSIVE ──tap margin──▶ CHROME ──4 dtk diam / tap margin──▶ IMMERSIVE
+IMMERSIVE|CHROME ──tap ayat / long-press 500ms──▶ VERSE_SELECTED (+ verse sheet)
+VERSE_SELECTED ──Esc / back / tap luar──▶ IMMERSIVE
+any ──double-tap──▶ ZOOMED(2×, origin = titik sentuh) ──double-tap / tombol −──▶ previous
+ZOOMED: drag = pan, swipe ≠ balik halaman
+pointerup: jika dua tap &lt; 280ms &amp; jarak &lt; 30px → double-tap, single-tap dibatalkan
+single-tap ditunda 260ms agar tidak bentrok dengan double-tap
+long-press di area kosong → tidak ada aksi (tidak membuat penanda)</pre>
+      </section>
+
+      <section style="display:flex;flex-direction:column;gap:14px">
+        <h2 style="margin:0;font-family:'Newsreader',serif;font-size:26px;font-weight:500">5 · Perilaku responsif</h2>
+        <sc-for list="{{ responsive }}" as="rs">
+          <div style="display:grid;grid-template-columns:150px minmax(0,1fr);gap:14px;padding:10px 0;border-bottom:1px solid #E2DDD2;font-size:13.5px;line-height:1.45">
+            <span style="font-weight:500">{{ rs.size }}</span><span>{{ rs.rule }}</span>
+          </div>
+        </sc-for>
+        <div style="font-size:13.5px;line-height:1.55;color:#4A463F">Halaman dipasang dengan rasio aspek tetap aset (prototipe: 0,62). Ukuran = min(tinggi tersedia × rasio, lebar tersedia). Tidak ada gulir horizontal pada fit-to-page. Padding aman: env(safe-area-inset-*) + 8px.</div>
+      </section>
+
+      <section style="display:flex;flex-direction:column;gap:14px">
+        <h2 style="margin:0;font-family:'Newsreader',serif;font-size:26px;font-weight:500">6 · Arsitektur &amp; data</h2>
+        <sc-for list="{{ arch }}" as="a">
+          <div style="display:flex;gap:12px;font-size:14px;line-height:1.55"><span style="color:#A58B63">—</span><span>{{ a }}</span></div>
+        </sc-for>
+      </section>
+
+      <section style="display:flex;flex-direction:column;gap:14px">
+        <h2 style="margin:0;font-family:'Newsreader',serif;font-size:26px;font-weight:500">7 · Asumsi &amp; perlu verifikasi</h2>
+        <sc-for list="{{ assumptions }}" as="a">
+          <div style="display:flex;gap:12px;padding:12px 14px;border-radius:12px;background:rgba(165,139,99,0.1);font-size:14px;line-height:1.5"><span style="font-weight:600;color:#8A6E45">!</span><span>{{ a }}</span></div>
+        </sc-for>
+      </section>
+    </div>
+  </main>
+  </sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+const NAMES="Al-Fatihah|Al-Baqarah|Ali 'Imran|An-Nisa'|Al-Ma'idah|Al-An'am|Al-A'raf|Al-Anfal|At-Taubah|Yunus|Hud|Yusuf|Ar-Ra'd|Ibrahim|Al-Hijr|An-Nahl|Al-Isra'|Al-Kahf|Maryam|Taha|Al-Anbiya'|Al-Hajj|Al-Mu'minun|An-Nur|Al-Furqan|Asy-Syu'ara'|An-Naml|Al-Qasas|Al-'Ankabut|Ar-Rum|Luqman|As-Sajdah|Al-Ahzab|Saba'|Fatir|Yasin|As-Saffat|Sad|Az-Zumar|Gafir|Fussilat|Asy-Syura|Az-Zukhruf|Ad-Dukhan|Al-Jasiyah|Al-Ahqaf|Muhammad|Al-Fath|Al-Hujurat|Qaf|Az-Zariyat|At-Tur|An-Najm|Al-Qamar|Ar-Rahman|Al-Waqi'ah|Al-Hadid|Al-Mujadalah|Al-Hasyr|Al-Mumtahanah|As-Saff|Al-Jumu'ah|Al-Munafiqun|At-Tagabun|At-Talaq|At-Tahrim|Al-Mulk|Al-Qalam|Al-Haqqah|Al-Ma'arij|Nuh|Al-Jinn|Al-Muzzammil|Al-Muddassir|Al-Qiyamah|Al-Insan|Al-Mursalat|An-Naba'|An-Nazi'at|'Abasa|At-Takwir|Al-Infitar|Al-Mutaffifin|Al-Insyiqaq|Al-Buruj|At-Tariq|Al-A'la|Al-Gasyiyah|Al-Fajr|Al-Balad|Asy-Syams|Al-Lail|Ad-Duha|Asy-Syarh|At-Tin|Al-'Alaq|Al-Qadr|Al-Bayyinah|Az-Zalzalah|Al-'Adiyat|Al-Qari'ah|At-Takasur|Al-'Asr|Al-Humazah|Al-Fil|Quraisy|Al-Ma'un|Al-Kausar|Al-Kafirun|An-Nasr|Al-Lahab|Al-Ikhlas|Al-Falaq|An-Nas".split('|');
+const AR="الفاتحة|البقرة|آل عمران|النساء|المائدة|الأنعام|الأعراف|الأنفال|التوبة|يونس|هود|يوسف|الرعد|إبراهيم|الحجر|النحل|الإسراء|الكهف|مريم|طه|الأنبياء|الحج|المؤمنون|النور|الفرقان|الشعراء|النمل|القصص|العنكبوت|الروم|لقمان|السجدة|الأحزاب|سبأ|فاطر|يس|الصافات|ص|الزمر|غافر|فصلت|الشورى|الزخرف|الدخان|الجاثية|الأحقاف|محمد|الفتح|الحجرات|ق|الذاريات|الطور|النجم|القمر|الرحمن|الواقعة|الحديد|المجادلة|الحشر|الممتحنة|الصف|الجمعة|المنافقون|التغابن|الطلاق|التحريم|الملك|القلم|الحاقة|المعارج|نوح|الجن|المزمل|المدثر|القيامة|الإنسان|المرسلات|النبأ|النازعات|عبس|التكوير|الانفطار|المطففين|الانشقاق|البروج|الطارق|الأعلى|الغاشية|الفجر|البلد|الشمس|الليل|الضحى|الشرح|التين|العلق|القدر|البينة|الزلزلة|العاديات|القارعة|التكاثر|العصر|الهمزة|الفيل|قريش|الماعون|الكوثر|الكافرون|النصر|المسد|الإخلاص|الفلق|الناس".split('|');
+const AY=[7,286,200,176,120,165,206,75,129,109,123,111,43,52,99,128,111,110,98,135,112,78,118,64,77,227,93,88,69,60,34,30,73,54,45,83,182,88,75,85,54,53,89,59,37,35,38,29,18,45,60,49,62,55,78,96,29,22,24,13,14,11,11,18,12,12,30,52,52,44,28,28,20,56,40,31,50,40,46,42,29,19,36,25,22,17,19,26,30,20,15,21,11,8,8,19,5,8,8,11,11,8,3,9,5,4,7,3,6,3,5,4,5,6];
+const ST=[1,2,50,77,106,128,151,177,187,208,221,235,249,255,262,267,282,293,305,312,322,332,342,350,359,367,377,385,396,404,411,415,418,428,434,440,446,453,458,467,477,483,489,496,499,502,507,511,515,518,520,523,526,528,531,534,537,542,545,549,551,553,554,556,558,560,562,564,566,568,570,572,574,575,577,578,580,582,583,585,586,587,587,589,590,591,591,592,593,594,595,595,596,596,597,597,598,598,599,599,600,600,601,601,601,602,602,602,603,603,603,604,604,604];
+const JUZ=[1,22,42,62,82,102,121,142,162,182,201,222,242,262,282,302,322,342,362,382,402,422,442,462,482,502,522,542,562,582];
+const KNOWN={1:[0,1,7],2:[1,1,5],3:[1,6,16],4:[1,17,24],5:[1,25,29]};
+const DEVICES=[{w:360,h:800,label:'Ponsel kecil'},{w:390,h:844,label:'Ponsel'},{w:768,h:1024,label:'Tablet potret'},{w:1024,h:768,label:'Tablet lanskap'},{w:1280,h:800,label:'Layar lebar'}];
+const THEMES={photo:{name:'Foto Sampel',short:'Foto',hex:'#EEEDEB',sur:'#DFDDD9',sheet:'#F8F7F5'},ivory:{name:'Gading Hangat',short:'Gading',hex:'#F5F1E8',sur:'#E8E2D4',sheet:'#FBF8F2'},antique:{name:'Kertas Antik',short:'Antik',hex:'#F2EBDD',sur:'#E4D9C4',sheet:'#F9F4EA'}};
+const TOUR=[{t:'Ketuk margin',d:'Menampilkan atau menyembunyikan kontrol. Kontrol tersembunyi lagi saat Anda membaca.',alt:'Tanpa gestur: tombol Esc juga menutup lembar.'},{t:'Ketuk ayat',d:'Memilih ayat dan membuka aksi: tandai, putar, terjemahan, salin, bagikan. Tekan lama juga bisa.',alt:'Aksi tidak pernah diletakkan di atas teks.'},{t:'Geser ke samping',d:'Membalik halaman, kanan ke kiri seperti mushaf cetak.',alt:'Tanpa gestur: tombol ‹ › di bilah bawah atau tombol panah keyboard.'},{t:'Ketuk dua kali',d:'Memperbesar di titik sentuh. Ketuk dua kali lagi untuk kembali.',alt:'Tanpa gestur: tombol + dan − di sisi kanan.'}];
+const UITHEMES={
+  klasik:{name:'Klasik',short:'Klasik',fontName:'Newsreader · IBM Plex Sans',surface:null,welcome:null,primary:'#153B32',on:'#F5F1E8',accent:'#A58B63',accentInk:'#7A6340',ink:'#252525',ink2:'#4A463F',muted:'#5E5A52',line:'#D9D3C6',hair:'#DDD6C8',display:"'Newsreader',serif",font:"'IBM Plex Sans',system-ui,sans-serif"},
+  segar:{name:'Segar · mint & koral',short:'Segar',fontName:'Plus Jakarta Sans',surface:'#FFFFFF',welcome:'#E6F5EE',primary:'#0A7A5C',on:'#FFFFFF',accent:'#F2603E',accentIcon:'#E04A28',accentInk:'#B23A1C',ink:'#10231C',ink2:'#2F4A40',muted:'#55685F',line:'#CFE3DA',hair:'#E1EEE8'},
+  ceria:{name:'Ceria · ungu & kuning',short:'Ceria',fontName:'Plus Jakarta Sans',surface:'#FFFFFF',welcome:'#EFEBFF',primary:'#5B3FD9',on:'#FFFFFF',accent:'#F2A100',accentIcon:'#B87600',accentInk:'#8F5600',ink:'#1D1838',ink2:'#3D3760',muted:'#605B7D',line:'#DDD7F3',hair:'#ECE8FA'},
+  samudra:{name:'Samudra · biru & merah muda',short:'Samudra',fontName:'Plus Jakarta Sans',surface:'#FFFFFF',welcome:'#E7F0FC',primary:'#1560C8',on:'#FFFFFF',accent:'#EC4677',accentIcon:'#D9306A',accentInk:'#B0234F',ink:'#0F1D33',ink2:'#33435E',muted:'#57667F',line:'#D3E0F2',hair:'#E5EDF8'}};
+['segar','ceria','samudra'].forEach(k=>{UITHEMES[k].display="'Plus Jakarta Sans',system-ui,sans-serif";UITHEMES[k].font="'Plus Jakarta Sans',system-ui,sans-serif";});
+const MONTHS=['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
+const fmtDate=d=>{d=new Date(d);return d.getDate()+' '+MONTHS[d.getMonth()]+' '+d.getFullYear();};
+const surahAt=p=>{let i=0;for(let k=0;k<114;k++){if(ST[k]<=p)i=k;else break;}return i;};
+const juzAt=p=>{let j=1;JUZ.forEach((s,i)=>{if(s<=p)j=i+1;});return j;};
+const rnd=(a,b)=>{const x=Math.sin(a*97.13+b*13.7)*10000;return x-Math.floor(x);};
+const norm=t=>t.toLowerCase().replace(/[^a-z]/g,'');
+function loadSaved(){try{return JSON.parse(localStorage.getItem('mf-proto')||'{}');}catch(e){return {};}}
+const SAVED=loadSaved();
+const now=Date.now();
+
+class Component extends DCLogic {
+  state={view:SAVED.view||'proto',device:SAVED.device??1,theme:SAVED.theme||'ivory',uiTheme:SAVED.uiTheme||'segar',screen:'reader',tour:-1,
+    page:SAVED.page||3,chrome:false,sel:null,sheet:null,browseTab:'surah',bmTab:'ayat',audioTab:'audio',
+    zoom:1,origin:'50% 50%',pan:{x:0,y:0},mode:SAVED.mode||'auto',reduced:false,contrast:false,
+    bookmarks:SAVED.bookmarks?SAVED.bookmarks.map(b=>{ if(b.folder!==undefined)return b; const m={Hafalan:'f1','Rutin Jumat':'f2',Tadabbur:'f3'}[b.label]; return m?{...b,folder:m,label:''}:{...b,folder:null}; }):[{id:1,type:'ayat',p:1,s:0,a:5,label:'',folder:'f1',at:now-864e5*8},{id:2,type:'halaman',p:440,label:'',folder:'f2',at:now-864e5*3},{id:3,type:'ayat',p:2,s:1,a:2,label:'',folder:null,at:now-864e5},{id:4,type:'ayat',p:582,s:77,a:1,label:'',folder:'f1',at:now-864e5*2}],
+    folders:SAVED.folders||[{id:'f1',name:'Hafalan'},{id:'f2',name:'Rutin Jumat'},{id:'f3',name:'Tadabbur'}],bmFolder:'all',moveId:null,folderEdit:null,
+    readPages:SAVED.readPages||(()=>{const a=[];for(let p=1;p<=48;p++)a.push(p);for(let p=582;p<=604;p++)a.push(p);for(let p=440;p<=445;p++)a.push(p);return a;})(),
+    dailyTarget:SAVED.dailyTarget||4,daily:SAVED.daily||[3,5,0,4,6,2,1],
+    lastRead:{page:SAVED.page||3,at:now-36e5*14},history:[{p:440,at:now-864e5*3},{p:582,at:now-864e5*2}],
+    toast:null,online:true,hasProgress:true,artErr:false,audioErr:false,
+    authStep:'guest',email:'aisyah@email.com',sync:'synced',confirmDelete:false,
+    playing:false,audioVerse:null,audioProg:0,query:'',filter:'',pageInput:String(SAVED.page||3),
+    dl:'idle',extraCached:[],flow:null,flowStep:-1,sw:900,sh:800};
+  stageRef=React.createRef(); wrapRef=React.createRef(); cache={}; vmeta={}; lastSheet=null;
+
+  componentDidMount(){
+    this.ro=new ResizeObserver(()=>this.measure());
+    this.observe(); setTimeout(()=>this.measure(),60); window.addEventListener('resize',this.onResize=()=>this.measure());
+    this.onKey=e=>{
+      if(this.state.view!=='proto')return;
+      const tag=(e.target.tagName||'').toLowerCase(); if(tag==='input'||tag==='select'||tag==='textarea'){ if(e.key==='Escape')e.target.blur(); return; }
+      if(e.key==='Escape'){ if(this.state.tour>=0)this.closeTour(); else if(this.state.sheet)this.closeSheet(); else if(this.state.zoom>1)this.resetZoom(); else this.setState({chrome:false}); }
+      else if(e.key==='ArrowLeft')this.next(); else if(e.key==='ArrowRight')this.prev();
+    };
+    window.addEventListener('keydown',this.onKey); requestAnimationFrame(()=>this.applyUi());
+    if(this.state.screen==='reader'&&this.state.hasProgress) this.showToast({msg:'Lanjut membaca · '+this.pageLabel(this.state.page),action:'Riwayat',act:()=>this.openSheet('bookmarks')});
+  }
+  componentDidUpdate(){ this.observe(); this.persist(); this.applyUi(); }
+  appRef=React.createRef();
+  applyUi(){ const el=this.appRef.current, U=UITHEMES[this.state.uiTheme]||UITHEMES.klasik; if(!el)return; if(this.uiKey===this.state.uiTheme&&this.uiEl===el&&el.style.getPropertyValue('--ui-primary'))return; this.uiKey=this.state.uiTheme; this.uiEl=el;
+    const v={'--ui-primary':U.primary,'--ui-on':U.on,'--ui-accent':U.accent,'--ui-accent-ink':U.accentInk,'--ui-accent-icon':U.accentIcon||U.accent,'--ui-ink':U.ink,'--ui-ink2':U.ink2,'--ui-muted':U.muted,'--ui-line':U.line,'--ui-display':U.display,'--ui-font':U.font};
+    for(const n in v) el.style.setProperty(n,v[n]); }
+  componentWillUnmount(){ this.ro&&this.ro.disconnect(); window.removeEventListener('keydown',this.onKey); clearInterval(this.audioT); clearTimeout(this.toastT); clearTimeout(this.hideT); }
+  observe(){ const el=this.stageRef.current; if(el&&el!==this.observed){ this.ro.disconnect(); this.ro.observe(el); this.observed=el; requestAnimationFrame(()=>this.measure()); } }
+  measure(){ const el=this.stageRef.current; if(!el)return; const w=el.clientWidth, h=el.clientHeight;
+    if(w<50||h<50){ cancelAnimationFrame(this.mRaf); this.mRaf=requestAnimationFrame(()=>this.measure()); return; }
+    if(Math.abs(w-this.state.sw)>1||Math.abs(h-this.state.sh)>1)this.setState({sw:w,sh:h}); }
+  persist(){ const s=this.state; const v=JSON.stringify({view:s.view,device:s.device,theme:s.theme,page:s.page,mode:s.mode,uiTheme:s.uiTheme,bookmarks:s.bookmarks,folders:s.folders,readPages:s.readPages,dailyTarget:s.dailyTarget,daily:s.daily}); if(v!==this.lastPersist){this.lastPersist=v; try{localStorage.setItem('mf-proto',v);}catch(e){}} }
+
+  pageLabel(p){ return NAMES[surahAt(p)]+', hal. '+p; }
+  pageModel(p){
+    if(this.cache[p])return this.cache[p];
+    const L=p<=2?8:15, starts=[]; ST.forEach((s,i)=>{if(s===p)starts.push(i);});
+    const cur=surahAt(p), blocks=[];
+    if(!starts.length) blocks.push({s:cur,header:false});
+    else { if(p>=528&&starts[0]>0&&ST[starts[0]-1]<p) blocks.push({s:starts[0]-1,header:false}); starts.forEach(s=>blocks.push({s,header:true})); }
+    const hr=b=>b.header?((b.s===0||b.s===8)?1:2):0;
+    const textRows=Math.max(blocks.length,L-blocks.reduce((a,b)=>a+hr(b),0));
+    const per=blocks.map((b,i)=>Math.floor(textRows/blocks.length)+(i<textRows%blocks.length?1:0));
+    const rows=[]; let gi=0; const known=KNOWN[p];
+    blocks.forEach((b,bi)=>{
+      if(b.header){ rows.push({isTitle:true,name:NAMES[b.s]}); if(b.s!==0&&b.s!==8) rows.push({isBasmala:true}); }
+      const n=per[bi]; let verses=[];
+      if(known){ for(let a=known[1];a<=known[2];a++) verses.push({s:known[0],a}); }
+      else { const c=Math.max(1,Math.round(n*1.4+rnd(p,bi)*2)); for(let k=0;k<c;k++) verses.push({s:b.s,a:null}); }
+      let ws=verses.map((v,i)=>0.5+rnd(p,i+bi*31)*1.6); const sum=ws.reduce((a,b)=>a+b,0); ws=ws.map(w=>w*n/sum);
+      const lines=[]; let line=[], cap=1;
+      verses.forEach((v,i)=>{ let rem=ws[i]; const key=p+'-'+gi; this.vmeta[key]={p,s:v.s,a:v.a,idx:gi+1}; gi++;
+        while(rem>1e-6){ const take=Math.min(rem,cap); rem-=take; cap-=take; line.push({key,w:take,end:rem<=1e-6});
+          if(cap<=1e-6){ lines.push(line); line=[]; cap=1; } } });
+      if(line.length) lines.push(line);
+      lines.forEach((ln,li)=>{ const wide=p<=2?[0.62,0.74,0.82,0.86,0.86,0.82,0.74,0.62][Math.min(7,li+(8-lines.length))]:1; rows.push({isLine:true,segs:ln,width:(wide*100)+'%'}); });
+    });
+    const m={p,s:cur,rows,verseCount:gi}; this.cache[p]=m; return m;
+  }
+  cachedPage(p){ return p<=30||p===this.state.lastRead.page||this.state.extraCached.includes(p)||this.state.history.some(h=>h.p===p); }
+
+  go(p,opts={}){ p=Math.max(1,Math.min(604,p)); const s=this.state;
+    const hist=s.page!==p?[{p:s.page,at:Date.now()},...s.history.filter(h=>h.p!==s.page)].slice(0,5):s.history;
+    const rd=s.readPages.includes(p)?null:{readPages:[...s.readPages,p],daily:[...s.daily.slice(0,6),s.daily[6]+1]};
+    this.setState({...(rd||{}),page:p,sel:null,zoom:1,pan:{x:0,y:0},lastRead:{page:p,at:Date.now()},history:hist,pageInput:String(p),screen:'reader',...opts}); }
+  next=()=>this.go(this.state.page+(this.spread?(this.state.page%2?2:1):1));
+  prev=()=>this.go(this.state.page-(this.spread?(this.state.page%2?2:1):1));
+  openSheet=(name,extra={})=>{ this.lastSheet=name; clearTimeout(this.hideT); this.setState({sheet:name,confirmDelete:false,...extra}); };
+  closeSheet=()=>this.setState({sheet:null,sel:null});
+  showToast(t){ clearTimeout(this.toastT); this.setState({toast:t}); this.toastT=setTimeout(()=>this.setState({toast:null}),5000); }
+  armHide(){ clearTimeout(this.hideT); this.hideT=setTimeout(()=>{ if(!this.state.sheet&&this.state.chrome)this.setState({chrome:false}); },4500); }
+  toggleChrome(){ const c=!this.state.chrome; this.setState({chrome:c}); if(c)this.armHide(); }
+  selectVerse(key){ this.openSheet('verse',{sel:key}); }
+  resetZoom=()=>this.setState({zoom:1,pan:{x:0,y:0}});
+  closeTour=()=>this.setState({tour:-1});
+  verseRef(m){ if(!m)return ''; return m.a?NAMES[m.s]+' '+(m.s+1)+':'+m.a:NAMES[m.s]+' · bagian '+m.idx; }
+
+  onPD=e=>{ if(e.button>0)return; const t=e.target.closest('[data-verse]'); this.pd={x:e.clientX,y:e.clientY,t:Date.now(),verse:t?t.getAttribute('data-verse'):null,pan:{...this.state.pan},moved:false,long:false};
+    clearTimeout(this.lpT); if(this.pd.verse){ const k=this.pd.verse; this.lpT=setTimeout(()=>{ if(this.pd&&!this.pd.moved){ this.pd.long=true; this.selectVerse(k); } },500); } };
+  onPM=e=>{ const d=this.pd; if(!d)return; const dx=e.clientX-d.x, dy=e.clientY-d.y; if(Math.abs(dx)+Math.abs(dy)>10){ d.moved=true; clearTimeout(this.lpT); }
+    if(this.state.zoom>1&&d.moved){ const sc=this.scale||1; const lim=600; this.setState({pan:{x:Math.max(-lim,Math.min(lim,d.pan.x+dx/sc)),y:Math.max(-lim,Math.min(lim,d.pan.y+dy/sc))}}); } };
+  onPC=()=>{ clearTimeout(this.lpT); this.pd=null; };
+  onPU=e=>{ const d=this.pd; this.pd=null; clearTimeout(this.lpT); if(!d||d.long)return;
+    const dx=e.clientX-d.x, dy=e.clientY-d.y;
+    if(d.moved){ if(this.state.zoom===1&&Math.abs(dx)>50&&Math.abs(dx)>Math.abs(dy)){ dx>0?this.next():this.prev(); } return; }
+    const nowT=Date.now(), lt=this.lastTap;
+    if(lt&&nowT-lt.t<280&&Math.hypot(e.clientX-lt.x,e.clientY-lt.y)<30){ clearTimeout(this.tapT); this.lastTap=null; this.doubleTap(e); return; }
+    this.lastTap={t:nowT,x:e.clientX,y:e.clientY}; const verse=d.verse;
+    this.tapT=setTimeout(()=>{ this.lastTap=null; if(this.state.sheet){ this.closeSheet(); return; } if(verse)this.selectVerse(verse); else this.toggleChrome(); },260); };
+  doubleTap(e){ if(this.state.zoom>1){ this.resetZoom(); return; } const el=this.wrapRef.current; let o='50% 50%';
+    if(el){ const r=el.getBoundingClientRect(); o=((e.clientX-r.left)/r.width*100).toFixed(1)+'% '+((e.clientY-r.top)/r.height*100).toFixed(1)+'%'; }
+    this.setState({zoom:2,origin:o,pan:{x:0,y:0}}); }
+
+  addVerseBm(){ const m=this.vmeta[this.state.sel]; if(!m)return; const ex=this.state.bookmarks.find(b=>b.type==='ayat'&&b.p===m.p&&b.s===m.s&&b.a===m.a&&(m.a||b.idx===m.idx));
+    if(ex){ this.setState({bookmarks:this.state.bookmarks.filter(b=>b!==ex)}); this.showToast({msg:'Penanda ayat dihapus'}); }
+    else { this.setState({bookmarks:[{id:(this.nid=Date.now()),type:'ayat',p:m.p,s:m.s,a:m.a,idx:m.idx,label:'',folder:this.curFolder(),at:Date.now()},...this.state.bookmarks]}); this.showToast({action:'Pilih folder',act:((i)=>()=>this.pickFolderFor(i,'ayat'))(this.nid),msg:'Ayat ditandai · '+this.verseRef(m),action:'Lihat',act:()=>this.openSheet('bookmarks',{bmTab:'ayat'})}); } }
+  curFolder(){ const f=this.state.bmFolder; return f==='all'||f==='none'?null:f; }
+  pickFolderFor(id,type){ this.openSheet('bookmarks',{bmTab:type,bmFolder:'all',moveId:id,folderEdit:null}); }
+  saveFolder=()=>{ const s=this.state, fe=s.folderEdit; if(!fe)return; const name=fe.name.trim(); if(!name){ this.setState({folderEdit:null}); return; }
+    if(fe.id==='new'){ const id='f'+Date.now(); const mv=s.moveId; this.setState({folders:[...s.folders,{id,name}],folderEdit:null,
+        ...(mv?{bookmarks:s.bookmarks.map(b=>b.id===mv?{...b,folder:id}:b),moveId:null}:{bmFolder:id})}); this.showToast({msg:mv?'Dipindahkan ke folder '+name:'Folder '+name+' dibuat'}); }
+    else { this.setState({folders:s.folders.map(f=>f.id===fe.id?{...f,name}:f),folderEdit:null}); } };
+  deleteFolder=()=>{ const s=this.state, f=s.folders.find(x=>x.id===s.bmFolder); if(!f)return;
+    this.setState({folders:s.folders.filter(x=>x!==f),bookmarks:s.bookmarks.map(b=>b.folder===f.id?{...b,folder:null}:b),bmFolder:'all',folderEdit:null});
+    this.showToast({msg:'Folder '+f.name+' dihapus · penanda dipindah ke Tanpa folder'}); };
+  togglePageBm(){ const p=this.state.page, ex=this.state.bookmarks.find(b=>b.type==='halaman'&&b.p===p);
+    if(ex){ this.setState({bookmarks:this.state.bookmarks.filter(b=>b!==ex)}); this.showToast({msg:'Penanda halaman dihapus'}); }
+    else { this.setState({bookmarks:[{id:(this.nid=Date.now()),type:'halaman',p,label:'',folder:this.curFolder(),at:Date.now()},...this.state.bookmarks]}); this.showToast({action:'Pilih folder',act:((i)=>()=>this.pickFolderFor(i,'halaman'))(this.nid),msg:'Halaman '+p+' ditandai'}); } }
+  startAudio(key){ const m=this.pageModel(this.state.page); const k=key||this.state.sel||(this.state.page+'-0'); clearInterval(this.audioT);
+    this.setState({audioVerse:k,audioProg:0,playing:true});
+    this.audioT=setInterval(()=>{ let pr=this.state.audioProg+2; if(pr>=100){ const [pp,ii]=this.state.audioVerse.split('-').map(Number); const mm=this.pageModel(pp); if(ii+1<mm.verseCount){ this.setState({audioVerse:pp+'-'+(ii+1),audioProg:0}); } else { clearInterval(this.audioT); this.setState({playing:false,audioProg:100}); } } else this.setState({audioProg:pr}); },120); }
+  stopAudio(){ clearInterval(this.audioT); this.setState({playing:false}); }
+  stepAudio(d){ const [pp,ii]=(this.state.audioVerse||this.state.page+'-0').split('-').map(Number); const mm=this.pageModel(pp); const ni=Math.max(0,Math.min(mm.verseCount-1,ii+d)); this.setState({audioVerse:pp+'-'+ni,audioProg:0}); }
+
+  relaunch=()=>{ clearInterval(this.audioT); const s=this.state; const base={sheet:null,sel:null,chrome:false,tour:-1,zoom:1,pan:{x:0,y:0},playing:false};
+    if(s.hasProgress){ this.setState({...base,screen:'reader',page:s.lastRead.page}); this.showToast({msg:'Lanjut membaca · '+this.pageLabel(s.lastRead.page),action:'Riwayat',act:()=>this.openSheet('bookmarks')}); }
+    else this.setState({...base,screen:'welcome'}); };
+
+  parseSearch(q){ q=q.trim(); if(!q)return []; let m;
+    if((m=q.match(/^(\d{1,3})\s*[:.]\s*(\d{1,3})$/))){ const s=+m[1]-1,a=+m[2]; if(s<0||s>113||a<1||a>AY[s])return [];
+      const kp=Object.keys(KNOWN).find(p=>KNOWN[p][0]===s&&a>=KNOWN[p][1]&&a<=KNOWN[p][2]);
+      return [{title:NAMES[s]+' · ayat '+a,sub:kp?'Hal. '+kp:'Indeks ayat–halaman belum terhubung · buka awal surah, hal. '+ST[s],page:kp?+kp:ST[s]}]; }
+    if((m=q.match(/^(hal|halaman|h)\.?\s*(\d{1,3})$/i))){ const p=+m[2]; if(p<1||p>604)return []; return [{title:'Halaman '+p,sub:NAMES[surahAt(p)]+' · Juz '+juzAt(p),page:p}]; }
+    if((m=q.match(/^juz\s*(\d{1,2})$/i))){ const j=+m[1]; if(j<1||j>30)return []; return [{title:'Juz '+j,sub:'Mulai hal. '+JUZ[j-1]+' · '+NAMES[surahAt(JUZ[j-1])],page:JUZ[j-1]}]; }
+    if(/^\d{1,3}$/.test(q)){ const n=+q; const out=[]; if(n>=1&&n<=114)out.push({title:n+'. '+NAMES[n-1],sub:AY[n-1]+' ayat · Hal. '+ST[n-1],page:ST[n-1]}); if(n>=1&&n<=604)out.push({title:'Halaman '+n,sub:NAMES[surahAt(n)],page:n}); return out; }
+    const nq=norm(q); return NAMES.map((n,i)=>({n,i})).filter(x=>norm(x.n).includes(nq)||norm(x.n.replace(/^[A-Za-z]+-/,'')).startsWith(nq)).slice(0,10).map(x=>({title:(x.i+1)+'. '+x.n,sub:AY[x.i]+' ayat · Hal. '+ST[x.i]+' · Juz '+juzAt(ST[x.i]),page:ST[x.i]})); }
+
+  flowDefs(){ const set=(o)=>()=>this.setState(o);
+    return [
+      {name:'Lanjut → tandai → navigasi → kembali',steps:[
+        {label:'Buka aplikasi: langsung ke posisi terakhir',run:()=>{ this.setState({hasProgress:true,lastRead:{page:3,at:Date.now()}},()=>this.relaunch()); }},
+        {label:'Ketuk ayat → lembar aksi',run:()=>{ this.go(3); setTimeout(()=>this.selectVerse('3-2'),30); }},
+        {label:'Tandai ayat',run:()=>{ if(this.state.sel!=='3-2'){ this.go(3); this.setState({sel:'3-2'}); } setTimeout(()=>{ this.addVerseBm(); this.setState({sheet:null,sel:null}); },40); }},
+        {label:'Daftar isi → pilih Yasin',run:()=>{ this.openSheet('browse',{browseTab:'surah',filter:'yas'}); }},
+        {label:'Buka Yasin (hal. 440)',run:()=>{ this.go(440,{sheet:null,filter:''}); }},
+        {label:'Kembali lewat Penanda',run:()=>{ this.openSheet('bookmarks',{bmTab:'ayat'}); }}]},
+      {name:'Ganti tema kertas',steps:[
+        {label:'Buka Pengaturan',run:()=>this.openSheet('settings')},
+        {label:'Kertas Antik',run:()=>this.setState({theme:'antique'})},
+        {label:'Foto Sampel',run:()=>this.setState({theme:'photo'})},
+        {label:'Gading Hangat (bawaan)',run:()=>{ this.setState({theme:'ivory',sheet:null}); }}]},
+      {name:'Aktifkan sinkronisasi → selesaikan konflik',steps:[
+        {label:'Akun: mode tamu',run:()=>this.openSheet('account',{authStep:'guest',screen:'reader'})},
+        {label:'Masuk dengan email',run:()=>this.openSheet('account',{authStep:'login'})},
+        {label:'Tersinkron',run:()=>this.openSheet('account',{authStep:'signed',sync:'synced'})},
+        {label:'Konflik posisi baca',run:()=>this.openSheet('account',{authStep:'signed',sync:'conflict'})},
+        {label:'Gunakan posisi perangkat ini',run:()=>{ this.setState({sync:'synced'}); this.showToast({msg:'Posisi perangkat ini dipakai di semua perangkat'}); }}]}
+    ]; }
+
+  renderVals(){
+    const s=this.state, T=THEMES[s.theme], D=DEVICES[s.device], W=D.w, H=D.h, wide=W>=768;
+    const spread=s.mode==='2'?W>=700:s.mode==='1'?false:(W>H&&W>=900); this.spread=spread;
+    const safeT=wide?20:28, safeB=wide?20:24;
+    const bezel=W>=1200?8:12, frameW=W+bezel*2, frameH=H+bezel*2;
+    const scale=Math.max(0.15,Math.min(1,(s.sw-40)/frameW,(s.sh-56)/frameH)); this.scale=scale;
+    const ratio=0.62; let ph=H-safeT-safeB-16, pw=ph*ratio; const maxW=spread?(W-40)/2:W-20; if(pw>maxW){pw=maxW;ph=pw/ratio;}
+    const pair=spread?(s.page%2?[s.page,s.page+1]:[s.page-1,s.page]).filter(p=>p>=1&&p<=604):[s.page];
+    const bmSet=new Set(s.bookmarks.filter(b=>b.type==='ayat').map(b=>b.p+'-'+b.s+'-'+(b.a||'i'+b.idx)));
+    const audioKey=s.playing?s.audioVerse:null;
+    const fs=Math.max(9,pw*0.034), fsS=Math.max(9,pw*0.024);
+    const barInk=s.contrast?'rgba(37,37,37,0.34)':'rgba(37,37,37,0.16)';
+    const pages=pair.map((p,i)=>{ const m=this.pageModel(p); const special=p<=2;
+      const shadow='0 1px 2px rgba(37,37,37,0.06), 0 10px 28px rgba(37,37,37,0.07)'+(spread?(i===0?', inset 16px 0 20px -16px rgba(70,52,25,0.22)':', inset -16px 0 20px -16px rgba(70,52,25,0.22)'):'');
+      return {w:Math.round(pw),h:Math.round(ph),shadow,aria:'Halaman '+p+', '+NAMES[m.s]+'. Area aset SVG (placeholder)',num:p,fs,fsS,mark:Math.max(6,pw*0.022),
+        inset:special?'5% 7%':'3.2% 5%',inset2:special?'6.2% 8.2%':'4.2% 6%',frameR:special?'40% 40% 6px 6px / 14% 14% 6px 6px':'2px',
+        textInset:special?'20% 14% 14%':'6.5% 8.5% 6.5%',footB:special?'2%':'0.9%',
+        rows:m.rows.map(r=>r.isLine?{...r,segs:r.segs.map(sg=>{ const vm=this.vmeta[sg.key]; const bm=vm&&bmSet.has(vm.p+'-'+vm.s+'-'+(vm.a||'i'+vm.idx)); const on=s.sel===sg.key||audioKey===sg.key;
+          return {...sg,bg:on?'rgba(21,59,50,0.15)':bm?'rgba(165,139,99,0.16)':'transparent',ring:on?'inset 0 -2px 0 rgba(21,59,50,0.55)':'none'}; })}:r)}; });
+    const errArt=s.screen==='reader'&&s.artErr, errOffline=s.screen==='reader'&&!s.artErr&&!s.online&&pair.some(p=>!this.cachedPage(p));
+    const sheet=s.sheet, shown=sheet||this.lastSheet, isVerse=shown==='verse', mobileSheet=!wide;
+    let sp;
+    if(mobileSheet) sp={left:'0',right:'0',top:'auto',bottom:'0',width:'auto',maxH:isVerse||shown==='audio'?'52%':'88%',radius:'20px 20px 0 0',tf:sheet?'translateY(0)':'translateY(105%)',grab:true,bl:'none'};
+    else sp={left:'auto',right:'0',top:'0',bottom:'0',width:'400px',maxH:'100%',radius:'0',tf:sheet?'translateX(0)':'translateX(105%)',grab:false,bl:'1px solid '+(s.contrast?'#9A9284':'#DDD6C8')};
+    const LBL={verse:'Ayat',browse:'Daftar isi',bookmarks:'Penanda',search:'Cari',settings:'Pengaturan',audio:'Audio & terjemahan',account:'Akun',offline:'Offline',progress:'Progres membaca'};
+    const sh={}; Object.keys(LBL).forEach(k=>sh[k]=shown===k);
+    const vm=this.vmeta[s.sel]; const vBm=vm&&bmSet.has(vm.p+'-'+vm.s+'-'+(vm.a||'i'+vm.idx));
+    const verse=vm?{title:vm.a?NAMES[vm.s]+' · Ayat '+vm.a:NAMES[vm.s]+' · Bagian '+vm.idx,sub:'Surah '+(vm.s+1)+' · Hal. '+vm.p+' · Juz '+juzAt(vm.p),unknown:!vm.a,bmLabel:vBm?'Ditandai':'Tandai',bmFill:vBm?'currentColor':'none',bmColor:vBm?'var(--ui-accent)':'var(--ui-ink)'}:{title:'',sub:'',unknown:false,bmLabel:'Tandai',bmFill:'none',bmColor:'var(--ui-ink)'};
+    const av=this.vmeta[s.audioVerse||s.sel||(s.page+'-0')]||(this.pageModel(s.page),this.vmeta[s.page+'-0']);
+    const audioBad=s.audioErr||!s.online;
+    const pageBm=s.bookmarks.some(b=>b.type==='halaman'&&b.p===s.page);
+    const fl=s.filter.trim(); const nf=norm(fl);
+    const surahRows=NAMES.map((n,i)=>({n:i+1,name:n,ar:AR[i],info:AY[i]+' ayat · Hal. '+ST[i]+' · Juz '+juzAt(ST[i]),bg:surahAt(s.page)===i?'rgba(21,59,50,0.06)':'transparent',go:()=>this.go(ST[i],{sheet:null,filter:''})}))
+      .filter(r=>!fl||norm(r.name).includes(nf)||String(r.n)===fl||r.ar.includes(fl));
+    const juzRows=JUZ.map((p,i)=>({n:i+1,info:'Hal. '+p+' · '+NAMES[surahAt(p)],bd:juzAt(s.page)===i+1?'var(--ui-primary)':'#E2DDD2',go:()=>this.go(p,{sheet:null,filter:''})})).filter(j=>!fl||String(j.n)===fl.replace(/\D/g,''));
+    const ofType=s.bookmarks.filter(b=>b.type===s.bmTab);
+    const fName=id=>{ const f=s.folders.find(x=>x.id===id); return f?f.name:''; };
+    const bmList=ofType.filter(b=>s.bmFolder==='all'||(s.bmFolder==='none'?!fName(b.folder):b.folder===s.bmFolder));
+    const chip=(on)=>({bg:on?'var(--ui-primary)':'transparent',fg:on?'#FFFFFF':'var(--ui-ink)',bd:on?'var(--ui-primary)':(s.contrast?'#9A9284':'var(--ui-line)')});
+    const noneCount=ofType.filter(b=>!fName(b.folder)).length;
+    const folderChips=[{id:'all',name:'Semua',n:ofType.length},...s.folders.map(f=>({id:f.id,name:f.name,n:ofType.filter(b=>b.folder===f.id).length})),...(noneCount?[{id:'none',name:'Tanpa folder',n:noneCount}]:[])]
+      .map(f=>({...f,...chip(s.bmFolder===f.id),pick:()=>this.setState({bmFolder:f.id,moveId:null,folderEdit:null})}));
+    const curF=s.folders.find(x=>x.id===s.bmFolder);
+    const bmRows=bmList.map(b=>({moving:s.moveId===b.id,folderTag:fName(b.folder)||'Tanpa folder',hasFolder:!!fName(b.folder),
+      toggleMove:()=>this.setState({moveId:s.moveId===b.id?null:b.id,folderEdit:null}),
+      moveChips:[{id:null,name:'Tanpa folder'},...s.folders].map(f=>({name:f.name,...chip((b.folder||null)===f.id||(!f.id&&!fName(b.folder))),
+        pick:()=>{ this.setState({bookmarks:s.bookmarks.map(x=>x.id===b.id?{...x,folder:f.id}:x),moveId:null}); this.showToast({msg:f.id?'Dipindahkan ke '+f.name:'Dikeluarkan dari folder'}); }})),
+      newFolder:()=>this.setState({folderEdit:{id:'new',name:''}}),title:b.type==='ayat'?(b.a?NAMES[b.s]+' · Ayat '+b.a:NAMES[b.s]+' · Bagian '+b.idx):'Halaman '+b.p+' · '+NAMES[surahAt(b.p)],
+      sub:(b.type==='ayat'?'Hal. '+b.p+' · ':'Juz '+juzAt(b.p)+' · ')+fmtDate(b.at)+(b.label?' · '+b.label:''),go:()=>this.go(b.p,{sheet:null}),remove:()=>this.setState({bookmarks:s.bookmarks.filter(x=>x!==b)})}));
+    const rset=new Set(s.readPages), rc=rset.size;
+    const nextUnread=(from)=>{ for(let i=0;i<604;i++){ const p=((from-1+i)%604)+1; if(!rset.has(p))return p; } return 1; };
+    const nu=nextUnread(s.page);
+    const DAYS=['Min','Sen','Sel','Rab','Kam','Jum','Sab']; const today=new Date().getDay();
+    const wmax=Math.max(s.dailyTarget,...s.daily,1);
+    const avg=s.daily.reduce((a,b)=>a+b,0)/7, left=604-rc, pace=Math.max(avg,0.1);
+    const etaD=new Date(Date.now()+Math.ceil(left/Math.max(s.dailyTarget,1))*864e5);
+    const juzP=JUZ.map((st,i)=>{ const en=(JUZ[i+1]||605)-1; let r=0; for(let p=st;p<=en;p++) if(rset.has(p))r++; return {st,en,r,t:en-st+1}; });
+    const prog={round:'Khatam ke-1',pct:Math.floor(rc/604*100)+'%',pctW:(rc/604*100).toFixed(1)+'%',count:rc,
+      eta:left?('Sisa '+left+' halaman. Dengan target '+s.dailyTarget+' halaman per hari, khatam sekitar '+fmtDate(etaD)+'. Rata-rata 7 hari terakhir: '+avg.toFixed(1).replace('.',',')+' halaman per hari.'):'Alhamdulillah, semua halaman sudah dibaca.',
+      nextLabel:this.pageLabel(nu),resume:()=>this.go(nu,{sheet:null}),
+      target:s.dailyTarget,dec:()=>this.setState({dailyTarget:Math.max(1,s.dailyTarget-1)}),inc:()=>this.setState({dailyTarget:Math.min(40,s.dailyTarget+1)}),
+      todayLabel:'Hari ini '+s.daily[6]+' dari '+s.dailyTarget+' halaman'+(s.daily[6]>=s.dailyTarget?' · tercapai':''),
+      week:s.daily.map((n,i)=>{ const hit=n>=s.dailyTarget, isT=i===6; return {n,day:DAYS[(today-6+i+7)%7],h:Math.max(n/wmax*76,n?4:2)+'px',
+        bg:hit?'var(--ui-primary)':n?'color-mix(in srgb,var(--ui-primary) 32%,transparent)':'rgba(37,37,37,0.12)',fw:isT?'600':'400',fg:isT?'var(--ui-ink)':'var(--ui-muted)',ul:isT?'var(--ui-accent)':'transparent'}; }),
+      weekAria:'Halaman dibaca 7 hari terakhir: '+s.daily.join(', ')+'. Target '+s.dailyTarget+' halaman.',
+      targetLine:(s.dailyTarget/wmax*76+20+6)+'px',
+      juzDone:juzP.filter(j=>j.r===j.t).length,
+      juz:juzP.map((j,i)=>{ const done=j.r===j.t, cur=juzAt(s.page)===i+1; return {n:i+1,fill:done?'0%':(j.r/j.t*100)+'%',
+        bg:done?'var(--ui-primary)':'transparent',fg:done?'var(--ui-on)':'var(--ui-ink)',bd:cur?'var(--ui-accent)':done?'var(--ui-primary)':(s.contrast?'#9A9284':'var(--ui-line)'),
+        aria:'Juz '+(i+1)+': '+j.r+' dari '+j.t+' halaman dibaca',go:()=>{ let p=j.st; while(p<=j.en&&rset.has(p))p++; this.go(p>j.en?j.st:p,{sheet:null}); }}; })};
+    const results=this.parseSearch(s.query).map(r=>({...r,go:()=>this.go(r.page,{sheet:null,query:''})}));
+    const tabs=(list,cur,key)=>list.map(([v,l])=>({label:l,on:cur===v,bg:cur===v?(U.surface?'#FFFFFF':(T.sheet==='#FFFFFF'?'#F1EEE7':'#FFFFFF')):'transparent',pick:()=>this.setState({[key]:v})}));
+    const offCount=Math.min(604,30+s.extraCached.length+s.history.length+1);
+    const flows=this.flowDefs().map((f,fi)=>({name:f.name,steps:f.steps.map((st,si)=>({n:si+1,label:st.label,bg:s.flow===fi&&s.flowStep===si?'rgba(21,59,50,0.1)':'transparent',run:()=>{ this.setState({flow:fi,flowStep:si,view:'proto'}); st.run(); }}))}));
+    const U=UITHEMES[s.uiTheme]||UITHEMES.klasik; const uiSurf=U.surface||T.sheet;
+    const chromeSolid=uiSurf;
+    const tStep=s.tour>=0?TOUR[s.tour]:TOUR[0];
+    const toggles=(on)=>({track:on?'var(--ui-primary)':'var(--ui-line)',knob:on?'19px':'3px'});
+    const goScreen=(o,sheetName,extra)=>()=>{ this.setState({view:'proto',tour:-1,artErr:false,flow:null,...o}); if(sheetName)this.openSheet(sheetName,extra||{}); else this.setState({sheet:null}); };
+
+    return {
+      isProto:s.view==='proto',isSpec:s.view==='spec',
+      viewProto:()=>this.setState({view:'proto'}),viewSpec:()=>this.setState({view:'spec'}),
+      viewTabs:{protoBg:s.view==='proto'?'#FFFFFF':'transparent',specBg:s.view==='spec'?'#FFFFFF':'transparent'},
+      devices:DEVICES.map((d,i)=>({label:d.label,size:d.w+'×'+d.h,bg:s.device===i?'var(--ui-primary)':'#FFFFFF',fg:s.device===i?'var(--ui-on)':'var(--ui-ink)',bd:s.device===i?'var(--ui-primary)':'#DDD8CD',pick:()=>this.setState({device:i,view:'proto'})})),
+      themeList:Object.keys(THEMES).map(k=>({name:THEMES[k].name,short:THEMES[k].short,hex:THEMES[k].hex,on:s.theme===k,ring:s.theme===k?'2px solid var(--ui-primary)':'1px solid var(--ui-line)',pick:()=>this.setState({theme:k})})),
+      flows,
+      screens:[
+        {id:'A',label:'Peluncuran pertama',go:goScreen({screen:'welcome',hasProgress:false})},
+        {id:'B',label:'Pembaca imersif',go:goScreen({screen:'reader',chrome:false,zoom:1,page:3,sel:null})},
+        {id:'C',label:'Kontrol tampil',go:()=>{ goScreen({screen:'reader',chrome:true,zoom:1})(); clearTimeout(this.hideT); }},
+        {id:'D',label:'Ayat dipilih',go:()=>{ this.setState({view:'proto',screen:'reader',page:3,artErr:false,tour:-1}); this.pageModel(3); this.selectVerse('3-3'); }},
+        {id:'E',label:'Daftar isi',go:goScreen({screen:'reader'},'browse',{browseTab:'surah'})},
+        {id:'F',label:'Penanda',go:goScreen({screen:'reader'},'bookmarks',{bmTab:'ayat'})},
+        {id:'G',label:'Lanjut membaca',go:()=>{ this.setState({view:'proto',hasProgress:true,artErr:false}); this.relaunch(); }},
+        {id:'H',label:'Pengaturan',go:goScreen({screen:'reader'},'settings')},
+        {id:'I',label:'Cari',go:goScreen({screen:'reader'},'search',{query:'yasin'})},
+        {id:'J',label:'Audio & terjemahan',go:()=>{ goScreen({screen:'reader',audioErr:false,online:true},'audio',{audioTab:'audio'})(); this.startAudio(this.state.page+'-0'); }},
+        {id:'K',label:'Akun & sinkronisasi',go:goScreen({screen:'reader'},'account',{authStep:'guest'})},
+        {id:'L',label:'Offline & unduhan',go:goScreen({screen:'reader'},'offline')},
+        {id:'N',label:'Progres membaca',go:goScreen({screen:'reader'},'progress')}],
+      errScreens:[
+        {label:'Penanda kosong',go:()=>{ goScreen({screen:'reader',bookmarks:[]},'bookmarks',{bmTab:'ayat'})(); }},
+        {label:'Offline tanpa cache',go:goScreen({screen:'reader',online:false,page:250,sel:null})},
+        {label:'Artwork gagal',go:()=>{ this.setState({view:'proto',screen:'reader',sheet:null,artErr:true}); }},
+        {label:'Konflik sinkron',go:goScreen({screen:'reader'},'account',{authStep:'signed',sync:'conflict'})},
+        {label:'Audio tidak ada',go:goScreen({screen:'reader',audioErr:true},'audio',{audioTab:'audio'})},
+        {label:'Akun terputus',go:goScreen({screen:'reader'},'account',{authStep:'signed',sync:'disconnected'})}],
+      sims:[
+        {label:'Online',on:s.online,...toggles(s.online),toggle:()=>this.setState({online:!s.online})},
+        {label:'Ada progres lokal',on:s.hasProgress,...toggles(s.hasProgress),toggle:()=>this.setState({hasProgress:!s.hasProgress})},
+        {label:'Artwork gagal dimuat',on:s.artErr,...toggles(s.artErr),toggle:()=>this.setState({artErr:!s.artErr})},
+        {label:'Audio tidak tersedia',on:s.audioErr,...toggles(s.audioErr),toggle:()=>this.setState({audioErr:!s.audioErr})}],
+      relaunch:this.relaunch,
+      stageRef:this.stageRef,wrapRef:this.wrapRef,
+      deviceCaption:D.label+' · '+W+'×'+H+' · '+(spread?'dua halaman':'satu halaman')+' · skala '+Math.round(scale*100)+'%',
+      scale,frameW,frameH,bezel,frameR:W>=1200?18:(wide?34:46),innerR:W>=1200?10:(wide?24:36),dw:W,dh:H,
+      paper:T.hex,surround:T.sur,appRef:this.appRef,sheetBg:uiSurf,chromeSolid,welcomeBg:U.welcome||T.hex,
+      uiList:Object.keys(UITHEMES).map(k=>{ const u=UITHEMES[k]; return {name:u.name,short:u.short,fontName:u.fontName,font:u.display,c1:u.primary,c2:u.accent,ink:u.ink,bg:u.welcome||T.hex,on:s.uiTheme===k,ring:s.uiTheme===k?'2px solid '+u.primary:'1px solid #D9D3C6',pick:()=>this.setState({uiTheme:k})}; }),ink:'var(--ui-ink)',frameInk:s.contrast?'#24507A':'#3E6E99',barInk,
+      hair:s.contrast?'#9A9284':U.hair,chromeBg:uiSurf+'F2',
+      dur:s.reduced?0:260,
+      isWelcome:s.screen==='welcome',isReader:s.screen==='reader',hasProgress:s.hasProgress,noProgress:!s.hasProgress,
+      resumeLabel:this.pageLabel(s.lastRead.page),
+      continueReading:()=>{ this.go(s.lastRead.page); this.showToast({msg:'Lanjut membaca · '+this.pageLabel(s.lastRead.page)}); },
+      startReading:()=>{ this.go(1); },
+      openTour:()=>this.setState({tour:0,sheet:null}),tourOn:s.tour>=0,
+      tour:{...tStep,step:'Panduan '+(s.tour+1)+' / '+TOUR.length,cta:s.tour>=TOUR.length-1?'Mulai membaca':'Berikutnya'},
+      tourNext:()=>{ if(s.tour>=TOUR.length-1){ this.setState({tour:-1}); if(s.screen==='welcome')this.go(s.hasProgress?s.lastRead.page:1); } else this.setState({tour:s.tour+1}); },
+      closeTour:this.closeTour,
+      onPD:this.onPD,onPM:this.onPM,onPU:this.onPU,onPC:this.onPC,
+      safeT:safeT+8,safeB:safeB+8,safeTop:safeT,safeBot:safeB,
+      showPages:!errArt&&!errOffline,errArt,errOffline,pages,page:s.page,
+      zoomTf:'translate('+s.pan.x+'px,'+s.pan.y+'px) scale('+s.zoom+')',zoomOrigin:s.origin,zoomed:s.zoom>1,zoomLabel:s.zoom>1?'2×':'1×',
+      zoomPillTop:s.chrome?safeT+62:safeT+4,
+      zoomIn:()=>this.setState({zoom:2,origin:'50% 50%'}),resetZoom:this.resetZoom,
+      edgeOp:s.chrome||s.sheet?0:0.35,
+      chromeTopTf:s.chrome?'translateY(0)':'translateY(-110%)',chromeBotTf:s.chrome?'translateY(0)':'translateY(110%)',
+      chromeOp:s.chrome?1:0,chromePE:s.chrome?'auto':'none',zoomCtlB:safeB+76,
+      titleSurah:NAMES[surahAt(pair[0])]+(spread&&surahAt(pair[pair.length-1])!==surahAt(pair[0])?' – '+NAMES[surahAt(pair[pair.length-1])]:''),
+      titleSub:'Hal. '+pair.join('–')+' · Juz '+juzAt(pair[0]),
+      pagePill:spread?pair.join('–')+' / 604':s.page+' / 604',
+      toWelcome:()=>this.setState({screen:'welcome',chrome:false}),
+      openSearch:()=>this.openSheet('search'),openBookmarks:()=>this.openSheet('bookmarks'),openSettings:()=>this.openSheet('settings'),openProgress:()=>this.openSheet('progress'),prog,
+      openAccount:()=>this.openSheet('account'),openAudio:()=>this.openSheet('audio',{audioTab:'audio'}),openBrowse:()=>this.openSheet('browse'),
+      openPagePicker:()=>this.openSheet('browse',{browseTab:'page',pageInput:String(s.page)}),openOffline:()=>this.openSheet('offline'),
+      syncDot:s.authStep!=='signed'?'transparent':s.sync==='conflict'||s.sync==='disconnected'?'var(--ui-accent)':'var(--ui-primary)',
+      next:this.next,prev:this.prev,togglePageBm:()=>this.togglePageBm(),pageBm,pageBmFill:pageBm?'currentColor':'none',pageBmColor:pageBm?'var(--ui-accent-icon)':'var(--ui-ink)',pageBmLabel:pageBm?'Hapus penanda halaman':'Tandai halaman ini',
+      hasToast:!!s.toast&&s.screen==='reader',toast:s.toast?{msg:s.toast.msg,action:s.toast.action||'',hasAction:!!s.toast.action}:{msg:'',action:'',hasAction:false},
+      toastB:s.chrome?safeB+80:safeB+24,toastAction:()=>{ const a=s.toast&&s.toast.act; this.setState({toast:null}); a&&a(); },hideToast:()=>this.setState({toast:null}),
+      goLastCached:()=>this.go(s.lastRead.page&&this.cachedPage(s.lastRead.page)&&s.lastRead.page!==s.page?s.lastRead.page:3),lastCached:'Hal. '+(this.cachedPage(s.lastRead.page)&&s.lastRead.page!==s.page?s.lastRead.page:3),
+      retryArt:()=>{ this.setState({artErr:false}); },
+      closeSheet:this.closeSheet,backdropOp:sheet&&mobileSheet&&!isVerse?1:0,backdropPE:sheet&&mobileSheet&&!isVerse?'auto':'none',
+      sheetLabel:LBL[shown]||'',sp,sh,
+      verse,bmVerse:()=>this.addVerseBm(),playVerse:()=>{ const k=s.sel; this.openSheet('audio',{audioTab:'audio'}); this.startAudio(k); },
+      translateVerse:()=>{ const k=s.sel; this.openSheet('audio',{audioTab:'trans',audioVerse:k,sel:k}); },
+      copyRef:()=>{ const r=this.verseRef(vm)+' (hal. '+(vm?vm.p:'')+')'; try{navigator.clipboard&&navigator.clipboard.writeText(r);}catch(e){} this.showToast({msg:'Referensi disalin · '+this.verseRef(vm)}); },
+      shareRef:()=>this.showToast({msg:'Membuka lembar bagikan perangkat'}),
+      browseTabs:tabs([['surah','Surah'],['juz','Juz'],['page','Halaman']],s.browseTab,'browseTab'),
+      bTab:{surah:s.browseTab==='surah',juz:s.browseTab==='juz',page:s.browseTab==='page'},browseNotPage:s.browseTab!=='page',
+      filter:s.filter,onFilter:e=>this.setState({filter:e.target.value}),filterPh:s.browseTab==='juz'?'Nomor juz':'Nama atau nomor surah',
+      surahRows,noSurahRows:surahRows.length===0,juzRows,
+      pageInput:s.pageInput,onPageInput:e=>this.setState({pageInput:e.target.value}),
+      pageInputInfo:(()=>{const p=+s.pageInput; return p>=1&&p<=604?NAMES[surahAt(p)]+' · Juz '+juzAt(p)+(this.cachedPage(p)?' · tersedia offline':''):'Masukkan angka 1–604';})(),
+      goPageInput:()=>{ const p=+s.pageInput; if(p>=1&&p<=604)this.go(p,{sheet:null}); },
+      lastReadLabel:this.pageLabel(s.lastRead.page)+' · '+fmtDate(s.lastRead.at),goLastRead:()=>this.go(s.lastRead.page,{sheet:null}),
+      bmTabs:tabs([['ayat','Ayat'],['halaman','Halaman']],s.bmTab,'bmTab'),bmRows,bmEmpty:bmRows.length===0,folderChips,
+      hasCurFolder:!!curF&&!s.folderEdit,curFolderName:curF?curF.name:'',
+      renameFolder:()=>this.setState({folderEdit:{id:curF.id,name:curF.name},moveId:null}),deleteFolder:this.deleteFolder,
+      newFolder:()=>this.setState({folderEdit:{id:'new',name:''}}),
+      editingFolder:!!s.folderEdit,folderEditName:s.folderEdit?s.folderEdit.name:'',folderEditTitle:s.folderEdit&&s.folderEdit.id!=='new'?'Ganti nama folder':(s.moveId?'Folder baru untuk penanda ini':'Folder baru'),
+      onFolderName:e=>this.setState({folderEdit:{...s.folderEdit,name:e.target.value}}),onFolderKey:e=>{ if(e.key==='Enter')this.saveFolder(); if(e.key==='Escape')this.setState({folderEdit:null}); },
+      saveFolder:this.saveFolder,cancelFolder:()=>this.setState({folderEdit:null}),
+      bmEmptyTitle:curF?'Folder '+curF.name+' masih kosong':s.bmTab==='ayat'?'Belum ada ayat ditandai':'Belum ada halaman ditandai',
+      bmEmptyHint:curF?'Ketuk ikon folder pada penanda mana pun untuk memindahkannya ke sini.':s.bmTab==='ayat'?'Ketuk sebuah ayat, lalu pilih Tandai.':'Tampilkan kontrol, lalu ketuk ikon penanda di bilah bawah.',
+      historyRows:s.history.slice(0,4).map(h=>({label:this.pageLabel(h.p),at:fmtDate(h.at),go:()=>this.go(h.p,{sheet:null})})),
+      query:s.query,onQuery:e=>this.setState({query:e.target.value}),results,noResults:!!s.query.trim()&&results.length===0,
+      searchHints:['Yasin','2:255','hal 50','juz 30'].map(q=>({label:q,use:()=>this.setState({query:q})})),
+      modeTabs:[['auto','Otomatis'],['1','1 halaman'],['2','2 halaman']].map(([v,l])=>({label:l,on:s.mode===v,bg:s.mode===v?'#FFFFFF':'transparent',pick:()=>this.setState({mode:v,zoom:1})})),
+      reduced:s.reduced,toggleReduced:()=>this.setState({reduced:!s.reduced}),reducedTrack:toggles(s.reduced).track,reducedKnob:toggles(s.reduced).knob,
+      contrast:s.contrast,toggleContrast:()=>this.setState({contrast:!s.contrast}),contrastTrack:toggles(s.contrast).track,contrastKnob:toggles(s.contrast).knob,
+      offlineShort:s.online?offCount+' hal. siap':'Offline',accountShort:s.authStep==='signed'?(s.sync==='conflict'?'Perlu tindakan':s.sync==='disconnected'?'Terputus':'Tersinkron'):'Tamu',
+      audioTabs:tabs([['audio','Audio'],['trans','Terjemahan']],s.audioTab,'audioTab'),aTab:{audio:s.audioTab==='audio',trans:s.audioTab==='trans'},
+      audio:{title:av?(av.a?NAMES[av.s]+' · Ayat '+av.a:NAMES[av.s]+' · Bagian '+av.idx):'',sub:av?'Hal. '+av.p+(av.a?'':' · nomor ayat menunggu data'):'',prog:s.audioProg+'%',playing:s.playing,paused:!s.playing,playLabel:s.playing?'Jeda':'Putar'},
+      audioOk:!audioBad,audioBad,audioBadMsg:!s.online?'Anda offline dan audio ayat ini belum tersimpan.':'Rekaman untuk ayat ini belum tersedia dari sumber audio.',
+      retryAudio:()=>this.setState({audioErr:false}),
+      togglePlay:()=>{ s.playing?this.stopAudio():this.startAudio(s.audioVerse); },
+      audioNextVerse:()=>this.stepAudio(1),audioPrevVerse:()=>this.stepAudio(-1),
+      acc:{guest:s.authStep==='guest',login:s.authStep==='login',signed:s.authStep==='signed',initial:(s.email[0]||'?').toUpperCase(),
+        status:{synced:'Tersinkron · baru saja',syncing:'Menyinkronkan…',conflict:'Perlu memilih posisi baca',disconnected:'Tidak tersambung'}[s.sync],
+        statusColor:s.sync==='synced'?'var(--ui-primary)':'#8A6E45',conflict:s.sync==='conflict',disconnected:s.sync==='disconnected',
+        deviceLabel:this.pageLabel(s.page)+' · Ponsel ini, baru saja',syncHint:s.online?'otomatis saat berubah':'menunggu koneksi'},
+      email:s.email,onEmail:e=>this.setState({email:e.target.value}),
+      startLogin:()=>this.setState({authStep:'login'}),cancelLogin:()=>this.setState({authStep:'guest'}),
+      doLogin:()=>{ this.setState({authStep:'signed',sync:'syncing'}); setTimeout(()=>this.setState({sync:'synced'}),900); },
+      useDevice:()=>{ this.setState({sync:'synced'}); this.showToast({msg:'Posisi perangkat ini dipakai'}); },
+      useCloud:()=>{ this.setState({sync:'synced'}); this.go(442); this.showToast({msg:'Pindah ke posisi cloud · Yasin, hal. 442'}); },
+      reconnect:()=>{ this.setState({sync:'syncing'}); setTimeout(()=>this.setState({sync:'synced'}),900); },
+      syncNow:()=>{ if(!s.online){ this.showToast({msg:'Offline · akan disinkronkan saat tersambung'}); return; } this.setState({sync:'syncing'}); setTimeout(()=>this.setState({sync:'synced'}),900); },
+      simConflict:()=>this.setState({sync:'conflict'}),
+      exportData:()=>this.showToast({msg:'mushaf-data.json disiapkan'}),
+      signOut:()=>{ this.setState({authStep:'guest',sync:'synced'}); this.showToast({msg:'Keluar · data lokal tetap tersimpan'}); },
+      askDelete:()=>this.setState({confirmDelete:true}),cancelDelete:()=>this.setState({confirmDelete:false}),
+      doDelete:()=>{ this.setState({authStep:'guest',confirmDelete:false}); this.showToast({msg:'Akun dihapus'}); },
+      confirmDelete:s.confirmDelete,
+      off:{status:s.online?'Online':'Offline · menampilkan halaman tersimpan',dot:s.online?'var(--ui-primary)':'var(--ui-accent)',count:offCount,pct:(offCount/604*100).toFixed(1)+'%',mb:(offCount*0.28).toFixed(1).replace('.',',')+' MB',
+        failed:s.dl==='failed',dlLabel:s.dl==='loading'?'Mengunduh…':'Simpan Juz '+juzAt(s.page)+' untuk offline'},
+      downloadJuz:()=>{ if(!s.online){ this.setState({dl:'failed'}); return; } this.setState({dl:'loading'}); setTimeout(()=>{ const j=juzAt(s.page); const a=JUZ[j-1], b=(JUZ[j]||605)-1; const pages=[]; for(let p=a;p<=b;p++)pages.push(p);
+        const fail=s.extraCached.length===0&&j!==1; this.setState({dl:fail?'failed':'done',extraCached:[...new Set([...s.extraCached,...pages.slice(0,fail?pages.length-3:pages.length)])]}); },1000); },
+      retryDl:()=>{ if(!s.online)return; const j=juzAt(s.page); const a=JUZ[j-1], b=(JUZ[j]||605)-1; const pages=[]; for(let p=a;p<=b;p++)pages.push(p); this.setState({dl:'done',extraCached:[...new Set([...s.extraCached,...pages])]}); },
+      tokenColors:[
+        {name:'--mf-paper-photo',hex:'#EEEDEB',use:'Tema Foto Sampel'},{name:'--mf-paper-ivory',hex:'#F5F1E8',use:'Tema bawaan'},{name:'--mf-paper-antique',hex:'#F2EBDD',use:'Tema Kertas Antik'},
+        {name:'--mf-surround-*',hex:'#E8E2D4',use:'Latar di sekitar halaman'},{name:'--mf-surface-*',hex:'#FBF8F2',use:'Lembar & bilah'},
+        {name:'--mf-ink',hex:'#252525',use:'Teks antarmuka'},{name:'--mf-ink-muted',hex:'#5E5A52',use:'Teks sekunder (≥ 5.8:1)'},
+        {name:'--mf-accent',hex:'#153B32',use:'Aksi utama, fokus, terpilih'},{name:'--mf-bronze',hex:'#A58B63',use:'Penanda, aksen halus (non-teks)'},
+        {name:'--mf-hairline',hex:'#DDD6C8',use:'Garis pemisah'},{name:'--mf-danger',hex:'#8A2E1F',use:'Hapus akun'},
+        {name:'--mf-verse-select',hex:'rgba(21,59,50,.15)',use:'Sorotan ayat'}],
+      typeScale:[
+        {spec:'display · Newsreader 44/1.0 500',ff:"'Newsreader',serif",size:'44px',fw:'500',sample:'Mushaf'},
+        {spec:'title · Newsreader 22/1.3 500',ff:"'Newsreader',serif",size:'22px',fw:'500',sample:'Daftar isi'},
+        {spec:'chrome · Newsreader 19 500',ff:"'Newsreader',serif",size:'19px',fw:'500',sample:'Al-Baqarah'},
+        {spec:'body · Plex Sans 15/1.5 400',ff:"'IBM Plex Sans',sans-serif",size:'15px',fw:'400',sample:'Lanjutkan bacaan di ponsel dan tablet.'},
+        {spec:'label · Plex Sans 14 500',ff:"'IBM Plex Sans',sans-serif",size:'14px',fw:'500',sample:'Tandai halaman'},
+        {spec:'meta · Plex Sans 12.5 400',ff:"'IBM Plex Sans',sans-serif",size:'12.5px',fw:'400',sample:'286 ayat · Hal. 2 · Juz 1'},
+        {spec:'arabic-name · Amiri 20',ff:"'Amiri',serif",size:'20px',fw:'400',sample:'البقرة'}],
+      components:[
+        {name:'mf-reader-shell',desc:'Wadah pembaca; menghitung mode satu/dua halaman dan safe area.',states:'immersive, chrome, zoomed, error'},
+        {name:'mf-page-svg',desc:'Merender aset SVG halaman apa adanya; tidak ada manipulasi teks.',states:'loading, ready, failed, offline-missing'},
+        {name:'mf-verse-overlay',desc:'Poligon ayat transparan di atas SVG; target ketuk & tekan lama.',states:'idle, hover, selected, bookmarked, playing'},
+        {name:'mf-spread',desc:'Dua halaman RTL, halaman ganjil di kanan, bayangan gutter.',states:'single, spread'},
+        {name:'mf-chrome-top / mf-chrome-bottom',desc:'Bilah atas & bawah, auto-hide 4,5 dtk.',states:'hidden, visible'},
+        {name:'mf-sheet',desc:'Bottom sheet (ponsel) atau panel samping 400px (≥768).',states:'closed, open; Esc/back menutup'},
+        {name:'mf-verse-actions',desc:'Tandai, Putar, Terjemahan, Salin ref., Bagikan.',states:'bookmarked / not'},
+        {name:'mf-browse',desc:'Tab Surah / Juz / Halaman + saring.',states:'list, filtered, empty'},
+        {name:'mf-bookmarks',desc:'Posisi terakhir (terpisah), tab Ayat/Halaman, riwayat.',states:'list, empty'},
+        {name:'mf-search',desc:'Parser rujukan: nama, 2:255, hal N, juz N.',states:'idle, results, none'},
+        {name:'mf-audio-sheet',desc:'Putar/jeda, progres ayat, qari, tab terjemahan.',states:'playing, paused, unavailable'},
+        {name:'mf-account',desc:'Tamu, masuk, tersinkron, konflik, terputus, hapus.',states:'guest, login, synced, syncing, conflict, disconnected'},
+        {name:'mf-offline-status',desc:'Jumlah halaman siap offline, penyimpanan, unduh juz.',states:'idle, loading, failed, done'},
+        {name:'mf-toast',desc:'Status singkat dengan satu aksi opsional.',states:'resume, info'},
+        {name:'mf-gesture-tour',desc:'4 langkah, bisa dilewati, dari Pengaturan.',states:'step 1–4'}],
+      gestures:[
+        {input:'Ketuk margin kosong',result:'Tampil/sembunyikan kontrol',alt:'Esc menyembunyikan'},
+        {input:'Ketuk ayat',result:'Pilih ayat + lembar aksi (ditunda 260ms)',alt:'Tab ke poligon + Enter'},
+        {input:'Tekan lama ayat (500ms)',result:'Pilih ayat + lembar aksi',alt:'—'},
+        {input:'Tekan lama area kosong',result:'Tidak ada aksi',alt:'—'},
+        {input:'Ketuk dua kali',result:'Zoom 2× di titik sentuh / kembali 1×',alt:'Tombol + / − ; Pengaturan › Atur ulang zoom'},
+        {input:'Geser horizontal (>50px)',result:'Kanan → halaman berikutnya, kiri → sebelumnya (RTL)',alt:'Tombol ‹ › ; ← →'},
+        {input:'Geser saat zoom',result:'Pan, tidak membalik halaman',alt:'Tombol −'},
+        {input:'Cubit',result:'Zoom 1–3× (implementasi)',alt:'Tombol + / −'},
+        {input:'Back / Esc',result:'Tutup tur → lembar → zoom → kontrol',alt:'Tombol ×'}],
+      responsive:[
+        {size:'360×800',rule:'1 halaman, lebar penuh − 20px. Bottom sheet 88% (ayat/audio 52%). Bilah bawah 6 kontrol 44px.'},
+        {size:'390×844',rule:'Sama seperti 360; ruang vertikal lebih lega.'},
+        {size:'768×1024',rule:'1 halaman (Otomatis). Panel samping 400px; bisa paksa 2 halaman.'},
+        {size:'1024×768',rule:'2 halaman RTL dengan gutter. Panel samping menutupi sebagian halaman kanan saja.'},
+        {size:'1280×800',rule:'2 halaman; ruang margin besar; panel samping tidak menutupi teks halaman kiri.'}],
+      arch:['Angular standalone components + signals untuk state pembaca; route /hal/:n sebagai satu-satunya rute utama.',
+        'Service worker: cache-first untuk SVG halaman (opsional per juz), network-first untuk metadata.',
+        'IndexedDB: posisi terakhir, penanda, riwayat, preferensi tema/mode. Tidak ada panggilan backend per balikan halaman.',
+        'Sinkronisasi opsional: Cloudflare Worker + D1, kirim delta terdebounce (mis. 30 dtk / saat app ke background), resolusi konflik last-read dengan pilihan pengguna, penanda digabung.',
+        'Overlay poligon ayat dimuat dari JSON per halaman (koordinat viewBox SVG), dirender sebagai <svg> terpisah di atas <img>/<object>.',
+        'Tema hanya mengganti latar kertas bila aset punya layer latar terpisah; tinta dalam SVG tidak diubah.'],
+      assumptions:['Halaman di prototipe adalah placeholder netral (bar abu-abu), bukan teks. Wajib diganti aset SVG Hafs 604 halaman yang telah diverifikasi dan berlisensi.',
+        'Poligon ayat di prototipe adalah perkiraan. Koordinat nyata harus berasal dari metadata aset.',
+        'Nama surah (Arab & transliterasi), jumlah ayat, halaman awal surah dan juz mengikuti indeks Madinah 604 umum — cocokkan dengan sumber metadata resmi.',
+        'Rujukan ayat→halaman hanya tersedia untuk hal. 1–5 di prototipe; halaman lain menampilkan "bagian" sampai data poligon tersedia.',
+        'Terjemahan dan audio qari belum bersumber; area ditandai jelas sebagai placeholder.',
+        'Warna bingkai biru adalah perkiraan ornamen; warna nyata berasal dari aset.',
+        'Penggantian warna kertas perlu dicek: hanya aman bila latar SVG terpisah dari tinta.']
+    };
+  }
+}
+</script>
+</body>
+</html>

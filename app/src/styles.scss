@@ -1,0 +1,322 @@
+/*
+ * Design tokens (source: desain/Mushaf Digital.dc.html, tab Handoff).
+ * Paper themes set [data-paper] on <html>; UI themes set [data-ui];
+ * high contrast sets [data-contrast="high"]; reduced motion sets [data-motion="reduce"].
+ * Components must use these variables — never hard-code theme colours.
+ */
+
+:root {
+  /* paper (reader surface) */
+  --mf-paper: #f5f1e8;
+  --mf-surround: #e8e2d4;
+  --mf-surface-paper: #fbf8f2;
+
+  /* mushaf frame ornament (UI layer only, never Quran glyphs) */
+  --mf-frame-ink: #3e6e99;
+
+  /* UI theme (default: segar) */
+  --ui-primary: #0a7a5c;
+  --ui-on: #ffffff;
+  --ui-accent: #f2603e;
+  --ui-accent-icon: #e04a28;
+  --ui-accent-ink: #b23a1c;
+  --ui-ink: #10231c;
+  --ui-ink2: #2f4a40;
+  --ui-muted: #55685f;
+  --ui-line: #cfe3da;
+  --ui-hair: #e1eee8;
+  --ui-surface: #ffffff;
+  --ui-welcome: #e6f5ee;
+  --ui-display: 'Plus Jakarta Sans', system-ui, sans-serif;
+  --ui-font: 'Plus Jakarta Sans', system-ui, sans-serif;
+
+  --mf-danger: #8a2e1f;
+  --mf-verse-select: color-mix(in srgb, var(--ui-primary) 16%, transparent);
+  --mf-verse-select-ring: color-mix(in srgb, var(--ui-primary) 55%, transparent);
+  --mf-verse-bookmarked: rgba(165, 139, 99, 0.18);
+  --mf-scrim: rgba(37, 37, 37, 0.28);
+
+  /* spacing (base 4) */
+  --mf-space-1: 4px;
+  --mf-space-2: 8px;
+  --mf-space-3: 12px;
+  --mf-space-4: 16px;
+  --mf-space-5: 20px;
+  --mf-space-6: 24px;
+  --mf-space-8: 32px;
+  --mf-space-12: 48px;
+
+  /* radius */
+  --mf-radius-sm: 8px;
+  --mf-radius-md: 12px;
+  --mf-radius-lg: 14px;
+  --mf-radius-sheet: 20px;
+  --mf-radius-pill: 999px;
+
+  /* motion */
+  --mf-dur-fast: 140ms;
+  --mf-dur-base: 260ms;
+  --mf-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+
+  /* z layers */
+  --mf-z-page: 0;
+  --mf-z-overlay: 1;
+  --mf-z-chrome: 10;
+  --mf-z-scrim: 30;
+  --mf-z-sheet: 31;
+  /* above sheets: feedback for actions taken inside a sheet must stay visible */
+  --mf-z-toast: 35;
+  --mf-z-tour: 40;
+
+  /* safe areas */
+  --mf-safe-top: env(safe-area-inset-top, 0px);
+  --mf-safe-bottom: env(safe-area-inset-bottom, 0px);
+  --mf-safe-left: env(safe-area-inset-left, 0px);
+  --mf-safe-right: env(safe-area-inset-right, 0px);
+
+  --mf-tap: 44px;
+}
+
+/* ---- paper themes (exact hex values from the brief) ---- */
+html[data-paper='photo'] {
+  --mf-paper: #eeedeb;
+  --mf-surround: #dfddd9;
+  --mf-surface-paper: #f8f7f5;
+}
+html[data-paper='ivory'] {
+  --mf-paper: #f5f1e8;
+  --mf-surround: #e8e2d4;
+  --mf-surface-paper: #fbf8f2;
+}
+html[data-paper='antique'] {
+  --mf-paper: #f2ebdd;
+  --mf-surround: #e4d9c4;
+  --mf-surface-paper: #f9f4ea;
+}
+
+/* ---- UI themes ---- */
+html[data-ui='klasik'] {
+  --ui-primary: #153b32;
+  --ui-on: #f5f1e8;
+  --ui-accent: #a58b63;
+  --ui-accent-icon: #a58b63;
+  --ui-accent-ink: #7a6340;
+  --ui-ink: #252525;
+  --ui-ink2: #4a463f;
+  --ui-muted: #5e5a52;
+  --ui-line: #d9d3c6;
+  --ui-hair: #ddd6c8;
+  --ui-surface: var(--mf-surface-paper);
+  --ui-welcome: var(--mf-paper);
+  --ui-display: 'Newsreader', Georgia, serif;
+  --ui-font: 'IBM Plex Sans', system-ui, sans-serif;
+}
+html[data-ui='segar'] {
+  --ui-primary: #0a7a5c;
+  --ui-on: #ffffff;
+  --ui-accent: #f2603e;
+  --ui-accent-icon: #e04a28;
+  --ui-accent-ink: #b23a1c;
+  --ui-ink: #10231c;
+  --ui-ink2: #2f4a40;
+  --ui-muted: #55685f;
+  --ui-line: #cfe3da;
+  --ui-hair: #e1eee8;
+  --ui-surface: #ffffff;
+  --ui-welcome: #e6f5ee;
+}
+html[data-ui='ceria'] {
+  --ui-primary: #5b3fd9;
+  --ui-on: #ffffff;
+  --ui-accent: #f2a100;
+  --ui-accent-icon: #b87600;
+  --ui-accent-ink: #8f5600;
+  --ui-ink: #1d1838;
+  --ui-ink2: #3d3760;
+  --ui-muted: #605b7d;
+  --ui-line: #ddd7f3;
+  --ui-hair: #ece8fa;
+  --ui-surface: #ffffff;
+  --ui-welcome: #efebff;
+}
+html[data-ui='samudra'] {
+  --ui-primary: #1560c8;
+  --ui-on: #ffffff;
+  --ui-accent: #ec4677;
+  --ui-accent-icon: #d9306a;
+  --ui-accent-ink: #b0234f;
+  --ui-ink: #0f1d33;
+  --ui-ink2: #33435e;
+  --ui-muted: #57667f;
+  --ui-line: #d3e0f2;
+  --ui-hair: #e5edf8;
+  --ui-surface: #ffffff;
+  --ui-welcome: #e7f0fc;
+}
+
+html[data-contrast='high'] {
+  --ui-hair: #9a9284;
+  --ui-line: #9a9284;
+  --ui-muted: var(--ui-ink2);
+  --mf-frame-ink: #24507a;
+}
+
+html[data-motion='reduce'] {
+  --mf-dur-fast: 0ms;
+  --mf-dur-base: 0ms;
+}
+@media (prefers-reduced-motion: reduce) {
+  html:not([data-motion='no-preference']) {
+    --mf-dur-fast: 0ms;
+    --mf-dur-base: 0ms;
+  }
+}
+
+/* ---- base ---- */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  overscroll-behavior: none;
+  background: var(--mf-surround);
+  color: var(--ui-ink);
+  font-family: var(--ui-font);
+  -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+:focus-visible {
+  outline: 2px solid var(--ui-primary);
+  outline-offset: 2px;
+}
+
+input[type='range'] {
+  accent-color: var(--ui-primary);
+}
+
+.mf-visually-hidden {
+  position: absolute !important;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+/* Shared primitives used across sheets. */
+.mf-btn {
+  min-height: var(--mf-tap);
+  padding: 0 var(--mf-space-5);
+  border-radius: var(--mf-radius-pill);
+  border: 1px solid transparent;
+  font-size: 15px;
+  font-weight: 500;
+}
+.mf-btn--primary {
+  background: var(--ui-primary);
+  color: var(--ui-on);
+}
+.mf-btn--outline {
+  background: transparent;
+  color: var(--ui-primary);
+  border-color: var(--ui-primary);
+}
+.mf-btn--ghost {
+  background: transparent;
+  color: var(--ui-primary);
+  border: none;
+}
+.mf-btn--danger {
+  background: var(--mf-danger);
+  color: #fff;
+}
+.mf-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.mf-icon-btn {
+  width: var(--mf-tap);
+  height: var(--mf-tap);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  border-radius: 50%;
+  color: var(--ui-ink);
+}
+.mf-icon-btn:hover {
+  background: color-mix(in srgb, var(--ui-ink) 6%, transparent);
+}
+
+.mf-segmented {
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  border-radius: var(--mf-radius-md);
+  background: color-mix(in srgb, var(--ui-ink) 6%, transparent);
+}
+.mf-segmented > button {
+  flex: 1;
+  min-height: 40px;
+  border: none;
+  border-radius: 9px;
+  background: transparent;
+  font-size: 14px;
+  font-weight: 500;
+}
+.mf-segmented > button[aria-selected='true'],
+.mf-segmented > button[aria-pressed='true'] {
+  background: #fff;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+}
+
+.mf-input {
+  min-height: var(--mf-tap);
+  padding: 0 var(--mf-space-4);
+  border-radius: var(--mf-radius-md);
+  border: 1px solid var(--ui-line);
+  background: #fff;
+  font-size: 15px;
+  width: 100%;
+}
+
+.mf-eyebrow {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--ui-muted);
+}
+
+.mf-display {
+  font-family: var(--ui-display);
+}
+
+.mf-note {
+  padding: var(--mf-space-3) 14px;
+  border-radius: var(--mf-radius-md);
+  background: color-mix(in srgb, var(--ui-accent) 12%, transparent);
+  font-size: 13.5px;
+  line-height: 1.5;
+}

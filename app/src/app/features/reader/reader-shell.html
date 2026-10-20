@@ -1,0 +1,81 @@
+@if (content.index()) {
+  <button
+    type="button"
+    class="skip"
+    [attr.aria-pressed]="chromeShown()"
+    (click)="toggleChrome()"
+  >
+    {{ chromeShown() ? 'Sembunyikan kontrol' : 'Tampilkan kontrol' }}
+  </button>
+
+  <section
+    class="stage"
+    aria-label="Pembaca mushaf"
+    (pointerdown)="onPointerDown($event)"
+    (pointermove)="onPointerMove($event)"
+    (pointerup)="onPointerUp($event)"
+    (pointercancel)="onPointerCancel($event)"
+  >
+    <div
+      class="zoomer"
+      [class.is-animated]="animated()"
+      [style.--mf-pages]="spread() ? 2 : 1"
+      [style.transform]="transform()"
+    >
+      @for (p of visible(); track p) {
+        <mf-page-view
+          [page]="p"
+          [active]="spread() && p === pageNum()"
+          [selected]="selected()"
+          [bookmarked]="bookmarkedVerses()"
+          (loadResult)="onPageResult($event)"
+        />
+      }
+    </div>
+  </section>
+
+  <div class="edge edge--left" [class.is-visible]="!chromeShown() && !ui.sheetOpen()" aria-hidden="true"></div>
+  <div class="edge edge--right" [class.is-visible]="!chromeShown() && !ui.sheetOpen()" aria-hidden="true"></div>
+
+  @if (zoomed()) {
+    <button
+      type="button"
+      class="zoom-pill"
+      [class.is-low]="!chromeShown()"
+      (click)="resetZoom()"
+    >
+      {{ zoomLabel() }} · Atur ulang zoom
+    </button>
+  }
+
+  <div class="zoom-ctl" [class.is-hidden]="!chromeShown()">
+    <button type="button" class="zoom-btn" aria-label="Perbesar" [disabled]="!canZoomIn()" (click)="zoomIn()">+</button>
+    <button type="button" class="zoom-btn" aria-label="Perkecil" [disabled]="!canZoomOut()" (click)="zoomOut()">&minus;</button>
+  </div>
+
+  <mf-chrome-top
+    [shown]="chromeShown()"
+    (focusin)="setChromeFocus()"
+    (focusout)="onChromeFocusOut($event)"
+  />
+  <mf-chrome-bottom
+    [shown]="chromeShown()"
+    [canNext]="canNext()"
+    [canPrev]="canPrev()"
+    (next)="goNext()"
+    (prev)="goPrev()"
+    (focusin)="setChromeFocus()"
+    (focusout)="onChromeFocusOut($event)"
+  />
+} @else {
+  <div class="boot" role="status">
+    @if (content.loadError(); as err) {
+      <p class="boot__title mf-display">Mushaf belum dapat dimuat</p>
+      <p class="boot__body">{{ err }}</p>
+      <button type="button" class="mf-btn mf-btn--primary" (click)="retryIndex()">Coba lagi</button>
+    } @else {
+      <span class="boot__spinner" aria-hidden="true"></span>
+      <p class="boot__body">Memuat mushaf…</p>
+    }
+  </div>
+}

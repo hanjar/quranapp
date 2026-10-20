@@ -1,0 +1,21 @@
+name = "mushaf-api"
+main = "src/index.ts"
+compatibility_date = "2026-10-01"
+compatibility_flags = ["nodejs_compat"]
+
+# Same-origin deployment: route /api/* of the Pages custom domain to this Worker, e.g.
+#   routes = [{ pattern = "mushaf.example.com/api/*", zone_name = "example.com" }]
+# Uncomment and edit after the custom domain exists (see docs/worker.md).
+
+[vars]
+APP_ORIGIN = "https://mushaf.example.com"
+DEV_AUTH = "0"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "mushaf"
+database_id = "00000000-0000-0000-0000-000000000000" # replace with `wrangler d1 create mushaf` output
+migrations_dir = "migrations"
+
+[triggers]
+crons = ["17 3 * * *"] # daily cleanup (UTC)
