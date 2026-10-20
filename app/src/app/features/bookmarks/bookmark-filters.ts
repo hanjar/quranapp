@@ -162,3 +162,16 @@ export function folderNameSuggestions(
     (n): n is string => !!n && !taken.has(n.toLowerCase()),
   );
 }
+
+/**
+ * True when a verse bookmark points at the LAST ayah shown on its page — the
+ * reader finished that page (shown with a distinct icon in bookmark lists).
+ */
+export function isPageEndVerse(
+  b: Pick<Bookmark, 'kind' | 'page' | 'surah' | 'ayah'>,
+  lastOfPage: (page: number) => { surah: number; ayah: number } | null,
+): boolean {
+  if (b.kind !== 'verse' || b.surah === null || b.ayah === null) return false;
+  const last = lastOfPage(b.page);
+  return !!last && last.surah === b.surah && last.ayah === b.ayah;
+}

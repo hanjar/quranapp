@@ -21,6 +21,7 @@ import {
   filterBookmarks,
   folderCounts,
   folderNameSuggestions,
+  isPageEndVerse,
 } from './bookmark-filters';
 
 type NewFolderTarget = 'filter' | 'move';
@@ -254,7 +255,12 @@ type NewFolderTarget = 'filter' | 'move';
               </label>
             }
             <button type="button" class="go" (click)="rowTap(r.b)">
-              <span class="title">{{ r.title }}</span>
+              <span class="title"
+                >{{ r.title }}
+                @if (r.pageEnd) {
+                  <span class="end-badge" title="Ayat terakhir di halaman ini">✓ Akhir hal.</span>
+                }
+              </span>
               <span class="sub">{{ r.sub }}</span>
               @if (r.folderName) {
                 <span class="tag">
@@ -675,6 +681,17 @@ type NewFolderTarget = 'filter' | 'move';
       text-align: left;
       color: var(--ui-ink);
     }
+    .end-badge {
+      display: inline-block;
+      margin-left: 6px;
+      padding: 1px 7px;
+      border-radius: 999px;
+      font-size: 11.5px;
+      font-weight: 600;
+      vertical-align: 1px;
+      color: var(--ui-primary);
+      background: color-mix(in srgb, var(--ui-primary) 12%, transparent);
+    }
     .title {
       font-size: 15px;
       font-weight: 500;
@@ -840,10 +857,14 @@ export class BookmarksManager {
       if (b.kind === 'verse' && b.surah && b.ayah) {
         const name = index?.surahs[b.surah - 1]?.nameLatin ?? `Surah ${b.surah}`;
         const juz = index ? this.content.juzAt(b.page).number : '';
+        const pageEnd = !!index && isPageEndVerse(b, (p) => this.content.pageMeta(p).last);
         return {
           b,
+          pageEnd,
           title: `${name} · Ayat ${b.ayah}`,
-          sub: `Hal. ${b.page} · Juz ${juz} · ${date}`,
+          sub: pageEnd
+            ? `Hal. ${b.page} selesai dibaca · Juz ${juz} · ${date}`
+            : `Hal. ${b.page} · Juz ${juz} · ${date}`,
           folderName,
         };
       }
@@ -851,6 +872,7 @@ export class BookmarksManager {
       const juz = index ? this.content.juzAt(b.page).number : '';
       return {
         b,
+        pageEnd: false,
         title: `Halaman ${b.page} · ${name}`,
         sub: `Hal. ${b.page} · Juz ${juz} · ${date}`,
         folderName,

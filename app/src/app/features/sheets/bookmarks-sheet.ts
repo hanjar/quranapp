@@ -1,3 +1,4 @@
+import { isPageEndVerse } from '../bookmarks/bookmark-filters';
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { ContentApi, UserDataApi } from '../../core/contracts';
 import { Bookmark } from '../../core/models';
@@ -34,7 +35,13 @@ type BmTab = 'verse' | 'page';
       </button>
     }
 
-    <button type="button" class="mf-btn mf-btn--outline manage" (click)="history.navigateUrl('/penanda')">Kelola</button>
+    <button
+      type="button"
+      class="mf-btn mf-btn--outline manage"
+      (click)="history.navigateUrl('/penanda')"
+    >
+      Kelola
+    </button>
 
     <div class="mf-segmented" role="tablist" aria-label="Jenis penanda">
       <button
@@ -57,22 +64,46 @@ type BmTab = 'verse' | 'page';
 
     @for (r of rows(); track r.id) {
       <div class="item">
-        <svg
-          class="flag"
-          width="18"
-          height="18"
-          viewBox="0 0 24 24"
-          stroke-width="1.4"
-          stroke-linejoin="round"
-          aria-hidden="true"
-        >
-          <path d="M6.5 4h11v16l-5.5-4-5.5 4z" />
-        </svg>
+        @if (r.pageEnd) {
+          <svg
+            class="flag flag--end"
+            width="18"
+            height="18"
+            viewBox="0 0 24 24"
+            stroke-width="1.4"
+            stroke-linejoin="round"
+            aria-hidden="true"
+          >
+            <path d="M6.5 4h11v16l-5.5-4-5.5 4z" />
+            <path d="M9.2 9.6l2 2 3.6-3.8" fill="none" stroke-width="1.8" stroke-linecap="round" />
+          </svg>
+        } @else {
+          <svg
+            class="flag"
+            width="18"
+            height="18"
+            viewBox="0 0 24 24"
+            stroke-width="1.4"
+            stroke-linejoin="round"
+            aria-hidden="true"
+          >
+            <path d="M6.5 4h11v16l-5.5-4-5.5 4z" />
+          </svg>
+        }
         <button type="button" class="go" (click)="open(r.bookmark)">
-          <span class="title">{{ r.title }}</span>
+          <span class="title"
+            >{{ r.title }}
+            @if (r.pageEnd) {
+              <span class="end-badge">Akhir hal.</span>
+            }
+          </span>
           <span class="sub">{{ r.sub }}</span>
-          @if (r.folderName) { <span class="tag">{{ r.folderName }}</span> }
-          @if (r.bookmark.note) { <span class="note">{{ r.bookmark.note }}</span> }
+          @if (r.folderName) {
+            <span class="tag">{{ r.folderName }}</span>
+          }
+          @if (r.bookmark.note) {
+            <span class="note">{{ r.bookmark.note }}</span>
+          }
         </button>
         <button
           type="button"
@@ -169,6 +200,25 @@ type BmTab = 'verse' | 'page';
       fill: var(--ui-accent-icon);
       stroke: var(--ui-accent-icon);
     }
+    /* Last ayah of its page: page finished — primary colour + check mark. */
+    .flag--end {
+      fill: var(--ui-primary);
+      stroke: var(--ui-primary);
+    }
+    .flag--end path + path {
+      stroke: var(--ui-on);
+    }
+    .end-badge {
+      display: inline-block;
+      margin-left: 6px;
+      padding: 1px 7px;
+      border-radius: 999px;
+      font-size: 11.5px;
+      font-weight: 600;
+      vertical-align: 1px;
+      color: var(--ui-primary);
+      background: color-mix(in srgb, var(--ui-primary) 12%, transparent);
+    }
     .go {
       flex: 1;
       min-width: 0;
@@ -191,9 +241,23 @@ type BmTab = 'verse' | 'page';
       font-size: 12.5px;
       color: var(--ui-muted);
     }
-    .tag { font-size: 12px; color: var(--ui-accent-ink); }
-    .note { font-size: 12.5px; font-style: italic; color: var(--ui-ink2); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-    .manage { align-self: flex-start; min-height: var(--mf-tap); }
+    .tag {
+      font-size: 12px;
+      color: var(--ui-accent-ink);
+    }
+    .note {
+      font-size: 12.5px;
+      font-style: italic;
+      color: var(--ui-ink2);
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+    .manage {
+      align-self: flex-start;
+      min-height: var(--mf-tap);
+    }
     .del {
       flex: none;
       color: var(--ui-muted);
@@ -253,11 +317,14 @@ export class BookmarksSheet {
         const date = formatDate(b.createdAt);
         if (b.kind === 'verse' && b.surah && b.ayah) {
           const name = index.surahs[b.surah - 1]?.nameLatin ?? `Surah ${b.surah}`;
+          const pageEnd = isPageEndVerse(b, (p) => this.content.pageMeta(p).last);
           return {
             id: b.id,
             bookmark: b,
+            folderName: folderName(b),
+            pageEnd,
             title: `${name} · Ayat ${b.ayah}`,
-            sub: `Hal. ${b.page} · ${date}`,
+            sub: pageEnd ? `Hal. ${b.page} selesai dibaca · ${date}` : `Hal. ${b.page} · ${date}`,
           };
         }
         const surah = this.content.surahAt(b.page).nameLatin;
@@ -265,6 +332,7 @@ export class BookmarksSheet {
           id: b.id,
           bookmark: b,
           folderName: folderName(b),
+          pageEnd: false,
           title: `Halaman ${b.page} · ${surah}`,
           sub: `Juz ${this.content.juzAt(b.page).number} · ${date}`,
         };

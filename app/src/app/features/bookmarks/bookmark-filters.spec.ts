@@ -7,6 +7,7 @@ import {
   folderCounts,
   folderNameSuggestions,
   hijriYear,
+  isPageEndVerse,
   matchesFolder,
   matchesQuery,
   sortBookmarks,
@@ -200,5 +201,17 @@ describe('suggestions', () => {
     const ram = suggestRamadhanName(d);
     const taken = ['Khatam ke-1', ...(ram ? [ram.toUpperCase()] : [])];
     expect(folderNameSuggestions(taken, d)).toEqual(['Khatam ke-2']);
+  });
+});
+
+describe('isPageEndVerse', () => {
+  const last = (page: number) => (page === 528 ? { surah: 54, ayah: 6 } : null);
+  it('is true only for the last ayah of the bookmarked page', () => {
+    expect(isPageEndVerse({ kind: 'verse', page: 528, surah: 54, ayah: 6 }, last)).toBe(true);
+    expect(isPageEndVerse({ kind: 'verse', page: 528, surah: 54, ayah: 5 }, last)).toBe(false);
+  });
+  it('is false for page bookmarks and unknown pages', () => {
+    expect(isPageEndVerse({ kind: 'page', page: 528, surah: null, ayah: null }, last)).toBe(false);
+    expect(isPageEndVerse({ kind: 'verse', page: 1, surah: 1, ayah: 7 }, last)).toBe(false);
   });
 });
