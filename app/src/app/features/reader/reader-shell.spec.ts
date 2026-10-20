@@ -2,7 +2,7 @@ import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { ContentApi, OfflineApi, SyncApi, UserDataApi } from '../../core/contracts';
+import { ContentApi, DownloadState, OfflineApi, SyncApi, UserDataApi } from '../../core/contracts';
 import {
   ContentIndex,
   DEFAULT_PREFERENCES,
@@ -14,6 +14,7 @@ import { AudioService } from '../../core/audio/audio.service';
 import { AudioOfflineApi } from '../../core/audio/audio-offline.api';
 import { ProgressService } from '../../core/progress/progress.service';
 import { ReaderUiService } from '../../core/reader-ui.service';
+import { UpdateService } from '../../core/update.service';
 import { ReadingViewService } from '../../core/reading-view.service';
 import { TranslationService } from '../../core/content/translation.service';
 import { LatinService } from '../../core/content/latin.service';
@@ -140,7 +141,7 @@ class FakeOffline extends OfflineApi {
     totalPages: 604,
     cachedBytes: 0,
     totalBytes: 0,
-    state: 'idle' as const,
+    state: 'idle' as DownloadState,
     failedPages: [],
     persisted: null,
   });
@@ -171,19 +172,26 @@ describe('ReaderShell', () => {
   let content: FakeContent;
   let userData: FakeUserData;
   let ui: ReaderUiService;
+  let sync: FakeSync;
+  let offline: FakeOffline;
+  let updateAvailable: ReturnType<typeof signal<boolean>>;
   let goTo: ReturnType<typeof vi.fn>;
 
   beforeEach(() => {
     content = new FakeContent();
     userData = new FakeUserData();
+    sync = new FakeSync();
+    offline = new FakeOffline();
+    updateAvailable = signal(false);
     TestBed.configureTestingModule({
       providers: [
         provideRouter([]),
         { provide: ContentApi, useValue: content },
         { provide: UserDataApi, useValue: userData },
-        { provide: OfflineApi, useValue: new FakeOffline() },
+        { provide: OfflineApi, useValue: offline },
         { provide: AudioOfflineApi, useValue: { localUrl: async () => null } },
-        { provide: SyncApi, useValue: new FakeSync() },
+        { provide: SyncApi, useValue: sync },
+        { provide: UpdateService, useValue: { available: updateAvailable } },
         {
           provide: ProgressService,
           useValue: { createTracker: () => ({ visible: () => {}, stop: () => {}, hidden: () => {} }) },
@@ -210,6 +218,103 @@ describe('ReaderShell', () => {
     fixture.detectChanges();
     return fixture;
   }
+
+  describe('navigation chrome', () => {
+    const q = (f: { nativeElement: HTMLElement }, sel: string) =>
+      f.nativeElement.querySelector<HTMLElement>(sel);
+    const labels = (f: { nativeElement: HTMLElement }, tag: string) =>
+      Array.from(f.nativeElement.querySelectorAll(`${tag} button`)).map((b) =>
+        b.getAttribute('aria-label'),
+      );
+
+    it('top bar: title button + search, night, menu only', async () => {
+      const f = await mount('5');
+      const top = labels(f, 'mf-chrome-top');
+      expect(top).toHaveLength(4);
+      expect(top[0]).toContain('Daftar surah, juz, halaman');
+      expect(top.slice(1)).toEqual(['Cari', 'Nyalakan mode malam', 'Menu']);
+      for (const gone of ['Penanda', 'Progres membaca', 'Pengaturan', 'Sembunyikan menu (layar penuh)']) {
+        expect(top).not.toContain(gone);
+      }
+    });
+
+    it('title opens the browse sheet; menu button opens the menu sheet', async () => {
+      const f = await mount('5');
+      q(f, 'mf-chrome-top .title')!.click();
+      expect(ui.sheet()).toBe('browse');
+      q(f, 'mf-chrome-top .menu-btn')!.click();
+      expect(ui.sheet()).toBe('menu');
+    });
+
+    it('menu dot appears for a sync error, an update, or a paused download', async () => {
+      const f = await mount('5');
+      const dot = () => q(f, '[data-testid="menu-dot"]');
+      expect(dot()).toBeNull();
+      sync.status.set('error');
+      f.detectChanges();
+      expect(dot()).not.toBeNull();
+      sync.status.set('synced');
+      updateAvailable.set(true);
+      f.detectChanges();
+      expect(dot()).not.toBeNull();
+      updateAvailable.set(false);
+      offline.status.update((s) => ({ ...s, state: 'paused' as DownloadState }));
+      f.detectChanges();
+      expect(dot()).not.toBeNull();
+      offline.status.update((s) => ({ ...s, state: 'idle' as DownloadState }));
+      f.detectChanges();
+      expect(dot()).toBeNull();
+    });
+
+    it('bottom bar: no contents or zoom button, play + bookmark present', async () => {
+      const f = await mount('5');
+      const bottom = labels(f, 'mf-chrome-bottom');
+      expect(bottom).toContain('Putar bacaan dari halaman 5');
+      expect(bottom).toContain('Tandai halaman 5');
+      expect(bottom).not.toContain('Daftar isi');
+      expect(bottom.some((l) => l?.includes('Perbesar halaman'))).toBe(false);
+      expect(q(f, 'mf-chrome-bottom .pill')!.textContent).toContain('5 / 604');
+    });
+
+    it('play starts at the first ayah of the page', async () => {
+      const f = await mount('5');
+      const audio = TestBed.inject(AudioService);
+      const play = vi.spyOn(audio, 'play').mockImplementation(() => {});
+      q(f, '[data-testid="play-btn"]')!.click();
+      expect(play).toHaveBeenCalledWith({ surah: 1, ayah: 1 }, 5);
+    });
+
+    it('bookmark: long-press opens the list instead of toggling; tap toggles', async () => {
+      const f = await mount('5');
+      vi.useFakeTimers();
+      try {
+        const toggle = vi.spyOn(userData, 'togglePageBookmark');
+        const btn = q(f, '[data-testid="bookmark-btn"]')!;
+        btn.dispatchEvent(new Event('pointerdown'));
+        vi.advanceTimersByTime(600);
+        btn.dispatchEvent(new Event('pointerup'));
+        btn.click();
+        expect(ui.sheet()).toBe('bookmarks');
+        expect(toggle).not.toHaveBeenCalled();
+        ui.closeSheet();
+        btn.dispatchEvent(new Event('pointerdown'));
+        btn.dispatchEvent(new Event('pointerup'));
+        btn.click();
+        expect(toggle).toHaveBeenCalledWith(5);
+        expect(ui.sheet()).toBeNull();
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it('right-click on the bookmark button opens the bookmarks sheet', async () => {
+      const f = await mount('5');
+      q(f, '[data-testid="bookmark-btn"]')!.dispatchEvent(
+        new MouseEvent('contextmenu', { bubbles: true, cancelable: true }),
+      );
+      expect(ui.sheet()).toBe('bookmarks');
+    });
+  });
 
   it('redirects an invalid page to page 1 with replaceUrl', async () => {
     await mount('999');

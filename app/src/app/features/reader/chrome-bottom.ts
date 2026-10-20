@@ -1,9 +1,26 @@
 import { LOCAL_WRITE_TIMEOUT_MS, withTimeout } from '../../core/async';
-import { ChangeDetectionStrategy, Component, computed, inject, input, output } from '@angular/core';
-import { UserDataApi } from '../../core/contracts';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  OnDestroy,
+  computed,
+  inject,
+  input,
+  output,
+} from '@angular/core';
+import { AudioService } from '../../core/audio/audio.service';
+import { ContentApi, UserDataApi } from '../../core/contracts';
 import { ReaderUiService } from '../../core/reader-ui.service';
 
-/** Bottom bar: next | page bookmark | page pill | contents | prev (no audio this phase). */
+/** Press-and-hold on the bookmark button opens the bookmarks list after this long. */
+export const BOOKMARK_LONG_PRESS_MS = 500;
+
+/**
+ * Bottom bar (visual order, left to right; paging keeps the RTL book semantics):
+ * next | bookmark this page | play from this page | page pill | translation/mushaf | prev.
+ * The contents list moved to the title in the top bar; zoom is pinch / double-tap
+ * (+/- and reset appear while zoomed).
+ */
 @Component({
   selector: 'mf-chrome-bottom',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -31,15 +48,23 @@ import { ReaderUiService } from '../../core/reader-ui.service';
       </svg>
     </button>
 
+    <!-- Tap: mark/unmark the page. Long-press or right-click: open the bookmarks list (Menu › Penanda for keyboard). -->
     <button
       type="button"
       class="mf-icon-btn"
+      data-testid="bookmark-btn"
       [class.is-on]="pageBookmarked()"
       [attr.aria-label]="
         pageBookmarked() ? 'Hapus penanda halaman ' + page() : 'Tandai halaman ' + page()
       "
       [attr.aria-pressed]="pageBookmarked()"
-      (click)="toggleBookmark()"
+      title="Ketuk untuk menandai, tekan lama untuk daftar penanda"
+      (pointerdown)="pressStart($event)"
+      (pointerup)="pressEnd()"
+      (pointerleave)="pressEnd()"
+      (pointercancel)="pressEnd()"
+      (contextmenu)="onContextMenu($event)"
+      (click)="onBookmarkClick()"
     >
       <svg
         width="21"
@@ -55,35 +80,26 @@ import { ReaderUiService } from '../../core/reader-ui.service';
       </svg>
     </button>
 
-    <!-- Touch screens: zoom lives here (no free margin for floating +/-); mouse users get +/- at the edge. -->
-    @if (!textMode()) {
     <button
       type="button"
-      class="mf-icon-btn zoom-toggle"
-      [class.is-on]="zoomed()"
-      [disabled]="!zoomAvailable()"
-      [attr.aria-label]="zoomed() ? 'Kembali ke ukuran normal' : 'Perbesar halaman'"
-      [attr.aria-pressed]="zoomed()"
-      (click)="toggleZoom.emit()"
+      class="mf-icon-btn"
+      data-testid="play-btn"
+      [class.is-on]="audio.active()"
+      [disabled]="!playReady()"
+      [attr.aria-label]="playLabel()"
+      (click)="playOrToggle()"
     >
-      <svg
-        width="21"
-        height="21"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        stroke-width="1.6"
-        stroke-linecap="round"
-        aria-hidden="true"
-      >
-        <circle cx="10.5" cy="10.5" r="6" />
-        <path d="M20 20l-5-5M8 10.5h5" />
-        @if (!zoomed()) {
-          <path d="M10.5 8v5" />
-        }
-      </svg>
+      @if (showPause()) {
+        <svg width="21" height="21" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+          <rect x="7" y="5" width="3.6" height="14" rx="1" />
+          <rect x="13.4" y="5" width="3.6" height="14" rx="1" />
+        </svg>
+      } @else {
+        <svg width="21" height="21" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+          <path d="M8 5.5v13a1 1 0 0 0 1.5.86l10.5-6.5a1 1 0 0 0 0-1.72L9.5 4.64A1 1 0 0 0 8 5.5z" />
+        </svg>
+      }
     </button>
-    }
 
     <button
       type="button"
@@ -92,26 +108,6 @@ import { ReaderUiService } from '../../core/reader-ui.service';
       (click)="ui.openSheet('browse', { browseTab: 'page' })"
     >
       {{ pillText() }}
-    </button>
-
-    <button
-      type="button"
-      class="mf-icon-btn"
-      aria-label="Daftar isi"
-      (click)="ui.openSheet('browse', { browseTab: 'surah' })"
-    >
-      <svg
-        width="21"
-        height="21"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        stroke-width="1.6"
-        stroke-linecap="round"
-        aria-hidden="true"
-      >
-        <path d="M5 7h14M5 12h14M5 17h9" />
-      </svg>
     </button>
 
     <button
@@ -197,15 +193,16 @@ import { ReaderUiService } from '../../core/reader-ui.service';
       opacity: 0.35;
       cursor: not-allowed;
     }
-    @media (pointer: fine) {
-      .zoom-toggle {
-        display: none;
-      }
+    .mf-icon-btn {
+      flex: none;
+      -webkit-touch-callout: none;
+      user-select: none;
     }
     .mf-icon-btn.is-on {
       color: var(--ui-accent-icon);
     }
     .mode-btn {
+      flex: none;
       display: inline-flex;
       flex-direction: column;
       align-items: center;
@@ -233,9 +230,10 @@ import { ReaderUiService } from '../../core/reader-ui.service';
       }
     }
     .pill {
+      flex: none;
       min-width: 64px;
       min-height: var(--mf-tap);
-      padding: 0 12px;
+      padding: 0 10px;
       border-radius: var(--mf-radius-pill);
       border: 1px solid var(--ui-hair);
       background: var(--ui-surface);
@@ -246,20 +244,18 @@ import { ReaderUiService } from '../../core/reader-ui.service';
     }
   `,
 })
-export class ChromeBottom {
+export class ChromeBottom implements OnDestroy {
   protected readonly ui = inject(ReaderUiService);
   private readonly userData = inject(UserDataApi);
+  private readonly content = inject(ContentApi);
+  protected readonly audio = inject(AudioService);
 
   readonly shown = input(true);
   readonly canNext = input(true);
   readonly canPrev = input(true);
-  readonly zoomed = input(false);
-  /** False in phone-landscape fit-width mode, where the page is already enlarged. */
-  readonly zoomAvailable = input(true);
   /** Translation reading mode is active. */
   readonly textMode = input(false);
   readonly toggleMode = output<void>();
-  readonly toggleZoom = output<void>();
   readonly next = output<void>();
   readonly prev = output<void>();
 
@@ -273,6 +269,76 @@ export class ChromeBottom {
   protected readonly pillText = computed(() => {
     return `${this.ui.currentPage()} / 604`;
   });
+
+  // --- audio -----------------------------------------------------------------
+  protected readonly playReady = computed(() => this.audio.active() || !!this.content.index());
+  protected readonly showPause = computed(() => {
+    const s = this.audio.state();
+    return s === 'playing' || s === 'loading';
+  });
+  protected readonly playLabel = computed(() => {
+    switch (this.audio.state()) {
+      case 'playing':
+      case 'loading':
+        return 'Jeda bacaan';
+      case 'paused':
+        return 'Lanjutkan bacaan';
+      case 'error':
+        return 'Coba putar lagi';
+      default:
+        return `Putar bacaan dari halaman ${this.ui.currentPage()}`;
+    }
+  });
+
+  /** Idle: start from the first ayah of this page. Active: pause/resume (error retries). */
+  protected playOrToggle(): void {
+    if (this.audio.active()) {
+      this.audio.toggle();
+      return;
+    }
+    const page = this.ui.currentPage();
+    this.audio.play(this.content.pageMeta(page).first, page);
+  }
+
+  // --- bookmark: tap = toggle, long-press / right-click = list --------------------
+  private pressTimer: ReturnType<typeof setTimeout> | null = null;
+  private longPressed = false;
+
+  protected pressStart(e: PointerEvent): void {
+    if (e.button > 0) return;
+    this.pressEnd();
+    this.longPressed = false;
+    this.pressTimer = setTimeout(() => {
+      this.pressTimer = null;
+      this.longPressed = true;
+      this.ui.openSheet('bookmarks');
+    }, BOOKMARK_LONG_PRESS_MS);
+  }
+
+  protected pressEnd(): void {
+    if (this.pressTimer) clearTimeout(this.pressTimer);
+    this.pressTimer = null;
+  }
+
+  protected onContextMenu(e: Event): void {
+    e.preventDefault(); // also fired by a touch long-press on some browsers
+    this.pressEnd();
+    if (!this.longPressed) this.ui.openSheet('bookmarks');
+    this.longPressed = true; // swallow the click that may follow
+    setTimeout(() => (this.longPressed = false), 600);
+  }
+
+  protected onBookmarkClick(): void {
+    if (this.longPressed) {
+      this.longPressed = false;
+      return;
+    }
+    void this.toggleBookmark();
+  }
+
+  ngOnDestroy(): void {
+    this.pressEnd();
+  }
 
   protected async toggleBookmark(): Promise<void> {
     const page = this.ui.currentPage();

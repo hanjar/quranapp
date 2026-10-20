@@ -343,12 +343,6 @@ export class ReaderShell {
     this.pan.set(r.pan);
   }
 
-  /** Bottom-bar zoom button (touch screens): 1x <-> 2x around the centre. */
-  protected toggleZoom(): void {
-    if (this.ui.zoom() > 1) this.resetZoom();
-    else this.zoomBy(DOUBLE_TAP_ZOOM - this.ui.zoom());
-  }
-
   protected zoomIn(): void {
     this.zoomBy(ZOOM_STEP);
   }

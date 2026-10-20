@@ -113,6 +113,8 @@ export const FEATURES: readonly FeatureEntry[] = [
     ['impor', 'import', 'restore', 'pulihkan', 'pemulihan', 'muat data', 'json', 'pindah perangkat']),
   f('account', 'Akun & sinkronisasi', 'Masuk untuk menyinkronkan penanda antar perangkat.', 'Akun', { type: 'sheet', sheet: 'account' },
     ['masuk', 'login', 'log in', 'akun', 'account', 'sinkron', 'sinkronisasi', 'sync', 'google', 'keluar', 'logout', 'cloud', 'antar perangkat'], 'sync'),
+  f('menu', 'Menu', 'Penanda, progres, offline, pengaturan, akun, layar penuh, dan lainnya.', 'Aplikasi', { type: 'sheet', sheet: 'menu' },
+    ['menu', 'semua menu', 'layar penuh', 'fullscreen', 'sembunyikan menu', 'pasang', 'lainnya', 'fitur']),
   f('feedback', 'Kirim masukan', 'Beri saran atau laporkan masalah.', 'Bantuan', { type: 'sheet', sheet: 'feedback' },
     ['masukan', 'feedback', 'saran', 'laporkan', 'laporan', 'lapor', 'bug', 'error', 'masalah', 'kritik', 'hubungi', 'kontak']),
   f('update', 'Periksa pembaruan', 'Cek dan pasang versi aplikasi terbaru.', 'Aplikasi',

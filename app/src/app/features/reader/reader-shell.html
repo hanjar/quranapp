@@ -75,7 +75,7 @@
     </button>
   }
 
-  <div class="zoom-ctl" [class.is-hidden]="!chromeShown() || fitWidth()">
+  <div class="zoom-ctl" [class.is-zoomed]="zoomed()" [class.is-hidden]="!chromeShown() || fitWidth()">
     <button type="button" class="zoom-btn" aria-label="Perbesar" [disabled]="!canZoomIn()" (click)="zoomIn()">+</button>
     <button type="button" class="zoom-btn" aria-label="Perkecil" [disabled]="!canZoomOut()" (click)="zoomOut()">&minus;</button>
   </div>
@@ -89,11 +89,8 @@
     [shown]="chromeShown()"
     [canNext]="canNext()"
     [canPrev]="canPrev()"
-    [zoomed]="zoomed()"
-    [zoomAvailable]="!fitWidth()"
     [textMode]="textMode()"
     (toggleMode)="rv.toggleMode()"
-    (toggleZoom)="toggleZoom()"
     (next)="goNext()"
     (prev)="goPrev()"
     (focusin)="setChromeFocus()"

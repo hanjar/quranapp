@@ -134,9 +134,9 @@
   gap: 6px;
   transition: opacity var(--mf-dur-base);
 }
-/* Floating +/- only for mouse/trackpad users; touch screens use the bottom-bar button. */
+/* Touch screens: zoom by pinch / double-tap; the +/- (and the "Atur ulang zoom" pill) show only while zoomed. */
 @media (pointer: coarse) {
-  .zoom-ctl {
+  .zoom-ctl:not(.is-zoomed) {
     display: none;
   }
 }

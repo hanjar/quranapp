@@ -16,6 +16,7 @@ import { AccountSheet } from './account-sheet';
 import { BookmarksSheet } from './bookmarks-sheet';
 import { BrowseSheet } from './browse-sheet';
 import { FeedbackSheet } from './feedback-sheet';
+import { MenuSheet } from './menu-sheet';
 import { OfflineSheet } from './offline-sheet';
 import { ProgressSheet } from './progress-sheet';
 import { SearchSheet } from './search-sheet';
@@ -34,6 +35,7 @@ const TITLES: Record<SheetName, string> = {
   about: 'Tentang & lisensi',
   feedback: 'Kirim masukan',
   progress: 'Progres membaca',
+  menu: 'Menu',
 };
 
 const FOCUSABLE =
@@ -57,6 +59,7 @@ const FOCUSABLE =
     AboutSheet,
     FeedbackSheet,
     ProgressSheet,
+    MenuSheet,
   ],
   host: { '(document:keydown.escape)': 'onEscape($event)' },
   template: `
@@ -145,6 +148,9 @@ const FOCUSABLE =
             }
             @case ('feedback') {
               <app-feedback-sheet />
+            }
+            @case ('menu') {
+              <app-menu-sheet />
             }
             @case ('progress') {
               <app-progress-sheet />

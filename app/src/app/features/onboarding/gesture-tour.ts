@@ -20,7 +20,7 @@ interface TourStep {
 export const TOUR_STEPS: TourStep[] = [
   {
     title: 'Ketuk margin',
-    body: 'Menu tampil saat membaca. Ketuk ikon layar penuh di bilah atas untuk menyembunyikannya, dan ketuk tepi halaman untuk memunculkannya lagi.',
+    body: 'Bilah atas dan bawah tampil saat membaca. Buka ☰ Menu lalu pilih Layar penuh untuk menyembunyikannya, dan ketuk tepi halaman untuk memunculkannya lagi. Judul surah di kiri atas membuka daftar surah, juz, dan halaman.',
     alt: 'Tanpa gestur: tombol "Tampilkan kontrol" lewat keyboard (Tab), atau atur di Pengaturan › Selalu tampilkan kontrol.',
   },
   {
@@ -30,8 +30,8 @@ export const TOUR_STEPS: TourStep[] = [
   },
   {
     title: 'Geser & ketuk dua kali',
-    body: 'Geser dari kanan ke kiri untuk membalik halaman. Ketuk dua kali untuk memperbesar, ketuk dua kali lagi untuk kembali.',
-    alt: 'Tanpa gestur: gunakan tombol halaman di bawah atau tombol panah kiri dan kanan.',
+    body: 'Geser dari kanan ke kiri untuk membalik halaman. Ketuk dua kali atau cubit untuk memperbesar, ketuk dua kali lagi untuk kembali.',
+    alt: 'Tanpa gestur: gunakan tombol halaman di bawah atau tombol panah kiri dan kanan; tombol + dan − tampil saat halaman diperbesar.',
   },
 ];
 
