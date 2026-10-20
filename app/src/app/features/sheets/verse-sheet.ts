@@ -153,27 +153,6 @@ import { latinCopyText, shareText, translationCopyText, verseReference } from '.
           </svg>
           {{ nowPlaying() ? 'Jeda' : 'Putar' }}
         </button>
-        <button
-          type="button"
-          class="act"
-          [class.on]="v.bookmarked"
-          [attr.aria-pressed]="v.bookmarked"
-          (click)="toggleBookmark()"
-        >
-          <svg
-            width="22"
-            height="22"
-            viewBox="0 0 24 24"
-            [attr.fill]="v.bookmarked ? 'currentColor' : 'none'"
-            stroke="currentColor"
-            stroke-width="1.6"
-            stroke-linejoin="round"
-            aria-hidden="true"
-          >
-            <path d="M6.5 4h11v16l-5.5-4-5.5 4z" />
-          </svg>
-          {{ v.bookmarked ? 'Ditandai' : 'Tandai' }}
-        </button>
         <button type="button" class="act" aria-label="Salin rujukan" (click)="copy()">
           <svg
             width="22"
@@ -205,20 +184,26 @@ import { latinCopyText, shareText, translationCopyText, verseReference } from '.
           </svg>
           Bagikan
         </button>
-        <button type="button" class="act" (click)="history.close()">
+        <button
+          type="button"
+          class="act"
+          [class.on]="v.bookmarked"
+          [attr.aria-pressed]="v.bookmarked"
+          (click)="toggleBookmark()"
+        >
           <svg
             width="22"
             height="22"
             viewBox="0 0 24 24"
-            fill="none"
+            [attr.fill]="v.bookmarked ? 'currentColor' : 'none'"
             stroke="currentColor"
             stroke-width="1.6"
-            stroke-linecap="round"
+            stroke-linejoin="round"
             aria-hidden="true"
           >
-            <path d="M6 6l12 12M18 6L6 18" />
+            <path d="M6.5 4h11v16l-5.5-4-5.5 4z" />
           </svg>
-          Tutup
+          {{ v.bookmarked ? 'Ditandai' : 'Tandai' }}
         </button>
       </div>
     }
@@ -346,7 +331,7 @@ import { latinCopyText, shareText, translationCopyText, verseReference } from '.
       border-top: 1px solid var(--ui-hair);
       padding-top: var(--mf-space-1);
       display: grid;
-      grid-template-columns: repeat(5, minmax(0, 1fr));
+      grid-template-columns: repeat(4, minmax(0, 1fr));
       gap: var(--mf-space-1);
     }
     .act {

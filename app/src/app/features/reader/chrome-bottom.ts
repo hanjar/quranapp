@@ -17,7 +17,7 @@ export const BOOKMARK_LONG_PRESS_MS = 500;
 
 /**
  * Bottom bar (visual order, left to right; paging keeps the RTL book semantics):
- * next | bookmark this page | play from this page | page pill | translation/mushaf | prev.
+ * next | play from this page | page pill | translation/mushaf | bookmark this page | prev.
  * The contents list moved to the title in the top bar; zoom is pinch / double-tap
  * (+/- and reset appear while zoomed).
  */
@@ -48,37 +48,6 @@ export const BOOKMARK_LONG_PRESS_MS = 500;
       </svg>
     </button>
 
-    <!-- Tap: mark/unmark the page. Long-press or right-click: open the bookmarks list (Menu › Penanda for keyboard). -->
-    <button
-      type="button"
-      class="mf-icon-btn"
-      data-testid="bookmark-btn"
-      [class.is-on]="pageBookmarked()"
-      [attr.aria-label]="
-        pageBookmarked() ? 'Hapus penanda halaman ' + page() : 'Tandai halaman ' + page()
-      "
-      [attr.aria-pressed]="pageBookmarked()"
-      title="Ketuk untuk menandai, tekan lama untuk daftar penanda"
-      (pointerdown)="pressStart($event)"
-      (pointerup)="pressEnd()"
-      (pointerleave)="pressEnd()"
-      (pointercancel)="pressEnd()"
-      (contextmenu)="onContextMenu($event)"
-      (click)="onBookmarkClick()"
-    >
-      <svg
-        width="21"
-        height="21"
-        viewBox="0 0 24 24"
-        [attr.fill]="pageBookmarked() ? 'currentColor' : 'none'"
-        stroke="currentColor"
-        stroke-width="1.6"
-        stroke-linejoin="round"
-        aria-hidden="true"
-      >
-        <path d="M6.5 4h11v16l-5.5-4-5.5 4z" />
-      </svg>
-    </button>
 
     <button
       type="button"
@@ -96,7 +65,9 @@ export const BOOKMARK_LONG_PRESS_MS = 500;
         </svg>
       } @else {
         <svg width="21" height="21" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-          <path d="M8 5.5v13a1 1 0 0 0 1.5.86l10.5-6.5a1 1 0 0 0 0-1.72L9.5 4.64A1 1 0 0 0 8 5.5z" />
+          <path
+            d="M8 5.5v13a1 1 0 0 0 1.5.86l10.5-6.5a1 1 0 0 0 0-1.72L9.5 4.64A1 1 0 0 0 8 5.5z"
+          />
         </svg>
       }
     </button>
@@ -137,7 +108,41 @@ export const BOOKMARK_LONG_PRESS_MS = 500;
           <path d="M12 6v14" />
         }
       </svg>
-      <span class="mode-btn__label" aria-hidden="true">{{ textMode() ? 'Mushaf' : 'Terjemahan' }}</span>
+      <span class="mode-btn__label" aria-hidden="true">{{
+        textMode() ? 'Mushaf' : 'Terjemahan'
+      }}</span>
+    </button>
+
+    <!-- Tap: mark/unmark the page. Long-press or right-click: open the bookmarks list (Menu › Penanda for keyboard). -->
+    <button
+      type="button"
+      class="mf-icon-btn"
+      data-testid="bookmark-btn"
+      [class.is-on]="pageBookmarked()"
+      [attr.aria-label]="
+        pageBookmarked() ? 'Hapus penanda halaman ' + page() : 'Tandai halaman ' + page()
+      "
+      [attr.aria-pressed]="pageBookmarked()"
+      title="Ketuk untuk menandai, tekan lama untuk daftar penanda"
+      (pointerdown)="pressStart($event)"
+      (pointerup)="pressEnd()"
+      (pointerleave)="pressEnd()"
+      (pointercancel)="pressEnd()"
+      (contextmenu)="onContextMenu($event)"
+      (click)="onBookmarkClick()"
+    >
+      <svg
+        width="21"
+        height="21"
+        viewBox="0 0 24 24"
+        [attr.fill]="pageBookmarked() ? 'currentColor' : 'none'"
+        stroke="currentColor"
+        stroke-width="1.6"
+        stroke-linejoin="round"
+        aria-hidden="true"
+      >
+        <path d="M6.5 4h11v16l-5.5-4-5.5 4z" />
+      </svg>
     </button>
 
     <button

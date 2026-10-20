@@ -301,7 +301,9 @@ export class InstallPrompt {
 
   /** An automatic offer respects each "Jangan tampilkan lagi"; the menu shows everything pending. */
   protected readonly showInstall = computed(
-    () => this.installPending() && (!this.auto() || !this.install.dismissedForever()),
+    () =>
+      this.installPending() &&
+      (!this.auto() || (!this.install.dismissedForever() && !this.install.installedElsewhere())),
   );
   protected readonly showDownload = computed(() => {
     if (!this.downloadPending() || (this.auto() && this.downloadDismissed())) return null;
@@ -347,7 +349,9 @@ export class InstallPrompt {
   );
   private readonly anythingToOffer = computed(
     () =>
-      (this.installPending() && !this.install.dismissedForever()) ||
+      (this.installPending() &&
+        !this.install.dismissedForever() &&
+        !this.install.installedElsewhere()) ||
       (this.downloadPending() && !this.downloadDismissed()),
   );
 

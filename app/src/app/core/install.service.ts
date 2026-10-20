@@ -27,6 +27,12 @@ export class InstallService {
   readonly modalOpen = signal(false);
   /** User ticked "Jangan tampilkan lagi": never auto-offer again (the Settings row still works). */
   readonly dismissedForever = signal(readFlag(DISMISS_KEY));
+  /**
+   * The app is installed on this device, seen from a normal browser tab (the
+   * installed window shares this origin's storage, and Chrome can report it).
+   * Suppresses the automatic offer; the Menu tile still opens the modal.
+   */
+  readonly installedElsewhere = signal(readFlag(INSTALLED_KEY));
 
   /** Opens the modal on request (Settings row) — ignores the "don't show again" flag. */
   openModal(): void {
@@ -35,7 +41,12 @@ export class InstallService {
 
   /** Automatic offer: at most once per session, never after "Jangan tampilkan lagi". */
   offerOnce(): void {
-    if (this.state() === 'installed' || this.dismissedForever() || readFlag(SESSION_KEY, true))
+    if (
+      this.state() === 'installed' ||
+      this.installedElsewhere() ||
+      this.dismissedForever() ||
+      readFlag(SESSION_KEY, true)
+    )
       return;
     writeFlag(SESSION_KEY, true, true);
     this.modalOpen.set(true);
@@ -67,6 +78,8 @@ export class InstallService {
       (e) => {
         e.preventDefault(); // keep the mini-infobar quiet; we offer our own button
         this.deferred = e as BeforeInstallPromptEvent;
+        // Chrome only offers this when the app is NOT installed (e.g. it was removed).
+        this.markInstalled(false);
         if (this.state() !== 'installed') this.state.set('available');
       },
       { signal: listeners.signal },
@@ -76,9 +89,27 @@ export class InstallService {
       () => {
         this.deferred = null;
         this.state.set('installed');
+        this.markInstalled(true);
       },
       { signal: listeners.signal },
     );
+    if (this.state() === 'installed') this.markInstalled(true);
+    // Chrome (Android/desktop) can tell a browser tab that this PWA is installed
+    // (manifest related_applications with platform 'webapp').
+    const nav = win.navigator as Navigator & {
+      getInstalledRelatedApps?: () => Promise<unknown[]>;
+    };
+    void nav
+      .getInstalledRelatedApps?.()
+      .then((apps) => {
+        if (apps.length > 0) this.markInstalled(true);
+      })
+      .catch(() => undefined);
+  }
+
+  private markInstalled(on: boolean): void {
+    this.installedElsewhere.set(on);
+    writeFlag(INSTALLED_KEY, on);
   }
 
   /** Shows the native install dialog. Resolves true when the user accepted. */
@@ -88,7 +119,10 @@ export class InstallService {
     this.deferred = null; // a prompt event can be used only once
     await ev.prompt();
     const { outcome } = await ev.userChoice;
-    if (outcome === 'accepted') this.state.set('installed');
+    if (outcome === 'accepted') {
+      this.state.set('installed');
+      this.markInstalled(true);
+    }
     else this.state.set(this.isIos() ? 'ios' : 'manual');
     return outcome === 'accepted';
   }
@@ -116,6 +150,7 @@ export class InstallService {
 
 const DISMISS_KEY = 'mf-install-dismissed';
 const SESSION_KEY = 'mf-install-offered';
+const INSTALLED_KEY = 'mf-installed';
 
 /** Storage can be unavailable (private mode, blocked site data): fail closed, never throw. */
 function readFlag(key: string, session = false): boolean {

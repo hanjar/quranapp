@@ -92,7 +92,16 @@ import { offlineNeedsAttention, syncNeedsAttention } from '../reader/attention';
     <ul class="grid" aria-label="Menu aplikasi">
       <li>
         <button type="button" class="tile" data-tile="bookmarks" (click)="open('bookmarks')">
-          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" aria-hidden="true">
+          <svg
+            width="26"
+            height="26"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.6"
+            stroke-linejoin="round"
+            aria-hidden="true"
+          >
             <path d="M6.5 4h11v16l-5.5-4-5.5 4z" />
             <path d="M9.5 8.5h5" />
           </svg>
@@ -101,7 +110,16 @@ import { offlineNeedsAttention, syncNeedsAttention } from '../reader/attention';
       </li>
       <li>
         <button type="button" class="tile" data-tile="progress" (click)="open('progress')">
-          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true">
+          <svg
+            width="26"
+            height="26"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.6"
+            stroke-linecap="round"
+            aria-hidden="true"
+          >
             <path d="M12 4a8 8 0 1 1-8 8" />
             <path d="M12 8v4l3 2" />
           </svg>
@@ -116,7 +134,17 @@ import { offlineNeedsAttention, syncNeedsAttention } from '../reader/attention';
           [attr.aria-label]="offlineAttention() ? 'Offline, unduhan perlu diperiksa' : null"
           (click)="open('offline')"
         >
-          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <svg
+            width="26"
+            height="26"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.6"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            aria-hidden="true"
+          >
             <path d="M12 4v10M8 10.5l4 4 4-4M5 19h14" />
           </svg>
           <span class="label">Offline</span>
@@ -127,7 +155,16 @@ import { offlineNeedsAttention, syncNeedsAttention } from '../reader/attention';
       </li>
       <li>
         <button type="button" class="tile" data-tile="settings" (click)="open('settings')">
-          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true">
+          <svg
+            width="26"
+            height="26"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.6"
+            stroke-linecap="round"
+            aria-hidden="true"
+          >
             <path d="M4 8h10M18 8h2M4 16h3M11 16h9" />
             <circle cx="16" cy="8" r="2" />
             <circle cx="9" cy="16" r="2" />
@@ -148,7 +185,16 @@ import { offlineNeedsAttention, syncNeedsAttention } from '../reader/attention';
               <span class="avatar" aria-hidden="true">{{ initial() }}</span>
               <span class="label">{{ a.name ?? a.email ?? 'Akun' }}</span>
             } @else {
-              <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true">
+              <svg
+                width="26"
+                height="26"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.6"
+                stroke-linecap="round"
+                aria-hidden="true"
+              >
                 <circle cx="12" cy="9" r="3.5" />
                 <path d="M5 20c1.2-3.5 4-5 7-5s5.8 1.5 7 5" />
               </svg>
@@ -162,7 +208,17 @@ import { offlineNeedsAttention, syncNeedsAttention } from '../reader/attention';
       }
       <li>
         <button type="button" class="tile" data-tile="fullscreen" (click)="fullscreen()">
-          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <svg
+            width="26"
+            height="26"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.6"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            aria-hidden="true"
+          >
             <path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" />
           </svg>
           <span class="label">Layar penuh</span>
@@ -171,7 +227,17 @@ import { offlineNeedsAttention, syncNeedsAttention } from '../reader/attention';
       @if (install.state() !== 'installed') {
         <li>
           <button type="button" class="tile" data-tile="install" (click)="installApp()">
-            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <svg
+              width="26"
+              height="26"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.6"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
               <rect x="7" y="3" width="10" height="18" rx="2" />
               <path d="M12 8v6M9.5 11.5L12 14l2.5-2.5" />
             </svg>
@@ -181,7 +247,17 @@ import { offlineNeedsAttention, syncNeedsAttention } from '../reader/attention';
       }
       <li>
         <button type="button" class="tile" data-tile="feedback" (click)="open('feedback')">
-          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <svg
+            width="26"
+            height="26"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.6"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            aria-hidden="true"
+          >
             <path d="M5 5h14v10H10l-5 4z" />
             <path d="M9 9.5h6" />
           </svg>
@@ -196,7 +272,16 @@ import { offlineNeedsAttention, syncNeedsAttention } from '../reader/attention';
           [attr.aria-label]="updates.available() ? 'Tentang, versi baru tersedia' : null"
           (click)="open('about')"
         >
-          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true">
+          <svg
+            width="26"
+            height="26"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.6"
+            stroke-linecap="round"
+            aria-hidden="true"
+          >
             <circle cx="12" cy="12" r="8" />
             <path d="M12 11v5M12 8v.01" />
           </svg>
@@ -224,7 +309,9 @@ export class MenuSheet {
   protected readonly syncAttention = computed(() =>
     syncNeedsAttention(this.sync.status(), this.sync.lastSuccessAt()),
   );
-  protected readonly offlineAttention = computed(() => offlineNeedsAttention(this.offline.status()));
+  protected readonly offlineAttention = computed(() =>
+    offlineNeedsAttention(this.offline.status()),
+  );
 
   protected readonly accountLabel = computed(() => {
     const a = this.sync.account();

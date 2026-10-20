@@ -71,6 +71,24 @@ describe('InstallService modal', () => {
     expect(svc.modalOpen()).toBe(true);
   });
 
+  it('does not auto-offer in a browser tab once the app was installed on this device', () => {
+    localStorage.setItem('mf-installed', '1'); // written by the installed app window
+    const svc = TestBed.inject(InstallService);
+    svc.offerOnce();
+    expect(svc.modalOpen()).toBe(false);
+    svc.openModal(); // the Menu tile still works
+    expect(svc.modalOpen()).toBe(true);
+  });
+
+  it('forgets the installed mark when Chrome offers installation again', () => {
+    localStorage.setItem('mf-installed', '1');
+    const svc = TestBed.inject(InstallService);
+    const ev = new Event('beforeinstallprompt', { cancelable: true });
+    window.dispatchEvent(ev);
+    expect(svc.installedElsewhere()).toBe(false);
+    expect(localStorage.getItem('mf-installed')).toBeNull();
+  });
+
   it('does not open when already installed', () => {
     const svc = TestBed.inject(InstallService);
     window.dispatchEvent(new Event('appinstalled'));
