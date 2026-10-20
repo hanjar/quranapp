@@ -1,7 +1,7 @@
 // Production build with the build identity (version, git commit, time) baked in.
 // Usage: npm run build   (extra args are passed to `ng build`)
 import { execFileSync, spawnSync } from 'node:child_process';
-import { readFileSync } from 'node:fs';
+import { appendFileSync, existsSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -31,4 +31,13 @@ const res = spawnSync(process.execPath, [ng, 'build', ...defines, ...process.arg
   cwd: appDir,
   stdio: 'inherit',
 });
+if (res.status === 0) {
+  // Stamp the service worker script so its bytes (and ETag) change every build:
+  // the edge cache otherwise revalidates an unchanged file and keeps serving its
+  // old response headers (CSP), and browsers would not see a worker update.
+  const sw = join(appDir, 'dist', 'mushaf', 'browser', 'ngsw-worker.js');
+  if (existsSync(sw)) {
+    appendFileSync(sw, `\n// Mushaf Digital ${info.MF_APP_VERSION} ${info.MF_BUILD_SHA} ${info.MF_BUILD_TIME}\n`);
+  }
+}
 process.exit(res.status ?? 1);
