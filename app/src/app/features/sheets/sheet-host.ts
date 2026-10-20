@@ -72,14 +72,35 @@ const FOCUSABLE =
         class="sheet"
         [class.open]="entered()"
         [class.verse]="isVerse()"
+        [class.full]="expanded()"
+        [class.dragging]="dragY() !== null"
+        [style.--mf-drag-y.px]="dragY() ?? 0"
         role="dialog"
         [attr.aria-modal]="isVerse() ? 'false' : 'true'"
         aria-labelledby="mf-sheet-title"
         [attr.inert]="entered() ? null : ''"
         (keydown)="onKeydown($event)"
       >
-        <div class="grab" aria-hidden="true"><span></span></div>
-        <div class="head">
+        <button
+          type="button"
+          class="grab"
+          [attr.aria-label]="expanded() ? 'Kembalikan ukuran panel' : 'Perbesar panel ke layar penuh'"
+          [attr.aria-expanded]="expanded()"
+          (pointerdown)="dragStart($event)"
+          (pointermove)="dragMove($event)"
+          (pointerup)="dragEnd($event)"
+          (pointercancel)="dragCancel()"
+          (click)="onGrabClick($event)"
+        >
+          <span></span>
+        </button>
+        <div
+          class="head"
+          (pointerdown)="dragStart($event)"
+          (pointermove)="dragMove($event)"
+          (pointerup)="dragEnd($event)"
+          (pointercancel)="dragCancel()"
+        >
           <h2 #heading id="mf-sheet-title" tabindex="-1" class="mf-display">{{ title() }}</h2>
           <button type="button" class="mf-icon-btn" aria-label="Tutup" (click)="history.close()">
             <svg
@@ -173,14 +194,42 @@ const FOCUSABLE =
       max-height: 52%;
     }
     .sheet.open {
-      transform: translateY(0);
+      transform: translateY(var(--mf-drag-y, 0px));
+    }
+    /* Pulled up to full screen (phones); the handle or a drag down restores it. */
+    .sheet.full,
+    .sheet.verse.full {
+      max-height: 100%;
+      height: 100%;
+      border-radius: 0;
+      padding-top: var(--mf-safe-top);
+      transition:
+        transform var(--mf-dur-base) var(--mf-ease),
+        max-height var(--mf-dur-base) var(--mf-ease);
+    }
+    .sheet.dragging {
+      transition: none;
     }
 
     .grab {
       display: flex;
       justify-content: center;
-      padding-top: 8px;
+      align-items: center;
+      width: 100%;
+      min-height: 28px;
+      padding: 10px 0 6px;
+      border: none;
+      background: transparent;
       flex: none;
+      cursor: grab;
+      touch-action: none;
+    }
+    .grab:focus-visible span {
+      outline: 2px solid var(--ui-primary);
+      outline-offset: 4px;
+    }
+    .head {
+      touch-action: none;
     }
     .grab span {
       width: 36px;
@@ -252,6 +301,57 @@ export class SheetHost implements OnDestroy {
   protected readonly isVerse = computed(() => this.shown() === 'verse');
   protected readonly title = computed(() => (this.shown() ? TITLES[this.shown()!] : ''));
 
+  /** Phone sheets can be pulled up to full screen and back. */
+  protected readonly expanded = signal(false);
+  /** Live downward drag offset while the handle is held (px), else null. */
+  protected readonly dragY = signal<number | null>(null);
+  private drag: { id: number; y0: number; moved: boolean } | null = null;
+  private suppressClick = false;
+
+  protected dragStart(e: PointerEvent): void {
+    if ((e.target as Element).closest('.head button') || e.button > 0) return;
+    if (window.matchMedia('(min-width: 768px)').matches) return; // side panel
+    this.drag = { id: e.pointerId, y0: e.clientY, moved: false };
+    (e.currentTarget as Element).setPointerCapture?.(e.pointerId);
+  }
+
+  protected dragMove(e: PointerEvent): void {
+    const d = this.drag;
+    if (!d || d.id !== e.pointerId) return;
+    const dy = e.clientY - d.y0;
+    if (Math.abs(dy) > 6) d.moved = true;
+    if (d.moved) this.dragY.set(Math.max(0, dy)); // follow the finger downwards only
+  }
+
+  protected dragEnd(e: PointerEvent): void {
+    const d = this.drag;
+    if (!d || d.id !== e.pointerId) return;
+    this.drag = null;
+    this.dragY.set(null);
+    if (!d.moved) return; // a tap: handled by click on the handle
+    this.suppressClick = true;
+    const dy = e.clientY - d.y0;
+    if (dy < -40) this.expanded.set(true);
+    else if (dy > 60) {
+      if (this.expanded()) this.expanded.set(false);
+      else this.history.close();
+    }
+  }
+
+  protected dragCancel(): void {
+    this.drag = null;
+    this.dragY.set(null);
+  }
+
+  protected onGrabClick(e: MouseEvent): void {
+    if (this.suppressClick) {
+      this.suppressClick = false;
+      e.preventDefault();
+      return;
+    }
+    this.expanded.update((v) => !v);
+  }
+
   private wasOpen = false;
   private previousFocus: HTMLElement | null = null;
   private closeTimer: ReturnType<typeof setTimeout> | null = null;
@@ -292,6 +392,8 @@ export class SheetHost implements OnDestroy {
       this.wasOpen = false;
       this.history.closedExternally();
       this.entered.set(false);
+      this.expanded.set(false);
+      this.dragCancel();
       const target = this.previousFocus;
       this.previousFocus = null;
       if (target?.isConnected) target.focus({ preventScroll: true });

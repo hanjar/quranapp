@@ -73,6 +73,79 @@ export function computeHeaderBands(polys: readonly PolyBox[]): HeaderBand[] {
   return out.sort((a, b) => a.y - b.y);
 }
 
+/**
+ * Moves a rough band (gap between verse polygons) onto the header line's ink.
+ * `ink[y]` = inked pixels on row y (viewBox units). The scan covers the rough
+ * gap plus the polygon-free lines below it; the first ink cluster that does
+ * not continue the previous text line is the surah name.
+ */
+export function fitBandToInk(band: HeaderBand, ink: ArrayLike<number>, lines = 2): HeaderBand {
+  const from = Math.max(0, Math.floor(band.y));
+  const to = Math.min(ink.length - 1, Math.ceil(band.y + band.height * lines));
+  const clusters: { start: number; end: number }[] = [];
+  let cur: { start: number; end: number } | null = null;
+  for (let y = from; y <= to; y++) {
+    if (ink[y] >= 2) {
+      if (cur && y - cur.end <= 2) cur.end = y;
+      else clusters.push((cur = { start: y, end: y }));
+    }
+  }
+  // Ink touching the top of the scan belongs to the line above (not at page top).
+  const header = clusters.find((c) => !(band.y > 1 && c.start <= from + 1));
+  if (!header) return band;
+  const inkH = header.end - header.start;
+  if (inkH < MIN_LINE * 0.4 || inkH > band.height * 1.6) return band; // not a header line
+  const height = Math.max(band.height, inkH + 8);
+  return { ...band, y: (header.start + header.end) / 2 - height / 2, height };
+}
+
+/**
+ * Inked pixels per viewBox row of the page text, by rasterising the text paths
+ * on a canvas (2 px per unit). Null when canvas or path data are unavailable.
+ */
+export function inkProfile(svg: SVGSVGElement): Uint16Array | null {
+  const paths = svg.querySelectorAll<SVGPathElement>('#content path');
+  if (paths.length === 0 || typeof document === 'undefined' || typeof Path2D === 'undefined')
+    return null;
+  const S = 2;
+  const W = 345;
+  const H = 550;
+  const canvas = document.createElement('canvas');
+  canvas.width = W * S;
+  canvas.height = H * S;
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
+  if (!ctx) return null;
+  try {
+    for (const p of Array.from(paths)) {
+      const d = p.getAttribute('d');
+      if (!d) continue;
+      const m = transformToRoot(p, svg);
+      ctx.setTransform(S * m.a, S * m.b, S * m.c, S * m.d, S * m.e, S * m.f);
+      ctx.fill(new Path2D(d));
+    }
+    const data = ctx.getImageData(0, 0, W * S, H * S).data;
+    const rows = new Uint16Array(H);
+    for (let py = 0; py < H * S; py++) {
+      let n = 0;
+      for (let px = 0, i = py * W * S * 4 + 3; px < W * S; px++, i += 4) if (data[i] > 64) n++;
+      rows[Math.floor(py / S)] += n;
+    }
+    return rows;
+  } catch {
+    return null;
+  }
+}
+
+/** Product of `transform` attributes from `el` up to (not including) `root`. */
+function transformToRoot(el: Element, root: Element): DOMMatrix {
+  let m = new DOMMatrix();
+  for (let n: Element | null = el; n && n !== root; n = n.parentElement) {
+    const t = (n as SVGGraphicsElement).transform?.baseVal?.consolidate();
+    if (t) m = new DOMMatrix([t.matrix.a, t.matrix.b, t.matrix.c, t.matrix.d, t.matrix.e, t.matrix.f]).multiply(m);
+  }
+  return m;
+}
+
 /** Reads polygon boxes from a page SVG. */
 export function collectPolyBoxes(svg: SVGSVGElement): PolyBox[] {
   const out: PolyBox[] = [];
@@ -158,8 +231,13 @@ export function buildCartouche(band: HeaderBand): SVGGElement {
  * Returns the bands that were drawn.
  */
 export function decorateSurahHeaders(svg: SVGSVGElement): HeaderBand[] {
-  svg.querySelectorAll('.mf-surah-header').forEach((n) => n.remove());
-  const bands = computeHeaderBands(collectPolyBoxes(svg));
+  svg.querySelectorAll('.mf-surah-headers').forEach((n) => n.remove());
+  const rough = computeHeaderBands(collectPolyBoxes(svg));
+  if (rough.length === 0) return rough;
+  // Verse polygons stop short of the glyphs, so place each frame on the real
+  // header line measured from the text ink (falls back to the rough band).
+  const ink = inkProfile(svg);
+  const bands = ink ? rough.map((b) => fitBandToInk(b, ink)) : rough;
   if (bands.length === 0) return bands;
   const content = svg.querySelector('#content');
   // Text lives in transformed groups; polygons are in root coords, so the
