@@ -30,7 +30,7 @@ jobs:
       - run: npx --yes npm@11 ci
       - run: npx tsc --noEmit -p tsconfig.app.json
       - run: npx ng test --watch=false
-      - run: npx ng build
+      - run: npm run build
 
   worker:
     runs-on: ubuntu-latest

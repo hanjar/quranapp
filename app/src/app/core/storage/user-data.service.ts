@@ -144,7 +144,10 @@ export class UserDataService extends UserDataApi {
   async reload(): Promise<void> {
     const row = await this.db.prefs.get('prefs');
     this._prefs.set(row ? this.stripPrefs(row) : { ...DEFAULT_PREFERENCES });
-    this._position.set((await this.db.positions.get(EDITION)) ?? null);
+    const stored = (await this.db.positions.get(EDITION)) ?? null;
+    const pending = this.pendingPos;
+    // A not-yet-flushed local page change is newer than what IndexedDB holds.
+    this._position.set(pending && stored ? { ...stored, ...pending } : stored);
     await this.refreshBookmarks();
   }
 
@@ -193,6 +196,17 @@ export class UserDataService extends UserDataApi {
   savePosition(page: number, ayah?: AyahRef | null): void {
     if (!isValidPage(page)) return;
     this.pendingPos = { page, surah: ayah?.surah ?? null, ayah: ayah?.ayah ?? null };
+    // The UI ("Posisi terakhir") reflects the page at once; only the IndexedDB write is throttled.
+    const cur = this._position();
+    this._position.set({
+      editionId: EDITION,
+      page,
+      surah: this.pendingPos.surah,
+      ayah: this.pendingPos.ayah,
+      updatedAt: Date.now(),
+      deviceId: this._deviceId(),
+      rev: cur?.rev ?? null,
+    });
     const wait = this.lastPosWrite + POSITION_THROTTLE_MS - Date.now();
     if (wait <= 0) {
       this.flushQuietly();

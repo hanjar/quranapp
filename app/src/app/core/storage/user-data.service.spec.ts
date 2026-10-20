@@ -237,6 +237,18 @@ describe('UserDataService', () => {
   });
 
   describe('position', () => {
+    it('reflects the new page immediately while the write is throttled', async () => {
+      svc.savePosition(5);
+      await svc.flushPosition();
+      svc.savePosition(6);
+      expect(svc.position()?.page).toBe(6);
+      await svc.reload();
+      expect(svc.position()?.page).toBe(6);
+      expect((await db.positions.get('hafs-kfqc'))!.page).toBe(5);
+      await svc.flushPosition();
+      expect((await db.positions.get('hafs-kfqc'))!.page).toBe(6);
+    });
+
     it('ignores invalid pages', async () => {
       svc.savePosition(0);
       svc.savePosition(605);

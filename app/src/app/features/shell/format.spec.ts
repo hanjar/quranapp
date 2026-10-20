@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { exportFilename, formatBytes, formatMb, formatRelativeTime, importSummary } from './format';
+import {
+  exportFilename,
+  formatBytes,
+  formatDateTime,
+  formatMb,
+  formatRelativeTime,
+  importSummary,
+} from './format';
 
 describe('formatRelativeTime', () => {
   const now = new Date(2026, 9, 20, 15, 0, 0).getTime();
@@ -8,9 +15,12 @@ describe('formatRelativeTime', () => {
     expect(formatRelativeTime(now + 5_000, now)).toBe('baru saja');
   });
   it('minutes', () => expect(formatRelativeTime(now - 5 * 60_000, now)).toBe('5 menit lalu'));
-  it('hours same day', () => expect(formatRelativeTime(new Date(2026, 9, 20, 11, 0).getTime(), now)).toBe('4 jam lalu'));
-  it('yesterday', () => expect(formatRelativeTime(new Date(2026, 9, 19, 21, 14).getTime(), now)).toBe('kemarin 21.14'));
-  it('older', () => expect(formatRelativeTime(new Date(2026, 9, 12, 8, 5).getTime(), now)).toBe('12 Okt 08.05'));
+  it('hours same day', () =>
+    expect(formatRelativeTime(new Date(2026, 9, 20, 11, 0).getTime(), now)).toBe('4 jam lalu'));
+  it('yesterday', () =>
+    expect(formatRelativeTime(new Date(2026, 9, 19, 21, 14).getTime(), now)).toBe('kemarin 21.14'));
+  it('older', () =>
+    expect(formatRelativeTime(new Date(2026, 9, 12, 8, 5).getTime(), now)).toBe('12 Okt 08.05'));
 });
 
 describe('bytes', () => {
@@ -25,6 +35,14 @@ describe('bytes', () => {
 });
 
 describe('misc', () => {
-  it('exportFilename', () => expect(exportFilename(new Date(2026, 0, 5))).toBe('mushaf-digital-2026-01-05.json'));
-  it('importSummary', () => expect(importSummary({ added: 3, skipped: 1 })).toBe('3 penanda ditambahkan, 1 dilewati'));
+  it('exportFilename', () =>
+    expect(exportFilename(new Date(2026, 0, 5))).toBe('mushaf-digital-2026-01-05.json'));
+  it('importSummary', () =>
+    expect(importSummary({ added: 3, skipped: 1 })).toBe('3 penanda ditambahkan, 1 dilewati'));
+});
+
+describe('formatDateTime', () => {
+  it('formats day, Indonesian month, year and 24h clock with a dot', () => {
+    expect(formatDateTime(new Date(2026, 9, 20, 9, 5).getTime())).toBe('20 Okt 2026 09.05');
+  });
 });

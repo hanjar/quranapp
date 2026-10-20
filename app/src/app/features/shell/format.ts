@@ -54,3 +54,9 @@ export function exportFilename(date: Date = new Date()): string {
 export function importSummary(r: { added: number; skipped: number }): string {
   return `${r.added} penanda ditambahkan, ${r.skipped} dilewati`;
 }
+
+/** "20 Okt 2026 12.30" (local time). */
+export function formatDateTime(ts: number): string {
+  const d = new Date(ts);
+  return `${d.getDate()} ${MONTHS[d.getMonth()]} ${d.getFullYear()} ${clock(d)}`;
+}

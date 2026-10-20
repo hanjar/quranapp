@@ -1,5 +1,9 @@
-import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
+import { SwUpdate } from '@angular/service-worker';
+import { BUILD_INFO } from '../../core/build-info';
 import { ContentApi } from '../../core/contracts';
+import { ReaderUiService } from '../../core/reader-ui.service';
+import { formatDateTime } from '../shell/format';
 import { SHEET_STYLES } from './sheet-styles';
 
 /** Body of the "Tentang dan lisensi" sheet. */
@@ -12,9 +16,42 @@ import { SHEET_STYLES } from './sheet-styles';
       <h2 class="mf-display" style="margin: 0; font-size: 28px; font-weight: 500">
         Mushaf Digital
       </h2>
-      <p class="muted">
-        Versi {{ version }} · Bacaan yang tenang, setia pada halaman mushaf cetak.
-      </p>
+      <p class="muted">Bacaan yang tenang, setia pada halaman mushaf cetak.</p>
+    </section>
+
+    <section aria-label="Versi aplikasi">
+      <h3>Versi aplikasi</h3>
+      <dl>
+        <dt>Versi</dt>
+        <dd>{{ build.version }}</dd>
+        <dt>Build</dt>
+        <dd>
+          @if (build.sha !== 'dev' && !build.sha.startsWith('unknown')) {
+            <a
+              class="link"
+              [href]="'https://github.com/hanjar/quranapp/commit/' + commitOf(build.sha)"
+              target="_blank"
+              rel="noopener noreferrer"
+              >{{ build.sha }}</a
+            >
+          } @else {
+            {{ build.sha }}
+          }
+        </dd>
+        <dt>Dibangun</dt>
+        <dd>{{ builtAt }}</dd>
+      </dl>
+      <button
+        type="button"
+        class="mf-btn mf-btn--outline"
+        [disabled]="checking()"
+        (click)="checkForUpdate()"
+      >
+        {{ checking() ? 'Memeriksa…' : 'Periksa pembaruan' }}
+      </button>
+      @if (updateNote(); as note) {
+        <p class="muted" role="status">{{ note }}</p>
+      }
     </section>
 
     <section aria-label="Edisi konten">
@@ -84,8 +121,47 @@ import { SHEET_STYLES } from './sheet-styles';
 })
 export class AboutSheet {
   private readonly content = inject(ContentApi);
-  protected readonly version = '0.1.0';
+  private readonly sw = inject(SwUpdate);
+  private readonly ui = inject(ReaderUiService);
+  protected readonly build = BUILD_INFO;
+  protected readonly builtAt = BUILD_INFO.builtAt
+    ? formatDateTime(Date.parse(BUILD_INFO.builtAt))
+    : 'mode pengembangan';
+  protected readonly checking = signal(false);
+  protected readonly updateNote = signal<string | null>(null);
   protected edition = () => this.content.index()?.edition ?? null;
+
+  /** "9118c86-dirty" -> "9118c86" for the GitHub commit link. */
+  protected commitOf(sha: string): string {
+    return sha.replace(/-dirty$/, '');
+  }
+
+  /**
+   * Asks the service worker for a newer version; when one is ready it is
+   * activated and the page reloads, so a stale cached app never lingers.
+   */
+  protected async checkForUpdate(): Promise<void> {
+    if (!this.sw.isEnabled) {
+      this.updateNote.set('Pembaruan otomatis tidak aktif di mode pengembangan.');
+      return;
+    }
+    this.checking.set(true);
+    this.updateNote.set(null);
+    try {
+      const found = await this.sw.checkForUpdate();
+      if (found) {
+        this.ui.showToast({ message: 'Memasang versi terbaru…', duration: 3000 });
+        await this.sw.activateUpdate();
+        document.location.reload();
+        return;
+      }
+      this.updateNote.set('Anda sudah memakai versi terbaru.');
+    } catch {
+      this.updateNote.set('Tidak dapat memeriksa pembaruan. Periksa koneksi lalu coba lagi.');
+    } finally {
+      this.checking.set(false);
+    }
+  }
 
   protected repoUrl(repo: string): string {
     return /^https?:\/\//.test(repo) ? repo : `https://github.com/${repo}`;

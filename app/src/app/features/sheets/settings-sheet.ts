@@ -1,3 +1,4 @@
+import { buildLabel } from '../../core/build-info';
 import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 import { OfflineApi, SyncApi, UserDataApi } from '../../core/contracts';
 import { LayoutMode } from '../../core/models';
@@ -84,8 +85,8 @@ const SYNC_LABEL: Record<string, string> = {
       </div>
       <p class="muted">
         Otomatis menampilkan dua halaman berdampingan pada layar lebar mendatar; selain itu satu
-        halaman. Di ponsel posisi mendatar, halaman memenuhi lebar layar dan dapat digulir.
-        Susunan halaman mengikuti mushaf cetak dan tidak diubah.
+        halaman. Di ponsel posisi mendatar, halaman memenuhi lebar layar dan dapat digulir. Susunan
+        halaman mengikuti mushaf cetak dan tidak diubah.
       </p>
     </section>
 
@@ -165,12 +166,14 @@ const SYNC_LABEL: Record<string, string> = {
         (change)="importFile($event)"
       />
       <button type="button" class="row" (click)="ui.openSheet('about')">
-        <span>Tentang &amp; lisensi</span><span class="end chev" aria-hidden="true">›</span>
+        <span>Tentang &amp; lisensi</span
+        ><span class="end">{{ buildLabel }} <span class="chev" aria-hidden="true">›</span></span>
       </button>
     </section>
   `,
 })
 export class SettingsSheet {
+  protected readonly buildLabel = buildLabel();
   protected readonly data = inject(UserDataApi);
   protected readonly ui = inject(ReaderUiService);
   protected readonly sync = inject(SyncApi);
