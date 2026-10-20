@@ -1,13 +1,25 @@
 {
   "$schema": "./node_modules/@angular/service-worker/config/schema.json",
   "index": "/index.html",
-  "navigationUrls": ["/**", "!/api/**", "!/**/*.*", "!/**/*__*", "!/**/*__*/**"],
+  "navigationUrls": [
+    "/**",
+    "!/api/**",
+    "!/**/*.*",
+    "!/**/*__*",
+    "!/**/*__*/**"
+  ],
   "assetGroups": [
     {
       "name": "app-shell",
       "installMode": "prefetch",
       "resources": {
-        "files": ["/favicon.ico", "/index.html", "/manifest.webmanifest", "/*.css", "/*.js"]
+        "files": [
+          "/favicon.ico",
+          "/index.html",
+          "/manifest.webmanifest",
+          "/*.css",
+          "/*.js"
+        ]
       }
     },
     {
@@ -15,7 +27,20 @@
       "installMode": "prefetch",
       "updateMode": "prefetch",
       "resources": {
-        "files": ["/content/*/*.json"]
+        "files": [
+          "/content/*/*.json",
+          "!/content/*/latin.json"
+        ]
+      }
+    },
+    {
+      "name": "content-latin",
+      "installMode": "lazy",
+      "updateMode": "lazy",
+      "resources": {
+        "files": [
+          "/content/*/latin.json"
+        ]
       }
     },
     {
@@ -23,15 +48,24 @@
       "installMode": "lazy",
       "updateMode": "prefetch",
       "resources": {
-        "files": ["/icons/**"]
+        "files": [
+          "/icons/**"
+        ]
       }
     }
   ],
   "dataGroups": [
     {
       "name": "google-fonts",
-      "urls": ["https://fonts.googleapis.com/**", "https://fonts.gstatic.com/**"],
-      "cacheConfig": { "strategy": "performance", "maxSize": 30, "maxAge": "365d" }
+      "urls": [
+        "https://fonts.googleapis.com/**",
+        "https://fonts.gstatic.com/**"
+      ],
+      "cacheConfig": {
+        "strategy": "performance",
+        "maxSize": 30,
+        "maxAge": "365d"
+      }
     }
   ]
 }

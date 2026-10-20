@@ -14,6 +14,7 @@ import { ContentService } from './core/content/content.service';
 import { OfflineService } from './core/offline/offline.service';
 import { UserDataService } from './core/storage/user-data.service';
 import { SyncService } from './core/sync/sync.service';
+import { InstallService } from './core/install.service';
 import { ThemeService } from './core/theme.service';
 
 export const appConfig: ApplicationConfig = {
@@ -32,6 +33,7 @@ export const appConfig: ApplicationConfig = {
       const sync = inject(SyncApi);
       const offline = inject(OfflineApi);
       inject(ThemeService);
+      inject(InstallService); // must listen for beforeinstallprompt from the start
       void content.load();
       await data.init();
       // Sync is optional and never blocks reading.

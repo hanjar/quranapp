@@ -6,6 +6,7 @@ import { mkdir, readFile, writeFile, rename, rm, stat } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { JUZ_STARTS, deriveJuz, derivePages, deriveSurahs, pageAyahs, checkIntegrity } from './lib/derive.mjs';
+import { LATIN_SOURCE, buildLatinMap } from './lib/latin.mjs';
 import { validateSvg } from './lib/svg-validate.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -16,7 +17,7 @@ const pad = (n) => String(n).padStart(3, '0');
 const sha256 = (buf) => createHash('sha256').update(buf).digest('hex');
 
 function parseArgs(argv) {
-  const o = { commit: null, pages: [1, 604], concurrency: 8 };
+  const o = { commit: null, pages: [1, 604], concurrency: 8, skipLatin: false, latinRefresh: false };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (a === '--commit') o.commit = argv[++i];
@@ -96,6 +97,33 @@ async function pool(items, n, fn) {
   return results;
 }
 
+/** Fetch per-surah transliteration from EQuran.id; cached in .content-cache/latin/<date>/. */
+async function fetchLatin(surahs, refresh) {
+  const dir = path.join(ROOT, '.content-cache', 'latin', new Date().toISOString().slice(0, 10));
+  const nums = Array.from({ length: 114 }, (_, i) => i + 1);
+  const payloads = await pool(nums, 4, async (n) => {
+    const file = path.join(dir, `${pad(n)}.json`);
+    if (!refresh) {
+      try {
+        return JSON.parse(await readFile(file, 'utf8'));
+      } catch {
+        /* not cached */
+      }
+    }
+    const url = `https://equran.id/api/v2/surat/${n}`;
+    const text = await withRetry(async () => {
+      const r = await fetch(url, { headers: { Accept: 'application/json' } });
+      if (!r.ok) throw new Error(`HTTP ${r.status} for ${url}`);
+      return r.text();
+    }, `latin surah ${n}`);
+    const json = JSON.parse(text);
+    await mkdir(dir, { recursive: true });
+    await writeFile(file, text);
+    return json;
+  });
+  return buildLatinMap(payloads, surahs);
+}
+
 async function main() {
   const opts = parseArgs(process.argv.slice(2));
   const [from, to] = opts.pages;
@@ -154,6 +182,13 @@ async function main() {
       "Mushaf Madinah (Hafs) (c) Kompleks Percetakan Al-Qur'an Raja Fahd. Data poligon ayat dan metadata: quranpedia/quran-svg (CC BY 4.0). / Madinah Mushaf (Hafs) (c) King Fahd Glorious Qur'an Printing Complex. Ayah polygons and metadata: quranpedia/quran-svg (CC BY 4.0).",
   };
 
+  let latin = null;
+  if (!opts.skipLatin) {
+    console.log('Fetching Latin transliteration (EQuran.id) ...');
+    if (partial) console.log('  (partial build: latin still covers all 114 surahs)');
+    latin = await fetchLatin(surahs, opts.latinRefresh);
+  }
+
   // Write to a fresh temp dir then swap in, so a failed build never leaves a mixed folder.
   const tmpOut = `${OUT}.tmp`;
   await rm(tmpOut, { recursive: true, force: true });
@@ -173,6 +208,15 @@ async function main() {
   await emit('surahs.json', json(surahs));
   await emit('pages.json', json(pages));
   await emit('juz.json', json(juz));
+  if (latin) {
+    await emit(
+      'latin.json',
+      Buffer.from(
+        JSON.stringify({ format: 'mushaf-latin', version: 1, source: { ...LATIN_SOURCE, fetchedAt: new Date().toISOString() }, ayahs: latin }) + '\n',
+        'utf8',
+      ),
+    );
+  }
   const totalBytes = Object.values(files).reduce((n, f) => n + f.bytes, 0);
   const manifest = { editionId: 'hafs-kfqc', contentVersion, files, totalBytes, ...(partial ? { partial: true, pages: [from, to] } : {}) };
   await writeFile(path.join(tmpOut, 'manifest.json'), json(manifest));
@@ -184,6 +228,7 @@ async function main() {
   console.log(`  commit       ${sha}`);
   console.log(`  pages        ${pages.length}${partial ? ' (partial)' : ''}`);
   console.log(`  surahs       ${surahs.length}   juz ${juz.length}`);
+  console.log(`  latin        ${latin ? Object.keys(latin).length + ' ayahs' : 'skipped'}`);
   console.log(`  files        ${Object.keys(files).length}`);
   console.log(`  total bytes  ${totalBytes} (${mb(totalBytes)} MB)`);
   console.log(`  largest page ${pad(largest.page)} = ${largest.bytes} bytes (${(largest.bytes / 1024).toFixed(0)} KB)`);

@@ -32,6 +32,8 @@ export const SHEET_STYLES = `
   .panel strong { font-size: 15px; }
   .offline-cta { padding: 14px; border-radius: var(--mf-radius-lg); background: color-mix(in srgb, var(--ui-primary) 7%, transparent); border: 1px solid color-mix(in srgb, var(--ui-primary) 25%, transparent); }
   .offline-cta .mf-btn { width: 100%; }
+  .offline-cta + .offline-cta { margin-top: 12px; }
+  .steps { margin: 4px 0 0; padding-left: 20px; line-height: 1.6; }
   .bar { height: 8px; border-radius: 4px; background: var(--ui-hair); overflow: hidden; }
   .bar > span { display: block; height: 100%; background: var(--ui-primary); transition: width var(--mf-dur-base); }
   .status-dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; background: var(--ui-primary); flex: none; }

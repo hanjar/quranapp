@@ -1,9 +1,10 @@
 import { LOCAL_WRITE_TIMEOUT_MS, withTimeout } from '../../core/async';
-import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, effect, inject, signal, untracked } from '@angular/core';
+import { LatinService } from '../../core/content/latin.service';
 import { ContentApi, UserDataApi } from '../../core/contracts';
 import { ReaderUiService } from '../../core/reader-ui.service';
 import { SheetHistory } from './sheet-history';
-import { verseReference } from './nav-helpers';
+import { latinCopyText, verseReference } from './nav-helpers';
 
 @Component({
   selector: 'app-verse-sheet',
@@ -14,6 +15,39 @@ import { verseReference } from './nav-helpers';
         <div class="title">{{ v.title }}</div>
         <div class="sub">{{ v.sub }}</div>
       </div>
+      <section class="latin" aria-label="Cara membaca">
+        <div class="latin-head">
+          <span class="mf-eyebrow">Cara membaca</span>
+          <button
+            type="button"
+            class="latin-toggle"
+            [attr.aria-expanded]="!latinCollapsed()"
+            aria-controls="mf-latin-body"
+            (click)="toggleLatin()"
+          >
+            {{ latinCollapsed() ? 'Tampilkan bacaan Latin' : 'Sembunyikan bacaan Latin' }}
+          </button>
+        </div>
+        @if (!latinCollapsed()) {
+          <div id="mf-latin-body" aria-live="polite">
+            @if (latinText(); as t) {
+              <p class="latin-text" lang="id-Latn">{{ t }}</p>
+              <div class="latin-foot">
+                @if (latinSource(); as src) {
+                  <span class="attr">Transliterasi: {{ src }}</span>
+                }
+                <button type="button" class="latin-copy" (click)="copyLatin()">Salin bacaan</button>
+              </div>
+            } @else if (latinText() === undefined) {
+              <div class="skeleton" aria-busy="true" aria-label="Memuat bacaan Latin">
+                <span></span><span></span><span class="short"></span>
+              </div>
+            } @else {
+              <p class="muted">Bacaan Latin belum tersedia (perlu koneksi untuk memuat pertama kali).</p>
+            }
+          </div>
+        }
+      </section>
       <div class="grid">
         <button
           type="button"
@@ -90,7 +124,7 @@ import { verseReference } from './nav-helpers';
       display: flex;
       flex-direction: column;
       gap: var(--mf-space-4);
-      padding: var(--mf-space-1) var(--mf-space-5) var(--mf-space-6);
+      padding: var(--mf-space-1) var(--mf-space-5) 0;
       color: var(--ui-ink);
     }
     .head {
@@ -106,7 +140,26 @@ import { verseReference } from './nav-helpers';
       font-size: 13.5px;
       color: var(--ui-muted);
     }
+    .latin { display: flex; flex-direction: column; gap: var(--mf-space-2); }
+    .latin-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+    .latin-toggle, .latin-copy { min-height: var(--mf-tap); padding: 0 var(--mf-space-2); border: none; background: transparent; color: var(--ui-primary); font-size: 13px; font-weight: 500; }
+    .latin-text { margin: 0; font-size: 16.5px; line-height: 1.6; font-style: normal; user-select: text; -webkit-user-select: text; }
+    .latin-foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+    .attr { font-size: 11.5px; color: var(--ui-muted); }
+    .muted { margin: 0; font-size: 13.5px; line-height: 1.5; color: var(--ui-muted); }
+    .skeleton { display: flex; flex-direction: column; gap: 8px; padding: 6px 0; }
+    .skeleton span { height: 14px; border-radius: 7px; background: color-mix(in srgb, var(--ui-ink) 8%, transparent); animation: mf-pulse 1.2s ease-in-out infinite; }
+    .skeleton .short { width: 60%; }
+    @keyframes mf-pulse { 50% { opacity: 0.45; } }
+    @media (prefers-reduced-motion: reduce) { .skeleton span { animation: none; } }
     .grid {
+      position: sticky;
+      bottom: 0;
+      z-index: 1;
+      background: var(--ui-surface);
+      padding-bottom: var(--mf-space-4);
+      border-top: 1px solid var(--ui-hair);
+      padding-top: var(--mf-space-1);
       display: grid;
       grid-template-columns: repeat(4, minmax(0, 1fr));
       gap: var(--mf-space-1);
@@ -140,6 +193,53 @@ export class VerseSheet {
   protected readonly history = inject(SheetHistory);
   private readonly content = inject(ContentApi);
   private readonly userData = inject(UserDataApi);
+  private readonly latin = inject(LatinService);
+
+  /** undefined = loading, null = unavailable. */
+  protected readonly latinText = signal<string | null | undefined>(undefined);
+  protected readonly latinCollapsed = signal(readCollapsed());
+  protected readonly latinSource = computed(() => {
+    const src = this.latin.source();
+    return src ? src.origin || src.name : null;
+  });
+  private latinSeq = 0;
+
+  constructor() {
+    effect(() => {
+      const v = this.ui.selectedVerse();
+      untracked(() => this.loadLatin(v ? { surah: v.surah, ayah: v.ayah } : null));
+    });
+  }
+
+  private loadLatin(ref: { surah: number; ayah: number } | null): void {
+    const seq = ++this.latinSeq;
+    this.latinText.set(undefined);
+    if (!ref) return;
+    this.latin
+      .get(ref)
+      .then((t) => seq === this.latinSeq && this.latinText.set(t))
+      .catch(() => seq === this.latinSeq && this.latinText.set(null));
+  }
+
+  protected toggleLatin(): void {
+    const next = !this.latinCollapsed();
+    this.latinCollapsed.set(next);
+    try {
+      localStorage.setItem(LATIN_KEY, next ? '1' : '0');
+    } catch {
+      // storage unavailable: preference is session-only
+    }
+  }
+
+  protected async copyLatin(): Promise<void> {
+    const v = this.ui.selectedVerse();
+    const t = this.latinText();
+    const surah = v ? this.content.index()?.surahs[v.surah - 1] : undefined;
+    if (!v || !t || !surah) return;
+    this.ui.showToast({
+      message: (await copyText(latinCopyText(surah, v.ayah, t))) ? 'Bacaan disalin' : 'Bacaan gagal disalin',
+    });
+  }
 
   protected readonly info = computed(() => {
     const v = this.ui.selectedVerse();
@@ -202,6 +302,16 @@ export class VerseSheet {
     this.ui.showToast({
       message: (await copyText(text)) ? 'Rujukan disalin' : 'Rujukan gagal disalin',
     });
+  }
+}
+
+const LATIN_KEY = 'mf-latin-collapsed';
+
+function readCollapsed(): boolean {
+  try {
+    return localStorage.getItem(LATIN_KEY) === '1';
+  } catch {
+    return false;
   }
 }
 

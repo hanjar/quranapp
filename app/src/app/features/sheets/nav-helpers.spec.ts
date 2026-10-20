@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { SurahMeta } from '../../core/models';
-import { filterJuz, filterSurahs, formatDate, parsePageInput, verseReference } from './nav-helpers';
+import { filterJuz, filterSurahs, formatDate, parsePageInput, latinCopyText, verseReference } from './nav-helpers';
 
 const mk = (
   number: number,
@@ -78,5 +78,11 @@ describe('verseReference', () => {
     expect(verseReference({ nameLatin: 'Al-Baqarah', number: 2 }, 255, 42)).toBe(
       'QS. Al-Baqarah 2:255 (hal. 42)',
     );
+  });
+});
+
+describe('latinCopyText', () => {
+  it('prefixes the reference with an em dash', () => {
+    expect(latinCopyText({ nameLatin: 'At-Tur', number: 52 }, 47, '  wa inna  ')).toBe('QS. At-Tur 52:47 — wa inna');
   });
 });

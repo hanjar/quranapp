@@ -41,3 +41,12 @@ export function verseReference(
 ): string {
   return `QS. ${surah.nameLatin} ${surah.number}:${ayah} (hal. ${page})`;
 }
+
+/** Text for "Salin bacaan": "QS. At-Tur 52:47 — <latin>". */
+export function latinCopyText(
+  surah: Pick<SurahMeta, 'nameLatin' | 'number'>,
+  ayah: number,
+  latin: string,
+): string {
+  return `QS. ${surah.nameLatin} ${surah.number}:${ayah} — ${latin.trim()}`;
+}

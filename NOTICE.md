@@ -20,3 +20,4 @@ remains under its original terms:
 4. **Juz start ayahs** - the standard Hafs juz division, entered as a constant and cross-checked
    against the upstream page data at build time.
 5. **Arabic UI font** - Amiri (SIL Open Font License) where used for surah names.
+6. **Latin transliteration per ayah (`latin.json`)** - Transliterasi Kemenag RI (Kementerian Agama RI, quran.kemenag.go.id), obtained via the EQuran.id API v2 (<https://equran.id/apidev>). Data belongs to Kemenag RI; use is non-commercial with attribution, pending written permission from LPMQ. Text is reproduced verbatim (whitespace/NFC normalisation only).
