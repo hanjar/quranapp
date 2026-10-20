@@ -15,9 +15,26 @@ export class SheetHistory {
   private pushed = false;
   private pending: Array<() => void> = [];
   private fallback: ReturnType<typeof setTimeout> | null = null;
+  /** A full-screen overlay (style preview) stacked above the sheet has its own history entry. */
+  private overlayPushed = false;
+  private overlayBack: (() => void) | null = null;
+  private ignorePops = 0;
 
   constructor() {
     window.addEventListener('popstate', () => {
+      if (this.ignorePops > 0) {
+        // We popped the overlay entry ourselves (closed from its UI): the sheet below stays open.
+        this.ignorePops--;
+        return;
+      }
+      if (this.overlayPushed) {
+        // Back button popped the overlay entry: close the overlay only, not the sheet beneath it.
+        this.overlayPushed = false;
+        const cb = this.overlayBack;
+        this.overlayBack = null;
+        cb?.();
+        return;
+      }
       if (this.pushed) {
         // Back button popped our entry.
         this.pushed = false;
@@ -25,6 +42,23 @@ export class SheetHistory {
       }
       this.flush();
     });
+  }
+
+  /** An overlay opened above the sheet; `onBack` runs when the browser Back button closes it. */
+  overlayOpened(onBack: () => void): void {
+    if (this.overlayPushed) return;
+    history.pushState({ ...(history.state ?? {}), mfOverlay: true }, '');
+    this.overlayPushed = true;
+    this.overlayBack = onBack;
+  }
+
+  /** The overlay closed through its own UI: drop its history entry (the sheet stays open). */
+  overlayClosed(): void {
+    this.overlayBack = null;
+    if (!this.overlayPushed) return;
+    this.overlayPushed = false;
+    this.ignorePops++;
+    history.back();
   }
 
   /** Host: the sheet went from closed to open. */

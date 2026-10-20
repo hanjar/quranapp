@@ -2,7 +2,7 @@
 // Builds app/public/content/hafs-kfqc/ from a pinned commit of quranpedia/quran-svg.
 // Usage: node scripts/build-content.mjs [--commit <sha>] [--pages 1-10] [--concurrency 8]
 import { createHash } from 'node:crypto';
-import { mkdir, readFile, writeFile, rename, rm, stat } from 'node:fs/promises';
+import { mkdir, readdir, readFile, writeFile, rename, rm, stat } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { JUZ_STARTS, deriveJuz, derivePages, deriveSurahs, pageAyahs, checkIntegrity } from './lib/derive.mjs';
@@ -285,6 +285,15 @@ async function main() {
       if (buf.length > tafsirLargest.bytes) tafsirLargest = { bytes: buf.length, surah: n };
     }
     await emit('tafsir/index.json', json({ format: 'mushaf-tafsir-index', version: 1, source: { ...TAFSIR_SOURCE, fetchedAt }, sizes, totalBytes: tafsirTotal }));
+  }
+  // Keep the optional tajweed layouts (built separately by build-qcf.mjs) across rebuilds.
+  try {
+    const qcfDir = path.join(OUT, 'qcf');
+    const names = await readdir(qcfDir);
+    await mkdir(path.join(tmpOut, 'qcf'), { recursive: true });
+    for (const name of names) await emit(`qcf/${name}`, await readFile(path.join(qcfDir, name)));
+  } catch {
+    /* no qcf folder yet */
   }
   const totalBytes = Object.values(files).reduce((n, f) => n + f.bytes, 0);
   const manifest = { editionId: 'hafs-kfqc', contentVersion, files, totalBytes, ...(partial ? { partial: true, pages: [from, to] } : {}) };

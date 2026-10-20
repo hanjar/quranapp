@@ -16,6 +16,10 @@ import { ContentApi, OfflineApi, UserDataApi } from '../../core/contracts';
 import { AyahRef, PageLoadError, PageLoadErrorKind } from '../../core/models';
 import { ReaderUiService } from '../../core/reader-ui.service';
 import { AudioService } from '../../core/audio/audio.service';
+import { QcfPageData, QcfService } from '../../core/content/qcf.service';
+import { PageRendererId, PageRendererService } from '../../core/page-renderer.service';
+import { QCF_ATTRIBUTION, layoutVerses } from './qcf-logic';
+import { QcfPage } from './qcf-page';
 import { decorateLineRules } from './line-rules';
 import { decorateSurahHeaders } from './surah-header';
 import { VerseStateContext, isCoverPage, paddedViewBox, verseKey, verseStateFlags } from './reader-logic';
@@ -35,12 +39,14 @@ export interface PageLoadResult {
   selector: 'mf-page-view',
   templateUrl: './page-view.html',
   styleUrl: './page-view.scss',
+  imports: [QcfPage],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: {
     '[class.is-cover]': 'cover()',
     '[attr.data-page]': 'page()',
     '[attr.aria-current]': "active() ? 'page' : null",
     '[class.is-active]': 'active()',
+    '[attr.data-preview]': "preview() ? '' : null",
   },
 })
 export class PageView implements OnDestroy {
@@ -49,6 +55,8 @@ export class PageView implements OnDestroy {
   private readonly userData = inject(UserDataApi);
   private readonly ui = inject(ReaderUiService);
   private readonly audio = inject(AudioService);
+  private readonly qcf = inject(QcfService);
+  private readonly renderers = inject(PageRendererService);
 
   readonly page = input.required<number>();
   /** True for the active page of a spread pair. */
@@ -56,6 +64,11 @@ export class PageView implements OnDestroy {
   readonly selected = input<AyahRef | null>(null);
   /** Set of `surah:ayah` keys that are bookmarked. */
   readonly bookmarked = input<ReadonlySet<string>>(new Set());
+
+  /** Forces a renderer (the style preview); null = the reader's setting. */
+  readonly renderer = input<PageRendererId | null>(null);
+  /** Static preview (style picker): no verse list, no interaction. */
+  readonly preview = input(false);
 
   /** Emitted once per load attempt (success or failure). */
   readonly loadResult = output<PageLoadResult>();
@@ -67,7 +80,22 @@ export class PageView implements OnDestroy {
   protected readonly verses = signal<AyahRef[]>([]);
   protected readonly lastCachedPage = signal<number | null>(null);
   private readonly svgEl = signal<SVGSVGElement | null>(null);
-  private readonly focusKey = signal<string | null>(null);
+  protected readonly qcfData = signal<QcfPageData | null>(null);
+  protected readonly qcfCredit = QCF_ATTRIBUTION;
+  /** Renderer in use: the QCF style falls back to the classic SVG once it failed to load. */
+  protected readonly mode = computed<PageRendererId>(() => {
+    const m = this.renderer() ?? this.renderers.style();
+    return m === 'qcf-tajweed' && this.renderers.failed() ? 'classic' : m;
+  });
+  protected readonly selectedKey = computed(() => {
+    const s = this.selected();
+    return s ? verseKey(s.surah, s.ayah) : null;
+  });
+  protected readonly playingKey = computed(() => {
+    const p = this.audio.highlight();
+    return p ? verseKey(p.surah, p.ayah) : null;
+  });
+  protected readonly focusKey = signal<string | null>(null);
   private readonly retryTick = signal(0);
   private token = 0;
 
@@ -99,6 +127,7 @@ export class PageView implements OnDestroy {
     effect(() => {
       const p = this.page();
       this.retryTick();
+      this.mode();
       untracked(() => void this.load(p));
     });
     effect(() => {
@@ -156,8 +185,25 @@ export class PageView implements OnDestroy {
     this.state.set('loading');
     this.errorKind.set(null);
     this.svgEl.set(null);
+    this.qcfData.set(null);
     this.verses.set([]);
     host.replaceChildren();
+    if (this.mode() === 'qcf-tajweed') {
+      try {
+        const data = await this.qcf.load(page);
+        if (token !== this.token) return;
+        this.qcfData.set(data);
+        this.verses.set(layoutVerses(data.layout));
+        this.state.set('ready');
+        this.loadResult.emit({ page, ok: true });
+        this.qcf.prefetch([page + 1, page - 1]);
+      } catch {
+        if (token !== this.token) return;
+        // The effect re-runs with the classic renderer (mode() flips) and the toast tells the reader once.
+        this.renderers.reportFailure();
+      }
+      return;
+    }
     try {
       const svg = await this.content.getPage(page);
       if (token !== this.token) return;

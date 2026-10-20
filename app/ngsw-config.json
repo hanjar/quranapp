@@ -56,6 +56,16 @@
       }
     },
     {
+      "name": "content-qcf",
+      "installMode": "lazy",
+      "updateMode": "lazy",
+      "resources": {
+        "files": [
+          "/content/*/qcf/*.json"
+        ]
+      }
+    },
+    {
       "name": "icons",
       "installMode": "lazy",
       "updateMode": "prefetch",
@@ -67,6 +77,17 @@
     }
   ],
   "dataGroups": [
+    {
+      "name": "qcf-fonts",
+      "urls": [
+        "https://verses.quran.foundation/fonts/quran/hafs/v4/colrv1/woff2/*.woff2"
+      ],
+      "cacheConfig": {
+        "strategy": "performance",
+        "maxSize": 700,
+        "maxAge": "365d"
+      }
+    },
     {
       "name": "google-fonts",
       "urls": [

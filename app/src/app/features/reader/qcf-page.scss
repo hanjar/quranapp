@@ -1,0 +1,169 @@
+:host {
+  display: block;
+  container-type: size;
+  /* COLR palette per theme (rules are registered per font by QcfService). */
+  --mf-qcf-palette: --mf-qcf-day;
+}
+:host-context(html[data-night='on']) {
+  --mf-qcf-palette: --mf-qcf-night;
+}
+:host-context(html[data-contrast='high']) {
+  --mf-qcf-palette: --mf-qcf-hc;
+}
+:host-context(html[data-night='on'][data-contrast='high']) {
+  --mf-qcf-palette: --mf-qcf-hcnight;
+}
+
+.grid {
+  display: grid;
+  grid-template-rows: repeat(var(--rows), 1fr);
+  width: 100%;
+  height: 100%;
+  color: var(--mf-text-ink);
+  font-palette: var(--mf-qcf-palette);
+  font-synthesis: none;
+}
+
+.ln {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  white-space: nowrap;
+  min-height: 0;
+  min-width: 0;
+  /* Fits the widest line of the page to the text width; never taller than its row. */
+  font-size: min(calc(100cqw / (var(--em) * 1.012)), calc(100cqh / var(--rows) / 1.25));
+  line-height: calc(100cqh / var(--rows));
+}
+.ln--center {
+  justify-content: center;
+}
+
+.qw {
+  flex: 1 1 auto;
+  text-align: center;
+  cursor: pointer;
+  border-radius: 0.1em;
+  padding-block: 0.12em;
+  line-height: 1;
+  transition:
+    background-color var(--mf-dur-fast),
+    box-shadow var(--mf-dur-fast);
+}
+.ln--center .qw {
+  flex: 0 0 auto;
+  padding-inline: 0.12em;
+}
+
+.qw.is-bookmarked {
+  background: var(--mf-verse-bookmarked);
+}
+/* Audio: soft fill + dashed outline + gentle pulse (never colour alone). */
+.qw.is-playing {
+  background: color-mix(in srgb, var(--ui-primary) 14%, transparent);
+  outline: 1px dashed var(--ui-primary);
+  outline-offset: -1px;
+  animation: mf-qcf-pulse 1.6s ease-in-out infinite;
+}
+@keyframes mf-qcf-pulse {
+  50% {
+    opacity: 0.6;
+  }
+}
+:host-context(html[data-motion='reduce']) .qw.is-playing {
+  animation: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  :host-context(html:not([data-motion='no-preference'])) .qw.is-playing {
+    animation: none;
+  }
+}
+/* Selected wins over playing/bookmarked: tint + solid ring. */
+.qw.is-selected,
+.qw.is-focus {
+  background: var(--mf-verse-select);
+  outline: 1.4px solid var(--mf-verse-select-ring);
+  outline-offset: -1px;
+  animation: none;
+}
+.qw.is-focus:not(.is-selected) {
+  outline-style: dashed;
+}
+
+/* Optional separators between lines (html[data-line-rules='on']). */
+:host-context(html[data-line-rules='on']) .ln:not(:last-child) {
+  box-shadow: 0 0.5px 0 var(--mf-line-rule);
+}
+
+/* Surah header (own cartouche artwork, same tokens as the classic renderer). */
+.hdr {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 0;
+  pointer-events: none;
+  font-family: Amiri, 'Amiri Quran', serif;
+  svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+  }
+}
+.sh-fill {
+  fill: var(--mf-ayah-ornament);
+  fill-opacity: 0.1;
+  stroke: none;
+}
+.sh-outer,
+.sh-inner,
+.sh-line {
+  fill: none;
+  stroke: var(--mf-ayah-ornament);
+  stroke-linejoin: round;
+}
+.sh-outer {
+  stroke: var(--mf-frame-ink);
+  stroke-width: 0.17;
+}
+.sh-inner {
+  stroke-width: 0.08;
+}
+.sh-line {
+  stroke-width: 0.07;
+}
+.sh-dot {
+  fill: var(--mf-ayah-ornament);
+}
+.sh-name {
+  fill: var(--mf-text-ink);
+  font-size: 4.3px;
+}
+.sh-bism {
+  fill: var(--mf-text-ink);
+  font-size: 2.3px;
+}
+:host-context(html[data-contrast='high']) {
+  .sh-fill {
+    fill-opacity: 0;
+  }
+  .sh-outer,
+  .sh-inner,
+  .sh-line {
+    stroke: var(--mf-text-ink);
+  }
+  .sh-dot {
+    fill: var(--mf-text-ink);
+  }
+}
+
+.bism {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 0;
+  pointer-events: none;
+  font-family: Amiri, 'Amiri Quran', serif;
+  color: var(--mf-text-ink);
+  font-size: min(calc(100cqw / 15), calc(100cqh / var(--rows) / 1.6));
+  white-space: nowrap;
+}

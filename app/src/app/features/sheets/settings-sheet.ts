@@ -17,6 +17,7 @@ import { ReaderUiService } from '../../core/reader-ui.service';
 import { PAPER_THEMES, ThemeService, UI_THEMES } from '../../core/theme.service';
 import { exportFilename, formatMb, importSummary } from '../shell/format';
 import { useSearchFocusTarget } from './focus-target';
+import { MushafStyleSection } from './mushaf-style-section';
 import { SHEET_STYLES } from './sheet-styles';
 import { WAKE_OPTIONS, WakeLockService } from '../../core/wake-lock.service';
 
@@ -51,6 +52,7 @@ const SYNC_LABEL: Record<string, string> = {
 /** Body of the "Pengaturan" sheet. Rendered inside the sheet container (no own chrome). */
 @Component({
   selector: 'app-settings-sheet',
+  imports: [MushafStyleSection],
   changeDetection: ChangeDetectionStrategy.OnPush,
   styles: [
     SHEET_STYLES,
@@ -213,6 +215,8 @@ const SYNC_LABEL: Record<string, string> = {
         halaman mengikuti mushaf cetak dan tidak diubah.
       </p>
     </section>
+
+    <mf-mushaf-style-section />
 
     <section aria-labelledby="st-audio" data-search-id="audio">
       <h3 id="st-audio">Audio</h3>

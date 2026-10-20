@@ -49,6 +49,15 @@
   }
 }
 
+/* QCF renderer: same text block as the SVG. */
+.qcf {
+  position: absolute;
+  inset: 7.5% 4.2% 8.5%;
+}
+:host(.is-cover) .qcf {
+  inset: 11% 10% 12%;
+}
+
 /* Text block keeps the artwork's 345:550 shape: 0.916 W wide, 0.84 H tall. */
 .art {
   position: absolute;
@@ -201,7 +210,14 @@
   flex: none;
 }
 
+.credit {
+  display: block;
+  font-size: 0.72em;
+  line-height: 1.1;
+  opacity: 0.85;
+}
 .num {
+  flex-direction: column;
   position: absolute;
   left: 0;
   right: 0;
@@ -281,4 +297,8 @@
   list-style: none;
   margin: 0;
   padding: 0;
+}
+
+:host([data-preview]) {
+  pointer-events: none;
 }

@@ -35,3 +35,41 @@ describe('SheetHistory.navigateTo', () => {
     expect(ui.selectedVerse()).toEqual({ surah: 2, ayah: 255, page: 7 });
   });
 });
+
+describe('SheetHistory overlay (style preview)', () => {
+  let ui: ReaderUiService;
+  let history: SheetHistory;
+
+  beforeEach(() => {
+    TestBed.configureTestingModule({ providers: [{ provide: Router, useValue: { navigate: vi.fn() } }] });
+    ui = TestBed.inject(ReaderUiService);
+    history = TestBed.inject(SheetHistory);
+  });
+
+  it('Back closes only the overlay, the sheet underneath stays open', () => {
+    const onBack = vi.fn();
+    ui.openSheet('settings');
+    history.opened();
+    history.overlayOpened(onBack);
+    window.dispatchEvent(new PopStateEvent('popstate'));
+    expect(onBack).toHaveBeenCalledOnce();
+    expect(ui.sheet()).toBe('settings');
+    // the next Back closes the sheet as usual
+    window.dispatchEvent(new PopStateEvent('popstate'));
+    expect(ui.sheet()).toBeNull();
+  });
+
+  it('closing the overlay from its UI pops its entry without closing the sheet', () => {
+    const back = vi.spyOn(window.history, 'back').mockImplementation(() => undefined);
+    const onBack = vi.fn();
+    ui.openSheet('settings');
+    history.opened();
+    history.overlayOpened(onBack);
+    history.overlayClosed();
+    expect(back).toHaveBeenCalledOnce();
+    window.dispatchEvent(new PopStateEvent('popstate')); // popstate caused by our own back()
+    expect(onBack).not.toHaveBeenCalled();
+    expect(ui.sheet()).toBe('settings');
+    back.mockRestore();
+  });
+});

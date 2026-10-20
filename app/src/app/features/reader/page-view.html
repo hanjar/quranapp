@@ -9,6 +9,17 @@
     [attr.aria-label]="label()"
     [attr.aria-busy]="state() === 'loading'"
   ></div>
+  @if (qcfData(); as q) {
+    <mf-qcf-page
+      class="qcf"
+      aria-hidden="true"
+      [data]="q"
+      [selectedKey]="selectedKey()"
+      [playingKey]="playingKey()"
+      [focusKey]="focusKey()"
+      [bookmarked]="bookmarked()"
+    />
+  }
 
   @switch (state()) {
     @case ('loading') {
@@ -58,9 +69,14 @@
       <span class="head__juz">{{ h.juz }}</span>
     </div>
   }
-  <span class="num" aria-hidden="true">{{ page() }}</span>
+  <span class="num" aria-hidden="true"
+    >{{ page() }}
+    @if (qcfData()) {
+      <small class="credit">{{ qcfCredit }}</small>
+    }
+  </span>
 
-  @if (verses().length) {
+  @if (verses().length && !preview()) {
     <ul class="mf-visually-hidden verse-list" [attr.aria-label]="'Ayat pada halaman ' + page()">
       @for (v of verses(); track key(v)) {
         <li>

@@ -1,0 +1,71 @@
+@if (style(); as st) {
+  <dialog
+    #dlg
+    class="pv"
+    aria-labelledby="pv-title"
+    (keydown)="onKey($event)"
+    (cancel)="$event.preventDefault(); cancel()"
+  >
+    <header class="pv__head">
+      <h2 #title id="pv-title" class="pv__title mf-display" tabindex="-1">
+        Pratinjau: {{ st.label }}
+        @if (st.experimental) {
+          <span class="pv__badge">Eksperimen</span>
+        }
+      </h2>
+      @if (hasTajweed()) {
+        <button
+          type="button"
+          class="mf-btn mf-btn--outline pv__legend-btn"
+          [attr.aria-expanded]="legendOpen()"
+          aria-controls="pv-legend"
+          (click)="legendOpen.set(!legendOpen())"
+        >
+          Keterangan warna
+        </button>
+      }
+    </header>
+
+    <div class="pv__stage">
+      <div class="pv__page">
+        <mf-page-view [page]="page()" [renderer]="st.id" [active]="true" [preview]="true" />
+      </div>
+    </div>
+
+    @if (legendOpen() && hasTajweed()) {
+      <section id="pv-legend" class="pv__legend" aria-label="Keterangan warna">
+        <mf-tajweed-legend />
+      </section>
+    }
+
+    <footer class="pv__bar">
+      <div class="pv__flip">
+        <button
+          type="button"
+          class="mf-icon-btn pv__nav"
+          aria-label="Halaman berikutnya"
+          [disabled]="!canNext()"
+          (click)="go(1)"
+        >
+          <span aria-hidden="true">‹</span>
+        </button>
+        <span class="pv__pg" role="status">Halaman {{ page() }} dari 604</span>
+        <button
+          type="button"
+          class="mf-icon-btn pv__nav"
+          aria-label="Halaman sebelumnya"
+          [disabled]="!canPrev()"
+          (click)="go(-1)"
+        >
+          <span aria-hidden="true">›</span>
+        </button>
+      </div>
+      <div class="pv__actions">
+        <button type="button" class="mf-btn mf-btn--outline" (click)="cancel()">Batal</button>
+        <button type="button" class="mf-btn mf-btn--primary" [disabled]="isCurrent()" (click)="apply()">
+          {{ isCurrent() ? 'Sedang dipakai' : 'Pakai tampilan ini' }}
+        </button>
+      </div>
+    </footer>
+  </dialog>
+}

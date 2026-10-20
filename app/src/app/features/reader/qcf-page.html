@@ -1,0 +1,62 @@
+<div class="grid" [style.--rows]="rows()" [style.--em]="data().metrics.maxEm" [style.font-family]="family()">
+  @for (l of lines(); track l.n) {
+    @switch (l.type) {
+      @case ('text') {
+        <div class="ln" dir="rtl" [class.ln--center]="l.centered" [style.grid-row]="l.n">
+          @for (w of l.words; track $index) {
+            <span
+              class="qw"
+              [attr.data-surah]="w.surah"
+              [attr.data-ayah]="w.ayah"
+              [class.is-selected]="w.key === selectedKey()"
+              [class.is-playing]="w.key === playingKey()"
+              [class.is-focus]="w.key === focusKey()"
+              [class.is-bookmarked]="bookmarked().has(w.key)"
+              >{{ w.code }}</span
+            >
+          }
+        </div>
+      }
+      @case ('surah') {
+        <div class="hdr" [style.grid-row]="l.n" aria-hidden="true">
+          <svg viewBox="0 0 94 10" preserveAspectRatio="xMidYMid meet" focusable="false">
+            <path class="sh-fill" [attr.d]="frame(l.bism)" />
+            <path class="sh-outer" [attr.d]="frame(l.bism)" />
+            <path class="sh-inner" [attr.d]="frame(l.bism, 0.1)" />
+            @for (side of [1, -1]; track side) {
+              <g class="sh-rosette">
+                <circle class="sh-line" [attr.cx]="rosetteX(l.bism, side)" [attr.cy]="rosetteY(l.bism)" [attr.r]="rosetteR(l.bism)" />
+                @for (a of petals; track a) {
+                  <ellipse
+                    class="sh-line"
+                    [attr.cx]="rosetteX(l.bism, side)"
+                    [attr.cy]="rosetteY(l.bism) - rosetteR(l.bism) * 0.52"
+                    [attr.rx]="rosetteR(l.bism) * 0.2"
+                    [attr.ry]="rosetteR(l.bism) * 0.34"
+                    [attr.transform]="
+                      'rotate(' + a + ' ' + rosetteX(l.bism, side) + ' ' + rosetteY(l.bism) + ')'
+                    "
+                  />
+                }
+                <circle class="sh-dot" [attr.cx]="rosetteX(l.bism, side)" [attr.cy]="rosetteY(l.bism)" [attr.r]="rosetteR(l.bism) * 0.17" />
+              </g>
+            }
+            <text class="sh-name" x="47" [attr.y]="l.bism ? 4.6 : 6.4" text-anchor="middle" lang="ar" direction="rtl">
+              {{ surahName(l.surah) }}
+            </text>
+            @if (l.bism) {
+              <text class="sh-bism" x="47" y="9.2" text-anchor="middle" lang="ar" direction="rtl">
+                بِسۡمِ ٱللَّهِ ٱلرَّحۡمَٰنِ ٱلرَّحِيمِ
+              </text>
+            }
+          </svg>
+        </div>
+      }
+      @case ('bism') {
+        <div class="bism" [style.grid-row]="l.n" aria-hidden="true">
+          <span lang="ar" dir="rtl">بِسۡمِ ٱللَّهِ ٱلرَّحۡمَٰنِ ٱلرَّحِيمِ</span>
+        </div>
+      }
+    }
+  }
+</div>

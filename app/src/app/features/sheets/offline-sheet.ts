@@ -438,6 +438,15 @@ import { SHEET_STYLES } from './sheet-styles';
       </ng-template>
     }
 
+    <section aria-label="Tampilan tajwid berwarna">
+      <h3>Tampilan tajwid berwarna (eksperimen)</h3>
+      <p class="muted">
+        Font halaman tajwid tersimpan otomatis saat Anda membacanya, sehingga halaman yang pernah
+        dibuka bisa dibaca offline. Belum ada unduhan massal; halaman yang belum pernah dibuka
+        memakai tampilan klasik bila offline.
+      </p>
+    </section>
+
     <section aria-labelledby="tf-h" data-search-id="offline-tafsir">
       <h3 id="tf-h">Tafsir offline (Kemenag RI)</h3>
       <p class="muted">

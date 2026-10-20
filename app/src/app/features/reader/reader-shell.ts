@@ -389,10 +389,11 @@ export class ReaderShell {
       if (!Number.isInteger(surah) || !Number.isInteger(ayah) || !Number.isInteger(page)) return null;
       return { ref: { surah, ayah }, page };
     }
-    const poly = target?.closest?.('.ayahPolygon');
+    // QCF (tajweed) renderer: every word span carries its verse.
+    const poly = target?.closest?.('.ayahPolygon, .qw[data-surah]');
     if (!poly) return null;
-    const surah = Number(poly.getAttribute('surah'));
-    const ayah = Number(poly.getAttribute('ayah'));
+    const surah = Number(poly.getAttribute('surah') ?? poly.getAttribute('data-surah'));
+    const ayah = Number(poly.getAttribute('ayah') ?? poly.getAttribute('data-ayah'));
     const pageEl = poly.closest('mf-page-view');
     const page = Number(pageEl?.getAttribute('data-page'));
     if (!Number.isInteger(surah) || !Number.isInteger(ayah) || !Number.isInteger(page)) return null;

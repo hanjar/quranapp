@@ -1,3 +1,4 @@
+import { QCF_ATTRIBUTION } from '../reader/qcf-logic';
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 import { SwUpdate } from '@angular/service-worker';
 import { UpdateService } from '../../core/update.service';
@@ -98,6 +99,11 @@ import { SHEET_STYLES } from './sheet-styles';
       }
     </section>
 
+    <section aria-label="Atribusi tampilan tajwid">
+      <h3>Tampilan tajwid berwarna (eksperimen)</h3>
+      <p class="muted">{{ qcfCredit }}. Font tidak disertakan dalam aplikasi; dimuat dari Quran Foundation saat tampilan ini dipakai.</p>
+    </section>
+
     <section aria-label="Atribusi audio">
       <h3>Audio</h3>
       <p class="muted">{{ audio.qari.attribution }}</p>
@@ -150,6 +156,7 @@ export class AboutSheet {
   }
 
   private readonly content = inject(ContentApi);
+  protected readonly qcfCredit = QCF_ATTRIBUTION;
   protected readonly audio = inject(AudioService);
   private readonly sw = inject(SwUpdate);
   protected readonly updates = inject(UpdateService);

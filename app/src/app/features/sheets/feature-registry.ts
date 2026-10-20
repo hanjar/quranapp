@@ -66,6 +66,8 @@ export const FEATURES: readonly FeatureEntry[] = [
     ['tema', 'gaya', 'antarmuka', 'tampilan', 'warna', 'theme', 'segar', 'ceria', 'samudra', 'klasik', 'font', 'huruf']),
   f('layout', 'Tata letak halaman', 'Satu halaman, dua halaman berdampingan, atau otomatis.', 'Tampilan', settings('layout'),
     ['tata letak', 'layout', 'dua halaman', '2 halaman', 'satu halaman', '1 halaman', 'spread', 'berdampingan', 'lanskap', 'mendatar', 'otomatis', 'tampilan halaman']),
+  f('mushaf-style', 'Tampilan mushaf', 'Klasik atau tajwid berwarna (eksperimen), dengan pratinjau sebelum dipakai.', 'Tampilan', settings('mushaf-style'),
+    ['tajwid', 'tajweed', 'warna', 'berwarna', 'tajwid berwarna', 'qcf', 'font', 'huruf', 'tampilan mushaf', 'klasik', 'pratinjau', 'preview', 'hukum tajwid', 'keterangan warna', 'eksperimen']),
   f('night', 'Mode malam', 'Tampilan gelap yang nyaman dibaca di tempat redup.', 'Tampilan', settings('night'),
     ['malam', 'mode malam', 'gelap', 'dark', 'dark mode', 'night', 'night mode', 'hitam', 'redup', 'mata', 'silau', 'tema gelap', 'jadwal', 'otomatis', 'waktu']),
   f('contrast', 'Kontras tinggi', 'Perjelas garis dan teks antarmuka.', 'Tampilan', settings('contrast'),
