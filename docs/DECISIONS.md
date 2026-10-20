@@ -18,4 +18,5 @@ Semua bisa ditinjau ulang; ubah file ini bila keputusan berubah.
 | D11 | **Ditunda** dari fase 1: audio, terjemahan, folder penanda, layar progres/khatam, tajwid, riwayat lain | Di luar P0 tech spec/PRD (audio & terjemahan P1 butuh lisensi; progres menyimpan riwayat baca → privasi). Tidak ada tombol mati di UI | Fase berikutnya |
 | D12 | Nama surah Latin = transliterasi Indonesia dari prototipe; nama Arab/jumlah ayat/halaman awal dari data sumber | Data sumber hanya punya nama Inggris | Perlu dicocokkan dengan pedoman transliterasi Kemenag |
 | D13 | Batas juz dari 30 ayat awal juz Hafs kanonik, halaman diturunkan dari data halaman sumber | Tidak ada file juz di dataset | Diuji otomatis di pipeline |
+| D15 | Sumber P1: audio per-ayat **Al Quran Cloud CDN** (qari awal Alafasy), terjemahan **Kemenag via Tanzil `id.indonesian`** | Disetujui pemilik proyek 20 Okt 2026 berdasar [P1-SOURCES.md](P1-SOURCES.md). Konten non-komersial; terjemahan bersifat sementara sampai ada izin tertulis LPMQ | Menunggu izin tertulis sebelum rilis publik |
 | D14 | Lisensi kode: **MIT** | Proyek open source; konten punya lisensinya sendiri (lihat NOTICE.md) | — |
