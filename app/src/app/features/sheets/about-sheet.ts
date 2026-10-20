@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 import { SwUpdate } from '@angular/service-worker';
 import { withTimeout } from '../../core/async';
+import { AudioService } from '../../core/audio/audio.service';
 import { BUILD_INFO } from '../../core/build-info';
 import { ContentApi } from '../../core/contracts';
 import { ReaderUiService } from '../../core/reader-ui.service';
@@ -87,6 +88,11 @@ import { SHEET_STYLES } from './sheet-styles';
       }
     </section>
 
+    <section aria-label="Atribusi audio">
+      <h3>Audio</h3>
+      <p class="muted">{{ audio.qari.attribution }}</p>
+    </section>
+
     <section aria-label="Keutuhan teks">
       <h3>Keutuhan teks</h3>
       <p>
@@ -130,6 +136,7 @@ import { SHEET_STYLES } from './sheet-styles';
 })
 export class AboutSheet {
   private readonly content = inject(ContentApi);
+  protected readonly audio = inject(AudioService);
   private readonly sw = inject(SwUpdate);
   protected readonly ui = inject(ReaderUiService);
   protected readonly build = BUILD_INFO;

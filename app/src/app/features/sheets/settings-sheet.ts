@@ -1,4 +1,6 @@
 import { buildLabel } from '../../core/build-info';
+import { AudioService } from '../../core/audio/audio.service';
+import { AUDIO_MODES } from '../shell/audio-labels';
 import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 import { OfflineApi, SyncApi, UserDataApi } from '../../core/contracts';
 import { LayoutMode } from '../../core/models';
@@ -113,6 +115,38 @@ const SYNC_LABEL: Record<string, string> = {
       </p>
     </section>
 
+    <section aria-labelledby="st-audio">
+      <h3 id="st-audio">Audio</h3>
+      <div class="row" style="cursor: default">
+        <span>Qari</span><span class="end">{{ audio.qari.name }}</span>
+      </div>
+      <div class="mf-segmented" role="group" aria-label="Mode putar">
+        @for (m of audioModes; track m.id) {
+          <button
+            type="button"
+            [attr.aria-pressed]="audio.mode() === m.id"
+            (click)="audio.setMode(m.id)"
+          >
+            {{ m.label }}
+          </button>
+        }
+      </div>
+      <div class="switch-row">
+        <span id="sw-follow">Ikuti bacaan (balik halaman otomatis)</span>
+        <span class="hit"
+          ><button
+            type="button"
+            class="switch"
+            role="switch"
+            aria-labelledby="sw-follow"
+            [attr.aria-checked]="audio.follow()"
+            (click)="audio.setFollow(!audio.follow())"
+          ></button
+        ></span>
+      </div>
+      <p class="muted">Audio diputar online dan butuh koneksi internet.</p>
+    </section>
+
     <section aria-label="Tampilan">
       <div class="switch-row">
         <span id="sw-controls">Selalu tampilkan kontrol</span>
@@ -205,6 +239,8 @@ const SYNC_LABEL: Record<string, string> = {
 })
 export class SettingsSheet {
   protected readonly buildLabel = buildLabel();
+  protected readonly audio = inject(AudioService);
+  protected readonly audioModes = AUDIO_MODES;
   protected readonly data = inject(UserDataApi);
   protected readonly ui = inject(ReaderUiService);
   protected readonly sync = inject(SyncApi);

@@ -10,6 +10,7 @@ import {
   Preferences,
   SyncStatus,
 } from '../../core/models';
+import { AudioService } from '../../core/audio/audio.service';
 import { ReaderUiService } from '../../core/reader-ui.service';
 import { ReaderShell } from './reader-shell';
 
@@ -259,5 +260,25 @@ describe('ReaderShell', () => {
     content.loadError.set('Tidak dapat memuat');
     const fixture = await mount('1');
     expect(fixture.nativeElement.textContent).toContain('Tidak dapat memuat');
+  });
+
+  it('marks the playing ayah on the page and keeps it across an audio page change', async () => {
+    const fixture = await mount('5');
+    const audio = TestBed.inject(AudioService);
+    audio.current.set({ surah: 1, ayah: 1 });
+    audio.state.set('playing');
+    fixture.detectChanges();
+    await fixture.whenStable();
+    const el = fixture.nativeElement as HTMLElement;
+    expect(el.querySelectorAll('.ayahPolygon.is-playing').length).toBe(1);
+    fixture.componentRef.setInput('page', '6'); // audio-driven page turn
+    await fixture.whenStable();
+    fixture.detectChanges();
+    await fixture.whenStable();
+    expect(audio.state()).toBe('playing');
+    expect(audio.highlight()).toEqual({ surah: 1, ayah: 1 });
+    expect(el.querySelectorAll('.ayahPolygon.is-playing').length).toBe(1);
+    audio.state.set('idle');
+    audio.current.set(null);
   });
 });

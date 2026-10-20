@@ -12,6 +12,7 @@ import { LatinService } from '../../core/content/latin.service';
 import { TranslationService } from '../../core/content/translation.service';
 import { ContentApi, UserDataApi } from '../../core/contracts';
 import { ReaderUiService } from '../../core/reader-ui.service';
+import { AudioService } from '../../core/audio/audio.service';
 import { SheetHistory } from './sheet-history';
 import { latinCopyText, shareText, translationCopyText, verseReference } from './nav-helpers';
 
@@ -95,6 +96,16 @@ import { latinCopyText, shareText, translationCopyText, verseReference } from '.
         }
       </section>
       <div class="grid">
+        <button type="button" class="act" [class.on]="nowPlaying()" (click)="play()">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" aria-hidden="true">
+            @if (nowPlaying()) {
+              <path d="M8 5v14M16 5v14" stroke-linecap="round" />
+            } @else {
+              <path d="M8 5.5v13l10-6.5z" />
+            }
+          </svg>
+          {{ nowPlaying() ? 'Jeda' : 'Putar' }}
+        </button>
         <button
           type="button"
           class="act"
@@ -116,7 +127,7 @@ import { latinCopyText, shareText, translationCopyText, verseReference } from '.
           </svg>
           {{ v.bookmarked ? 'Ditandai' : 'Tandai' }}
         </button>
-        <button type="button" class="act" (click)="copy()">
+        <button type="button" class="act" aria-label="Salin rujukan" (click)="copy()">
           <svg
             width="22"
             height="22"
@@ -129,7 +140,7 @@ import { latinCopyText, shareText, translationCopyText, verseReference } from '.
             <rect x="8" y="8" width="11" height="11" rx="2" />
             <path d="M5 15V6a1 1 0 011-1h9" />
           </svg>
-          Salin rujukan
+          Salin
         </button>
         <button type="button" class="act" (click)="share()">
           <svg
@@ -272,7 +283,7 @@ import { latinCopyText, shareText, translationCopyText, verseReference } from '.
       border-top: 1px solid var(--ui-hair);
       padding-top: var(--mf-space-1);
       display: grid;
-      grid-template-columns: repeat(4, minmax(0, 1fr));
+      grid-template-columns: repeat(5, minmax(0, 1fr));
       gap: var(--mf-space-1);
     }
     .act {
@@ -305,6 +316,29 @@ export class VerseSheet {
   private readonly content = inject(ContentApi);
   private readonly userData = inject(UserDataApi);
   private readonly latin = inject(LatinService);
+  private readonly audio = inject(AudioService);
+
+  /** True while this exact ayah is playing (or loading). */
+  protected readonly nowPlaying = computed(() => {
+    const v = this.ui.selectedVerse();
+    const cur = this.audio.current();
+    const st = this.audio.state();
+    return !!v && !!cur && cur.surah === v.surah && cur.ayah === v.ayah && (st === 'playing' || st === 'loading');
+  });
+
+  protected play(): void {
+    const v = this.ui.selectedVerse();
+    if (!v) return;
+    const cur = this.audio.current();
+    const same = !!cur && cur.surah === v.surah && cur.ayah === v.ayah;
+    if (this.nowPlaying()) {
+      this.audio.toggle();
+      return;
+    }
+    if (same && this.audio.state() === 'paused') this.audio.toggle();
+    else this.audio.play({ surah: v.surah, ayah: v.ayah }, v.page);
+    this.history.close();
+  }
 
   /** undefined = loading, null = unavailable. */
   protected readonly latinText = signal<string | null | undefined>(undefined);

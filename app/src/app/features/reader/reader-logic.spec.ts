@@ -13,6 +13,7 @@ import {
   spreadStart,
   visiblePagesFor,
   zoomAt,
+  verseStateFlags,
   PAGE_ASPECT,
 } from './reader-logic';
 
@@ -141,5 +142,24 @@ describe('decideFitWidth', () => {
     expect(decideFitWidth(false, 390, 844)).toBe(false);
     expect(decideFitWidth(false, 1024, 768)).toBe(false);
     expect(decideFitWidth(true, 900, 500)).toBe(false);
+  });
+});
+
+describe('verseStateFlags', () => {
+  const base = { selectedKey: null, bookmarked: new Set<string>(), focusKey: null, playingKey: null };
+  it('all off by default', () => {
+    expect(Object.values(verseStateFlags('2:6', base)).some(Boolean)).toBe(false);
+  });
+  it('playing combines with selected and bookmarked', () => {
+    const f = verseStateFlags('2:6', {
+      ...base,
+      selectedKey: '2:6',
+      bookmarked: new Set(['2:6']),
+      playingKey: '2:6',
+    });
+    expect(f).toEqual({ 'is-selected': true, 'is-bookmarked': true, 'is-focus': false, 'is-playing': true });
+  });
+  it('only the matching verse is playing', () => {
+    expect(verseStateFlags('2:7', { ...base, playingKey: '2:6' })['is-playing']).toBe(false);
   });
 });

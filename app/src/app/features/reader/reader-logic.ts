@@ -158,3 +158,28 @@ export function paddedViewBox(bbox: BBox, padRatio = 0.04, aspect = PAGE_ASPECT)
 export function isCoverPage(page: number): boolean {
   return page === 1 || page === 2;
 }
+
+export interface VerseStateContext {
+  selectedKey: string | null;
+  bookmarked: ReadonlySet<string>;
+  focusKey: string | null;
+  /** Ayah currently recited by the audio player (marked on every page it spans). */
+  playingKey: string | null;
+}
+
+export interface VerseStateFlags {
+  'is-selected': boolean;
+  'is-bookmarked': boolean;
+  'is-focus': boolean;
+  'is-playing': boolean;
+}
+
+/** Independent state classes for one verse polygon (they may combine). */
+export function verseStateFlags(key: string, ctx: VerseStateContext): VerseStateFlags {
+  return {
+    'is-selected': key === ctx.selectedKey,
+    'is-bookmarked': ctx.bookmarked.has(key),
+    'is-focus': key === ctx.focusKey,
+    'is-playing': key === ctx.playingKey,
+  };
+}

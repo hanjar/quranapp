@@ -15,7 +15,8 @@ import {
 import { ContentApi, OfflineApi, UserDataApi } from '../../core/contracts';
 import { AyahRef, PageLoadError, PageLoadErrorKind } from '../../core/models';
 import { ReaderUiService } from '../../core/reader-ui.service';
-import { isCoverPage, paddedViewBox, verseKey } from './reader-logic';
+import { AudioService } from '../../core/audio/audio.service';
+import { VerseStateContext, isCoverPage, paddedViewBox, verseKey, verseStateFlags } from './reader-logic';
 
 export type PageState = 'loading' | 'ready' | 'offline' | 'error';
 
@@ -45,6 +46,7 @@ export class PageView implements OnDestroy {
   private readonly offline = inject(OfflineApi);
   private readonly userData = inject(UserDataApi);
   private readonly ui = inject(ReaderUiService);
+  private readonly audio = inject(AudioService);
 
   readonly page = input.required<number>();
   /** True for the active page of a spread pair. */
@@ -102,8 +104,14 @@ export class PageView implements OnDestroy {
       const sel = this.selected();
       const bm = this.bookmarked();
       const focus = this.focusKey();
+      const playing = this.audio.highlight();
       if (!svg) return;
-      applyVerseStates(svg, sel ? verseKey(sel.surah, sel.ayah) : null, bm, focus);
+      applyVerseStates(svg, {
+        selectedKey: sel ? verseKey(sel.surah, sel.ayah) : null,
+        bookmarked: bm,
+        focusKey: focus,
+        playingKey: playing ? verseKey(playing.surah, playing.ayah) : null,
+      });
     });
   }
 
@@ -216,16 +224,10 @@ export function collectVerses(svg: SVGSVGElement): AyahRef[] {
 }
 
 /** Toggles state classes on verse polygons. Never touches glyph paths. */
-export function applyVerseStates(
-  svg: SVGSVGElement,
-  selectedKey: string | null,
-  bookmarked: ReadonlySet<string>,
-  focusKey: string | null,
-): void {
+export function applyVerseStates(svg: SVGSVGElement, ctx: VerseStateContext): void {
   svg.querySelectorAll('.ayahPolygon').forEach((el) => {
     const k = verseKey(Number(el.getAttribute('surah')), Number(el.getAttribute('ayah')));
-    el.classList.toggle('is-selected', k === selectedKey);
-    el.classList.toggle('is-bookmarked', bookmarked.has(k));
-    el.classList.toggle('is-focus', k === focusKey);
+    const flags = verseStateFlags(k, ctx);
+    for (const [cls, on] of Object.entries(flags)) el.classList.toggle(cls, on);
   });
 }

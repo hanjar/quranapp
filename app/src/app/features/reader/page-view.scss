@@ -72,6 +72,30 @@
   fill: var(--mf-verse-bookmarked);
   fill-opacity: 1;
 }
+/* Audio: soft primary fill + dashed outline + gentle pulse (never colour alone). */
+.art ::ng-deep .ayahPolygon.is-playing {
+  fill: color-mix(in srgb, var(--ui-primary) 14%, transparent);
+  fill-opacity: 1;
+  stroke: var(--ui-primary);
+  stroke-width: 1px;
+  stroke-dasharray: 4 2;
+  stroke-linejoin: round;
+  animation: mf-verse-pulse 1.6s ease-in-out infinite;
+}
+@keyframes mf-verse-pulse {
+  50% {
+    opacity: 0.55;
+  }
+}
+:host-context(html[data-motion='reduce']) .art ::ng-deep .ayahPolygon.is-playing {
+  animation: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  :host-context(html:not([data-motion='no-preference'])) .art ::ng-deep .ayahPolygon.is-playing {
+    animation: none;
+  }
+}
+/* Selected wins over playing/bookmarked: solid ring. */
 .art ::ng-deep .ayahPolygon.is-selected,
 .art ::ng-deep .ayahPolygon.is-focus {
   fill: var(--mf-verse-select);
@@ -80,6 +104,7 @@
   stroke: var(--mf-verse-select-ring);
   stroke-width: 1.4px;
   stroke-linejoin: round;
+  stroke-dasharray: none;
 }
 .art ::ng-deep .ayahPolygon.is-focus:not(.is-selected) {
   stroke-dasharray: 3 2;

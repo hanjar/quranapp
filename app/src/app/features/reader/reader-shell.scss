@@ -26,7 +26,7 @@
   align-items: center;
   justify-content: center;
   padding: calc(var(--mf-safe-top) + 8px) calc(var(--mf-safe-right) + 8px)
-    calc(var(--mf-safe-bottom) + 8px) calc(var(--mf-safe-left) + 8px);
+    calc(var(--mf-safe-bottom) + 8px + var(--mf-player-h, 0px)) calc(var(--mf-safe-left) + 8px);
   container-type: size;
   transform-origin: 0 0;
   will-change: transform;
@@ -51,7 +51,7 @@
 /* Persistent menu: keep the whole page (running head + page number) between the bars. */
 .zoomer.has-bars {
   padding-top: calc(var(--mf-safe-top) + 64px);
-  padding-bottom: calc(var(--mf-safe-bottom) + 70px);
+  padding-bottom: calc(var(--mf-safe-bottom) + 70px + var(--mf-player-h, 0px));
 }
 .zoomer {
   transition: padding var(--mf-dur-base) var(--mf-ease);
