@@ -94,7 +94,7 @@ export function validatePreferences(raw: unknown): Preferences {
       ? (raw[k] as boolean)
       : fail(`Berkas tidak valid: pengaturan "${k}" salah.`);
   return {
-    paperTheme: oneOf(raw['paperTheme'], ['photo', 'ivory', 'antique'], 'paperTheme'),
+    paperTheme: oneOf(raw['paperTheme'], ['photo', 'ivory', 'antique', 'cream'], 'paperTheme'),
     uiTheme: oneOf(raw['uiTheme'], ['klasik', 'segar', 'ceria', 'samudra'], 'uiTheme'),
     layoutMode: oneOf(raw['layoutMode'], ['auto', 'single', 'spread'], 'layoutMode'),
     controlsAlwaysVisible: bool('controlsAlwaysVisible'),

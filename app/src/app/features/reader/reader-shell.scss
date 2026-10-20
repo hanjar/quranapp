@@ -31,6 +31,23 @@
   transform-origin: 0 0;
   will-change: transform;
 }
+/* Phone landscape: fit the page to the width and scroll vertically (native scroll;
+   horizontal swipes still reach the gesture controller). */
+.stage.is-fit {
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+}
+.zoomer.is-fit {
+  position: relative;
+  inset: auto;
+  min-height: 100%;
+  align-items: flex-start;
+  container-type: normal;
+  --mf-page-w: calc(100vw - 16px - var(--mf-safe-left) - var(--mf-safe-right));
+}
+
 .zoomer.is-animated {
   transition: transform var(--mf-dur-base) var(--mf-ease);
 }

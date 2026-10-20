@@ -5,6 +5,7 @@ import {
   ElementRef,
   afterNextRender,
   computed,
+  viewChild,
   effect,
   inject,
   input,
@@ -26,6 +27,7 @@ import {
   Pan,
   ZOOM_STEP,
   clampPan,
+  decideFitWidth,
   decideSpread,
   formatZoom,
   nextTarget,
@@ -76,6 +78,12 @@ export class ReaderShell {
     const v = this.viewport();
     return decideSpread(this.userData.prefs().layoutMode, v.width, v.height);
   });
+  /** Phone landscape: page fills the width and scrolls vertically; zoom is off. */
+  protected readonly fitWidth = computed(() => {
+    const v = this.viewport();
+    return decideFitWidth(this.spread(), v.width, v.height);
+  });
+  private readonly stageEl = viewChild<ElementRef<HTMLElement>>('stage');
   protected readonly visible = computed(() => visiblePagesFor(this.pageNum() ?? 1, this.spread()), {
     // Switching the active page inside a pair must not look like a page change.
     equal: (a, b) => a.length === b.length && a.every((v, i) => v === b[i]),
@@ -116,7 +124,7 @@ export class ReaderShell {
     const p = this.pan();
     return `translate(${p.x}px, ${p.y}px) scale(${z})`;
   });
-  protected readonly canZoomIn = computed(() => this.ui.zoom() < MAX_ZOOM);
+  protected readonly canZoomIn = computed(() => !this.fitWidth() && this.ui.zoom() < MAX_ZOOM);
   protected readonly canZoomOut = computed(() => this.ui.zoom() > MIN_ZOOM);
 
   private pinchBase: { zoom: number; pan: Pan } | null = null;
@@ -148,11 +156,14 @@ export class ReaderShell {
       });
     });
 
-    // Reset zoom when the shown pages or layout change.
+    // Reset zoom (and the fit-width scroll position) when the shown pages or layout change.
     effect(() => {
       this.visible();
       this.spread();
+      this.fitWidth();
+      const stage = this.stageEl()?.nativeElement;
       untracked(() => {
+        if (stage) stage.scrollTop = 0;
         this.ui.zoom.set(1);
         this.pan.set({ x: 0, y: 0 });
         this.gestures.dispose();
@@ -272,6 +283,7 @@ export class ReaderShell {
   }
 
   protected zoomBy(delta: number): void {
+    if (this.fitWidth()) return;
     this.animated.set(true);
     const size = this.stageSize();
     const r = zoomAt(
@@ -348,6 +360,7 @@ export class ReaderShell {
         else this.toggleChrome();
         break;
       case 'double-tap': {
+        if (this.fitWidth()) break; // already enlarged; zoom would fight the scroll
         this.animated.set(true);
         if (this.ui.zoom() > 1) {
           this.resetZoom();
@@ -375,6 +388,7 @@ export class ReaderShell {
         );
         break;
       case 'pinch': {
+        if (this.fitWidth()) break;
         this.animated.set(false);
         if (i.start || !this.pinchBase) {
           this.pinchBase = { zoom: this.ui.zoom(), pan: this.pan() };

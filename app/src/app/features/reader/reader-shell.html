@@ -9,7 +9,9 @@
   </button>
 
   <section
+    #stage
     class="stage"
+    [class.is-fit]="fitWidth()"
     aria-label="Pembaca mushaf"
     (pointerdown)="onPointerDown($event)"
     (pointermove)="onPointerMove($event)"
@@ -18,6 +20,7 @@
   >
     <div
       class="zoomer"
+      [class.is-fit]="fitWidth()"
       [class.is-animated]="animated()"
       [style.--mf-pages]="spread() ? 2 : 1"
       [style.transform]="transform()"
@@ -48,7 +51,7 @@
     </button>
   }
 
-  <div class="zoom-ctl" [class.is-hidden]="!chromeShown()">
+  <div class="zoom-ctl" [class.is-hidden]="!chromeShown() || fitWidth()">
     <button type="button" class="zoom-btn" aria-label="Perbesar" [disabled]="!canZoomIn()" (click)="zoomIn()">+</button>
     <button type="button" class="zoom-btn" aria-label="Perkecil" [disabled]="!canZoomOut()" (click)="zoomOut()">&minus;</button>
   </div>

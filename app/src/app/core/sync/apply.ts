@@ -44,7 +44,7 @@ interface Ctx extends ApplyResult {
   opts: ApplyOptions;
 }
 
-const PAPER: readonly string[] = ['photo', 'ivory', 'antique'];
+const PAPER: readonly string[] = ['photo', 'ivory', 'antique', 'cream'];
 const UI: readonly string[] = ['klasik', 'segar', 'ceria', 'samudra'];
 const LAYOUT: readonly string[] = ['auto', 'single', 'spread'];
 const MOTION: readonly string[] = ['system', 'reduce'];

@@ -82,7 +82,7 @@ import { PAPER_THEMES, UI_THEMES } from '../../core/theme.service';
     }
     .g3 {
       display: grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
+      grid-template-columns: repeat(4, minmax(0, 1fr));
       gap: 10px;
     }
     .g2 {

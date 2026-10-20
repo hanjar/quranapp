@@ -1,3 +1,4 @@
+import { LOCAL_WRITE_TIMEOUT_MS, withTimeout } from '../../core/async';
 import { ChangeDetectionStrategy, Component, computed, inject, input, output } from '@angular/core';
 import { UserDataApi } from '../../core/contracts';
 import { ReaderUiService } from '../../core/reader-ui.service';
@@ -176,7 +177,17 @@ export class ChromeBottom {
 
   protected async toggleBookmark(): Promise<void> {
     const page = this.ui.currentPage();
-    const result = await this.userData.togglePageBookmark(page);
+    let result: 'added' | 'removed';
+    try {
+      result = await withTimeout(this.userData.togglePageBookmark(page), LOCAL_WRITE_TIMEOUT_MS);
+    } catch (e) {
+      console.error('[bookmark] page toggle failed', e);
+      this.ui.showToast({
+        message: 'Penanda gagal disimpan. Tutup tab lain aplikasi ini lalu muat ulang.',
+        duration: 8000,
+      });
+      return;
+    }
     if (result === 'added') {
       this.ui.showToast({
         message: `Halaman ${page} ditandai`,

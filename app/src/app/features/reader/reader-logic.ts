@@ -24,6 +24,18 @@ export function decideSpread(mode: LayoutMode, width: number, height: number): b
   return width > height && width >= 900;
 }
 
+/** Viewports shorter than this in landscape are treated as phones. */
+export const FIT_WIDTH_MAX_HEIGHT = 600;
+
+/**
+ * Phone in landscape showing one page: fit the page to the screen WIDTH and let
+ * the reader scroll vertically (like printed-mushaf apps), instead of shrinking
+ * the page to the short screen height.
+ */
+export function decideFitWidth(spread: boolean, width: number, height: number): boolean {
+  return !spread && width > height && height < FIT_WIDTH_MAX_HEIGHT;
+}
+
 /** First page of the [odd, odd+1] pair that contains `page`. */
 export function spreadStart(page: number): number {
   return page % 2 === 0 ? page - 1 : page;

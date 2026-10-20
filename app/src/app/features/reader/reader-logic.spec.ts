@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  decideFitWidth,
   clampPan,
   decideSpread,
   formatZoom,
@@ -128,5 +129,17 @@ describe('paddedViewBox', () => {
     expect(isCoverPage(1)).toBe(true);
     expect(isCoverPage(2)).toBe(true);
     expect(isCoverPage(3)).toBe(false);
+  });
+});
+
+describe('decideFitWidth', () => {
+  it('fits width on a phone in landscape with a single page', () => {
+    expect(decideFitWidth(false, 844, 390)).toBe(true);
+    expect(decideFitWidth(false, 800, 360)).toBe(true);
+  });
+  it('keeps fit-to-height in portrait, on tablets and in spreads', () => {
+    expect(decideFitWidth(false, 390, 844)).toBe(false);
+    expect(decideFitWidth(false, 1024, 768)).toBe(false);
+    expect(decideFitWidth(true, 900, 500)).toBe(false);
   });
 });

@@ -5,7 +5,7 @@ export const SHEET_STYLES = `
   h3 { margin: 0; font-size: 13px; font-weight: 600; color: var(--ui-ink2); }
   p { margin: 0; font-size: 14px; line-height: 1.5; color: var(--ui-ink2); }
   .muted { color: var(--ui-muted); font-size: 13px; }
-  .grid3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+  .grid3 { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
   .grid2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
   .card { display: flex; flex-direction: column; gap: 8px; padding: 8px; border-radius: var(--mf-radius-lg); background: transparent; text-align: left; border: 1px solid var(--ui-line); }
   .card[aria-pressed='true'] { border: 2px solid var(--ui-primary); padding: 7px; }

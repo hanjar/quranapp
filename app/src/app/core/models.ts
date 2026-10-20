@@ -7,7 +7,7 @@ export type EditionId = 'hafs-kfqc';
 export const DEFAULT_EDITION: EditionId = 'hafs-kfqc';
 export const PAGE_COUNT = 604;
 
-export type PaperTheme = 'photo' | 'ivory' | 'antique';
+export type PaperTheme = 'photo' | 'ivory' | 'antique' | 'cream';
 export type UiTheme = 'klasik' | 'segar' | 'ceria' | 'samudra';
 export type LayoutMode = 'auto' | 'single' | 'spread';
 export type MotionPref = 'system' | 'reduce';

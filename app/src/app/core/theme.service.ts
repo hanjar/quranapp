@@ -21,6 +21,7 @@ export const PAPER_THEMES: PaperThemeOption[] = [
   { id: 'photo', name: 'Foto Sampel', hex: '#EEEDEB' },
   { id: 'ivory', name: 'Gading Hangat', hex: '#F5F1E8' },
   { id: 'antique', name: 'Kertas Antik', hex: '#F2EBDD' },
+  { id: 'cream', name: 'Krem Madinah', hex: '#FFFDF6' },
 ];
 
 export const UI_THEMES: UiThemeOption[] = [

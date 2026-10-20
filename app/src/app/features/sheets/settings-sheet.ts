@@ -84,7 +84,8 @@ const SYNC_LABEL: Record<string, string> = {
       </div>
       <p class="muted">
         Otomatis menampilkan dua halaman berdampingan pada layar lebar mendatar; selain itu satu
-        halaman. Susunan halaman mengikuti mushaf cetak dan tidak diubah.
+        halaman. Di ponsel posisi mendatar, halaman memenuhi lebar layar dan dapat digulir.
+        Susunan halaman mengikuti mushaf cetak dan tidak diubah.
       </p>
     </section>
 

@@ -3,7 +3,7 @@
   position: relative;
   flex: none;
   /* Fit: min(available width / pages, available height * aspect). Container is the reader stage. */
-  width: min(calc(100cqw / var(--mf-pages, 1)), calc(100cqh * 0.62727));
+  width: var(--mf-page-w, min(calc(100cqw / var(--mf-pages, 1)), calc(100cqh * 0.62727)));
   aspect-ratio: 345 / 550;
   container-type: size;
   background: var(--mf-paper);
@@ -25,12 +25,13 @@
 }
 .frame--outer {
   inset: 1.2% 2.4%;
-  border-width: 1.5px;
+  border-width: var(--mf-frame-outer-w, 1.5px);
   border-radius: 2px;
 }
 .frame--inner {
   inset: 2% 3.4%;
-  border-width: 0.75px;
+  border-color: var(--mf-frame-ink-inner, var(--mf-frame-ink));
+  border-width: var(--mf-frame-inner-w, 0.75px);
   border-radius: 2px;
 }
 :host(.is-cover) {

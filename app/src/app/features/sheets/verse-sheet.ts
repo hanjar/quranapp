@@ -1,3 +1,4 @@
+import { LOCAL_WRITE_TIMEOUT_MS, withTimeout } from '../../core/async';
 import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 import { ContentApi, UserDataApi } from '../../core/contracts';
 import { ReaderUiService } from '../../core/reader-ui.service';
@@ -160,14 +161,21 @@ export class VerseSheet {
     if (!v) return;
     const ref = { surah: v.surah, ayah: v.ayah };
     try {
-      const result = await this.userData.toggleVerseBookmark(ref, v.page);
+      const result = await withTimeout(
+        this.userData.toggleVerseBookmark(ref, v.page),
+        LOCAL_WRITE_TIMEOUT_MS,
+      );
       this.ui.showToast({
         message: result === 'added' ? 'Ayat ditandai' : 'Penanda dihapus',
         actionLabel: 'Urungkan',
         action: () => void this.userData.toggleVerseBookmark(ref, v.page),
       });
-    } catch {
-      this.ui.showToast({ message: 'Penanda gagal disimpan' });
+    } catch (e) {
+      console.error('[bookmark] verse toggle failed', e);
+      this.ui.showToast({
+        message: 'Penanda gagal disimpan. Tutup tab lain aplikasi ini lalu muat ulang.',
+        duration: 8000,
+      });
     }
   }
 

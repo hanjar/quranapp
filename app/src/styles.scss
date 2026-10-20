@@ -94,6 +94,17 @@ html[data-paper='antique'] {
   --mf-surface-paper: #f9f4ea;
 }
 
+/* Krem Madinah: cream paper with the red + gold frame of printed Madinah mushafs. */
+html[data-paper='cream'] {
+  --mf-paper: #fffdf6;
+  --mf-surround: #f1e9d2;
+  --mf-surface-paper: #fffefa;
+  --mf-frame-ink: #ae3033;
+  --mf-frame-ink-inner: #d7c388;
+  --mf-frame-outer-w: 2px;
+  --mf-frame-inner-w: 1.5px;
+}
+
 /* ---- UI themes ---- */
 html[data-ui='klasik'] {
   --ui-primary: #153b32;
