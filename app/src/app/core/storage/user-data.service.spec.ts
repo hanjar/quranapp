@@ -38,7 +38,8 @@ describe('UserDataService', () => {
     await svc.flushPosition();
     await svc.idle();
     vi.useRealTimers();
-    db.close();
+    // DB is intentionally left open: each test uses a fresh random name in a fresh fake
+    // IDBFactory, and closing it raced with pending Dexie work on CI (DatabaseClosedError).
   });
 
   describe('init', () => {

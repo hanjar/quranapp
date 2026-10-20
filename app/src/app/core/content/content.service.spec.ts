@@ -31,7 +31,8 @@ describe('ContentService', () => {
   afterEach(async () => {
     await svc.settled();
     web.restore();
-    db.close();
+    // DB is intentionally left open: each test uses a fresh random name in a fresh fake
+    // IDBFactory, and closing it raced with pending Dexie work on CI (DatabaseClosedError).
   });
 
   const kindOf = async (p: Promise<unknown>) => {

@@ -37,7 +37,8 @@ describe('OfflineService', () => {
   afterEach(async () => {
     await svc.idle();
     web.restore();
-    db.close();
+    // DB is intentionally left open: each test uses a fresh random name in a fresh fake
+    // IDBFactory, and closing it raced with pending Dexie work on CI (DatabaseClosedError).
   });
 
   it('downloads all 604 pages, verifies, pins and requests persistence', async () => {
