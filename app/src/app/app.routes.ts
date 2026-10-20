@@ -31,6 +31,12 @@ export const routes: Routes = [
     title: 'Mushaf Digital',
   },
   {
+    path: 'penanda',
+    loadComponent: () =>
+      import('./features/bookmarks/bookmarks-manager').then((m) => m.BookmarksManager),
+    title: 'Kelola penanda · Mushaf Digital',
+  },
+  {
     path: 'selamat-datang',
     loadComponent: () => import('./features/onboarding/welcome').then((m) => m.Welcome),
     title: 'Selamat datang · Mushaf Digital',

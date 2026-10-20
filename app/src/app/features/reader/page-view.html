@@ -52,6 +52,12 @@
     }
   }
 
+  @if (header(); as h) {
+    <div class="head" aria-hidden="true">
+      <span class="head__surah">{{ h.surahs }}</span>
+      <span class="head__juz">{{ h.juz }}</span>
+    </div>
+  }
   <span class="num" aria-hidden="true">{{ page() }}</span>
 
   @if (verses().length) {

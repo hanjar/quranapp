@@ -112,6 +112,19 @@ class FakeUserData extends UserDataApi {
     return { added: 0, skipped: 0 };
   }
   override async reload() {}
+  override readonly folders = signal([]);
+  override async createFolder(): Promise<never> {
+    throw new Error('unused');
+  }
+  override async renameFolder() {}
+  override async deleteFolder() {
+    return async () => {};
+  }
+  override async moveBookmarks() {}
+  override async removeBookmarks() {
+    return async () => {};
+  }
+  override async setBookmarkNote() {}
 }
 
 class FakeOffline extends OfflineApi {

@@ -1,7 +1,7 @@
 import 'fake-indexeddb/auto';
 import Dexie from 'dexie';
 import { IDBKeyRange as FakeKeyRange, indexedDB as fakeIndexedDB } from 'fake-indexeddb';
-import { Bookmark, DEFAULT_PREFERENCES, ReadingPosition } from '../models';
+import { Bookmark, BookmarkFolder, DEFAULT_PREFERENCES, ReadingPosition } from '../models';
 import { MushafDb } from '../storage/db';
 import { applyChanges, handleResults, reconcileReset } from './apply';
 import { enqueueLocalSnapshot, makeOp } from './outbox';
@@ -28,6 +28,8 @@ function bm(id: string, over: Partial<Bookmark> = {}): Bookmark {
     updatedAt: 1,
     deletedAt: null,
     rev: null,
+    folderId: null,
+    note: null,
     ...over,
   };
 }
@@ -419,6 +421,91 @@ describe('sync apply', () => {
       await reconcileReset(db, ACC, [], opts());
       expect(await db.bookmarks.get('old')).toBeUndefined();
       expect(await db.outbox.count()).toBe(0);
+    });
+  });
+
+  describe('folders', () => {
+    const fo = (id: string, name: string, over: Partial<BookmarkFolder> = {}): BookmarkFolder => ({
+      id, name, createdAt: 1, updatedAt: 1, deletedAt: null, rev: null, ...over,
+    });
+    const foChange = (id: string, rev: number, name: string, deleted = false): Change => ({
+      entity: 'folder', id, rev, deleted, data: deleted ? null : { name, createdAt: 1, updatedAt: 2 },
+    });
+
+    it('upserts folders honoring rev and applies tombstones', async () => {
+      await db.folders.put(fo('f1', 'Lama', { rev: 5 }));
+      await applyChanges(db, ACC, [foChange('f1', 3, 'Stale')], opts());
+      expect((await db.folders.get('f1'))?.name).toBe('Lama');
+      await applyChanges(db, ACC, [foChange('f1', 6, 'Baru')], opts());
+      expect(await db.folders.get('f1')).toMatchObject({ name: 'Baru', rev: 6 });
+      await applyChanges(db, ACC, [foChange('f1', 7, '', true)], opts());
+      expect((await db.folders.get('f1'))?.deletedAt).not.toBeNull();
+    });
+
+    it('bookmark changes carry folderId/note; missing => null', async () => {
+      await applyChanges(db, ACC, [bmChange('a', 1, {}, { folderId: 'f1', note: 'catatan' }), bmChange('b', 2, {}, { key: 'k2', page: 2 })], opts());
+      expect(await db.bookmarks.get('a')).toMatchObject({ folderId: 'f1', note: 'catatan' });
+      expect(await db.bookmarks.get('b')).toMatchObject({ folderId: null, note: null });
+    });
+
+    it('name collision with an unsynced local folder: server wins, bookmarks re-pointed, local twin tombstoned', async () => {
+      await db.folders.put(fo('local', 'Khatam 1'));
+      await db.bookmarks.bulkPut([
+        bm('x', { folderId: 'local', key: 'kx' }),
+        bm('y', { folderId: 'local', key: 'ky', rev: 4 }),
+      ]);
+      await db.outbox.bulkAdd([
+        makeOp(ACC, 'folder', 'local', 'upsert', {}, null),
+        makeOp(ACC, 'bookmark', 'x', 'upsert', { folderId: 'local' }, null),
+      ]);
+      await applyChanges(db, ACC, [foChange('srv', 9, 'khatam 1')], opts());
+      expect((await db.folders.get('srv'))?.rev).toBe(9);
+      expect((await db.folders.get('local'))?.deletedAt).not.toBeNull();
+      expect((await db.bookmarks.get('x'))?.folderId).toBe('srv');
+      expect((await db.bookmarks.get('y'))?.folderId).toBe('srv');
+      const ops = await db.outbox.toArray();
+      expect(ops.some((o) => o.entity === 'folder')).toBe(false);
+      expect(ops.find((o) => o.entityId === 'x')?.payload).toMatchObject({ folderId: 'srv' });
+      expect(ops.find((o) => o.entityId === 'y')).toMatchObject({ action: 'upsert', baseRev: 4 });
+    });
+
+    it('result handling: applied sets rev; duplicate/conflict adopt server; rejected drops', async () => {
+      await db.folders.bulkPut([fo('a', 'A'), fo('b', 'B'), fo('c', 'C', { rev: 1 })]);
+      const oa = makeOp(ACC, 'folder', 'a', 'upsert', {}, null);
+      const ob = makeOp(ACC, 'folder', 'b', 'upsert', {}, null);
+      const oc = makeOp(ACC, 'folder', 'c', 'upsert', {}, 1);
+      const od = makeOp(ACC, 'folder', 'a', 'upsert', {}, null);
+      await db.outbox.bulkAdd([oa, ob, oc, od]);
+      const out = await handleResults(db, ACC, [oa, ob, oc, od], [
+        { opId: oa.opId, status: 'applied', rev: 3 },
+        { opId: ob.opId, status: 'duplicate', current: foChange('sb', 4, 'b') },
+        { opId: oc.opId, status: 'conflict', current: foChange('c', 8, 'C2') },
+        { opId: od.opId, status: 'rejected', error: 'folder_name_taken' },
+      ], opts());
+      expect((await db.folders.get('a'))?.rev).toBe(3);
+      expect((await db.folders.get('b'))?.deletedAt).not.toBeNull();
+      expect(await db.folders.get('sb')).toMatchObject({ rev: 4 });
+      expect(await db.folders.get('c')).toMatchObject({ name: 'C2', rev: 8 });
+      expect(out.rejected[0]?.error).toBe('folder_name_taken');
+      expect(await db.outbox.count()).toBe(0);
+    });
+
+    it('reset reconciliation drops synced folders missing remotely, re-enqueues unsynced', async () => {
+      await db.folders.bulkPut([fo('gone', 'G', { rev: 2 }), fo('new', 'N')]);
+      await reconcileReset(db, ACC, [], opts());
+      expect(await db.folders.get('gone')).toBeUndefined();
+      const ops = await db.outbox.toArray();
+      expect(ops).toHaveLength(1);
+      expect(ops[0]).toMatchObject({ entity: 'folder', entityId: 'new' });
+    });
+
+    it('first-link merge enqueues active folders before bookmarks', async () => {
+      await db.folders.bulkPut([fo('f', 'F'), fo('t', 'T', { deletedAt: 5 })]);
+      await db.bookmarks.put(bm('a', { folderId: 'f' }));
+      await enqueueLocalSnapshot(db, ACC);
+      const ops = (await db.outbox.orderBy('createdAt').toArray());
+      expect(ops.map((o) => o.entity)).toEqual(['folder', 'bookmark']);
+      expect(ops[1]?.payload).toMatchObject({ folderId: 'f', note: null });
     });
   });
 

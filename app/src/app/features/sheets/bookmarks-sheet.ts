@@ -34,6 +34,8 @@ type BmTab = 'verse' | 'page';
       </button>
     }
 
+    <button type="button" class="mf-btn mf-btn--outline manage" (click)="history.navigateUrl('/penanda')">Kelola</button>
+
     <div class="mf-segmented" role="tablist" aria-label="Jenis penanda">
       <button
         type="button"
@@ -69,6 +71,8 @@ type BmTab = 'verse' | 'page';
         <button type="button" class="go" (click)="open(r.bookmark)">
           <span class="title">{{ r.title }}</span>
           <span class="sub">{{ r.sub }}</span>
+          @if (r.folderName) { <span class="tag">{{ r.folderName }}</span> }
+          @if (r.bookmark.note) { <span class="note">{{ r.bookmark.note }}</span> }
         </button>
         <button
           type="button"
@@ -187,6 +191,9 @@ type BmTab = 'verse' | 'page';
       font-size: 12.5px;
       color: var(--ui-muted);
     }
+    .tag { font-size: 12px; color: var(--ui-accent-ink); }
+    .note { font-size: 12.5px; font-style: italic; color: var(--ui-ink2); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+    .manage { align-self: flex-start; min-height: var(--mf-tap); }
     .del {
       flex: none;
       color: var(--ui-muted);
@@ -218,7 +225,7 @@ export class BookmarksSheet {
   private readonly ui = inject(ReaderUiService);
   private readonly content = inject(ContentApi);
   private readonly userData = inject(UserDataApi);
-  private readonly history = inject(SheetHistory);
+  protected readonly history = inject(SheetHistory);
 
   protected readonly tab = signal<BmTab>('verse');
 
@@ -237,6 +244,8 @@ export class BookmarksSheet {
     const index = this.content.index();
     if (!index) return [];
     const kind = this.tab();
+    const folders = this.userData.folders();
+    const folderName = (b: Bookmark) => folders.find((f) => f.id === b.folderId)?.name ?? null;
     return this.userData
       .bookmarks()
       .filter((b) => b.kind === kind)
@@ -255,6 +264,7 @@ export class BookmarksSheet {
         return {
           id: b.id,
           bookmark: b,
+          folderName: folderName(b),
           title: `Halaman ${b.page} · ${surah}`,
           sub: `Juz ${this.content.juzAt(b.page).number} · ${date}`,
         };

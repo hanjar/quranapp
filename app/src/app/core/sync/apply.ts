@@ -1,6 +1,7 @@
 import { PositionConflict } from '../contracts';
 import {
   Bookmark,
+  BookmarkFolder,
   DEFAULT_PREFERENCES,
   EditionId,
   LayoutMode,
@@ -13,7 +14,7 @@ import {
   isValidPage,
 } from '../models';
 import { MushafDb } from '../storage/db';
-import { bookmarkPayload, makeOp } from './outbox';
+import { bookmarkPayload, folderPayload, makeOp } from './outbox';
 import { BatchResult, Change } from './sync-types';
 
 /**
@@ -49,7 +50,7 @@ const UI: readonly string[] = ['klasik', 'segar', 'ceria', 'samudra'];
 const LAYOUT: readonly string[] = ['auto', 'single', 'spread'];
 const MOTION: readonly string[] = ['system', 'reduce'];
 
-const TABLES = (db: MushafDb) => [db.bookmarks, db.positions, db.prefs, db.outbox];
+const TABLES = (db: MushafDb) => [db.bookmarks, db.folders, db.positions, db.prefs, db.outbox];
 
 // -- pending-op helpers -----------------------------------------------------
 
@@ -150,9 +151,76 @@ async function applyBookmark(ctx: Ctx, ch: Change): Promise<void> {
     updatedAt: num(d, 'updatedAt') ?? createdAt,
     deletedAt: null,
     rev: ch.rev,
+    folderId: str(d, 'folderId'),
+    note: str(d, 'note'),
   };
   await db.bookmarks.put(row);
   await bumpBaseRev(ctx, 'bookmark', ch.id, ch.rev);
+  ctx.changed = true;
+}
+
+/** Moves local bookmarks from one folder id to another, keeping the outbox consistent. */
+async function repointBookmarks(ctx: Ctx, fromId: string, toId: string): Promise<void> {
+  const { db } = ctx;
+  const now = ctx.opts.now ?? Date.now();
+  const rows = await db.bookmarks.where('folderId').equals(fromId).toArray();
+  for (const b of rows) {
+    const moved: Bookmark = { ...b, folderId: toId };
+    await db.bookmarks.put(moved);
+    const ups = pendingFor(ctx, 'bookmark', b.id, 'upsert');
+    if (ups.length) {
+      for (const op of ups) {
+        op.payload = { ...(op.payload as Record<string, unknown>), folderId: toId };
+        await db.outbox.update(op.opId, { payload: op.payload });
+      }
+    } else if (b.rev != null && b.deletedAt == null) {
+      const op = makeOp(ctx.accountId, 'bookmark', b.id, 'upsert', bookmarkPayload(moved), b.rev, now);
+      await db.outbox.add(op);
+      ctx.pending.push(op);
+    }
+  }
+}
+
+async function applyFolder(ctx: Ctx, ch: Change): Promise<void> {
+  const { db } = ctx;
+  const d = ch.data;
+  const local = await db.folders.get(ch.id);
+  const now = ctx.opts.now ?? Date.now();
+  if (ch.deleted) {
+    await dropPending(ctx, 'folder', ch.id, 'upsert');
+    if (local && !(local.rev != null && local.rev > ch.rev)) {
+      await db.folders.put({ ...local, deletedAt: local.deletedAt ?? (d ? num(d, 'updatedAt') : null) ?? now, rev: ch.rev });
+      ctx.changed = true;
+    }
+    return;
+  }
+  const name = d ? str(d, 'name')?.trim() : null;
+  if (!d || !name) return;
+  if (local) {
+    if (local.rev != null && local.rev > ch.rev) return;
+    if (!ctx.opts.force && local.deletedAt != null && pendingFor(ctx, 'folder', ch.id, 'delete').length) return;
+  }
+  // Case-insensitive name collision with a different, unsynced local folder: the server one wins.
+  const lower = name.toLocaleLowerCase();
+  const twins = await db.folders
+    .filter((f) => f.id !== ch.id && f.deletedAt == null && f.rev == null && f.name.toLocaleLowerCase() === lower)
+    .toArray();
+  for (const t of twins) {
+    await repointBookmarks(ctx, t.id, ch.id);
+    await dropPending(ctx, 'folder', t.id);
+    await db.folders.put({ ...t, deletedAt: now });
+  }
+  const createdAt = num(d, 'createdAt') ?? now;
+  const row: BookmarkFolder = {
+    id: ch.id,
+    name,
+    createdAt,
+    updatedAt: num(d, 'updatedAt') ?? createdAt,
+    deletedAt: null,
+    rev: ch.rev,
+  };
+  await db.folders.put(row);
+  await bumpBaseRev(ctx, 'folder', ch.id, ch.rev);
   ctx.changed = true;
 }
 
@@ -240,6 +308,8 @@ async function applyOne(ctx: Ctx, ch: Change): Promise<void> {
   switch (ch.entity) {
     case 'bookmark':
       return applyBookmark(ctx, ch);
+    case 'folder':
+      return applyFolder(ctx, ch);
     case 'prefs':
       return applyPrefs(ctx, ch);
     case 'position':
@@ -319,6 +389,7 @@ export function handleResults(
           out.applied++;
           if (r.rev != null) {
             if (op.entity === 'bookmark') await db.bookmarks.update(op.entityId, { rev: r.rev });
+            else if (op.entity === 'folder') await db.folders.update(op.entityId, { rev: r.rev });
             else if (op.entity === 'position')
               await db.positions.update(op.entityId, { rev: r.rev });
             else await db.prefs.update('prefs', { rev: r.rev });
@@ -328,6 +399,11 @@ export function handleResults(
         }
         case 'duplicate': {
           out.duplicates++;
+          if (op.entity === 'folder') {
+            if (r.current) await applyOne(ctx, r.current); // name-collision merge keeps the server folder
+            out.changed = true;
+            break;
+          }
           const rest = pendingFor(ctx, 'bookmark', op.entityId);
           const wantsDelete = rest.some((p) => p.action === 'delete');
           await db.bookmarks.delete(op.entityId);
@@ -391,6 +467,23 @@ export function reconcileReset(
       changes.filter((c) => c.entity === 'bookmark' && !c.deleted).map((c) => c.id),
     );
     const now = opts.now ?? Date.now();
+    const remoteFolders = new Set(changes.filter((c) => c.entity === 'folder' && !c.deleted).map((c) => c.id));
+    for (const f of await db.folders.toArray()) {
+      if (f.rev != null) {
+        if (!remoteFolders.has(f.id)) {
+          await db.folders.delete(f.id);
+          await dropPending(ctx, 'folder', f.id);
+          ctx.changed = true;
+        }
+      } else if (f.deletedAt != null) {
+        await db.folders.delete(f.id);
+        await dropPending(ctx, 'folder', f.id);
+      } else if (!pendingFor(ctx, 'folder', f.id, 'upsert').length) {
+        const op = makeOp(accountId, 'folder', f.id, 'upsert', folderPayload(f), null, now - 1);
+        await db.outbox.add(op);
+        ctx.pending.push(op);
+      }
+    }
     for (const b of await db.bookmarks.toArray()) {
       if (b.rev != null) {
         if (!remoteActive.has(b.id)) {

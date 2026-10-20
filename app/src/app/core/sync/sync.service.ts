@@ -108,10 +108,12 @@ export class SyncService extends SyncApi {
       await this.db.transaction(
         'rw',
         this.db.bookmarks,
+        this.db.folders,
         this.db.positions,
         this.db.prefs,
         async () => {
           await this.db.bookmarks.clear();
+          await this.db.folders.clear();
           await this.db.positions.clear();
           await this.db.prefs.clear();
         },
@@ -240,6 +242,7 @@ export class SyncService extends SyncApi {
         this.db.sync,
         this.db.meta,
         this.db.bookmarks,
+        this.db.folders,
         this.db.positions,
         this.db.prefs,
       ],
@@ -248,6 +251,8 @@ export class SyncService extends SyncApi {
         // Local rows keep their content but lose the account's revisions.
         await this.db.bookmarks.filter((b) => b.deletedAt != null).delete();
         await this.db.bookmarks.toCollection().modify({ rev: null });
+        await this.db.folders.filter((f) => f.deletedAt != null).delete();
+        await this.db.folders.toCollection().modify({ rev: null });
         await this.db.positions.toCollection().modify({ rev: null });
         await this.db.prefs.toCollection().modify({ rev: null });
         await this.db.meta.bulkDelete([META_ACCOUNT, META_CONFLICT]);
@@ -361,8 +366,10 @@ export class SyncService extends SyncApi {
       );
       changed = changed || outcome.changed;
       if (outcome.missing.length) await this.backoffOps(outcome.missing, null);
-      if (outcome.rejected.length) {
-        const first = outcome.rejected[0];
+      // folder_name_taken is benign: the server folder arrives by pull and merges by name.
+      const fatal = outcome.rejected.filter((r) => r.error !== 'folder_name_taken');
+      if (fatal.length) {
+        const first = fatal[0];
         await this.patchState({ lastErrorCode: `rejected:${first?.error ?? 'unknown'}` });
       }
     }

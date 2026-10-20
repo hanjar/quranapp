@@ -150,6 +150,8 @@ describe('OfflineService', () => {
       updatedAt: 1,
       deletedAt: null,
       rev: null,
+      folderId: null,
+      note: null,
     });
     await db.meta.put({ key: 'pageLru', value: [1] });
     await svc.startFullDownload();

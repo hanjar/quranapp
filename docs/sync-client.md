@@ -40,3 +40,8 @@ Conflict only on the cold-start/first-link pull when the remote differs by page,
 - Session user differs from `state.accountId` (init or later verification): `disableSync()` drops the old account's ops, resets cursor, nulls local revisions (data stays on device as anonymous), and nothing is uploaded unless the user signs in explicitly again.
 - `signOut({clearLocal})` / `deleteCloudData()` also call `disableSync()`; `clearLocal` wipes bookmarks/positions/prefs. Tombstones are discarded when sync is disabled.
 - `meta['syncAccount']` caches the account for display while offline/unauthorized.
+
+## Folders (phase 2)
+- `folder` changes: upsert by id honouring `rev`, tombstones. Bookmark changes/payloads carry `folderId`/`note` (missing -> null).
+- Pulled folder whose name equals (case-insensitive) a different active *unsynced* local folder: server folder wins, local bookmarks are re-pointed to it (pending bookmark upserts patched; synced ones get a new upsert op), local twin is tombstoned and its ops dropped. Same merge on a `duplicate` result.
+- `rejected` with `folder_name_taken`: op dropped, not recorded as an error. Reset reconciliation and first-link merge include folders (folder ops are enqueued before bookmark ops).

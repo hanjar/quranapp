@@ -1,5 +1,5 @@
 import Dexie, { Table } from 'dexie';
-import { Bookmark, OutboxOperation, Preferences, ReadingPosition, SyncState } from '../models';
+import { Bookmark, BookmarkFolder, OutboxOperation, Preferences, ReadingPosition, SyncState } from '../models';
 
 /** Key-value rows for small singletons (deviceId, history). */
 export interface MetaRow {
@@ -23,6 +23,7 @@ export interface PrefsRow extends Preferences {
  */
 export class MushafDb extends Dexie {
   bookmarks!: Table<Bookmark, string>;
+  folders!: Table<BookmarkFolder, string>;
   positions!: Table<ReadingPosition, string>;
   prefs!: Table<PrefsRow, string>;
   outbox!: Table<OutboxOperation, string>;
@@ -39,6 +40,21 @@ export class MushafDb extends Dexie {
       sync: 'key',
       meta: 'key',
     });
+    // v2: bookmark folders (collections such as khatam rounds) + per-bookmark note.
+    this.version(2)
+      .stores({
+        bookmarks: 'id, key, kind, page, updatedAt, deletedAt, folderId',
+        folders: 'id, updatedAt, deletedAt',
+      })
+      .upgrade((tx) =>
+        tx
+          .table('bookmarks')
+          .toCollection()
+          .modify((b: Partial<Bookmark>) => {
+            if (b.folderId === undefined) b.folderId = null;
+            if (b.note === undefined) b.note = null;
+          }),
+      );
   }
 }
 

@@ -1,4 +1,5 @@
 import { Injectable, inject } from '@angular/core';
+import { Router } from '@angular/router';
 import { AyahRef } from '../../core/models';
 import { ReaderUiService } from '../../core/reader-ui.service';
 
@@ -10,6 +11,7 @@ import { ReaderUiService } from '../../core/reader-ui.service';
 @Injectable({ providedIn: 'root' })
 export class SheetHistory {
   private readonly ui = inject(ReaderUiService);
+  private readonly router = inject(Router);
   private pushed = false;
   private pending: Array<() => void> = [];
   private fallback: ReturnType<typeof setTimeout> | null = null;
@@ -55,6 +57,14 @@ export class SheetHistory {
     this.pushed = false;
     this.ui.closeSheet();
     this.ui.goToPage(page, { ...opts, replaceUrl });
+  }
+
+  /** Like navigateTo, but for an arbitrary app URL (e.g. '/penanda'). */
+  navigateUrl(url: string): void {
+    const replaceUrl = this.pushed;
+    this.pushed = false;
+    this.ui.closeSheet();
+    void this.router.navigateByUrl(url, { replaceUrl });
   }
 
   /**

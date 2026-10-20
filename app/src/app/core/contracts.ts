@@ -3,6 +3,7 @@ import {
   Account,
   AyahRef,
   Bookmark,
+  BookmarkFolder,
   ContentIndex,
   JuzMeta,
   PageMeta,
@@ -111,6 +112,24 @@ export abstract class UserDataApi {
   abstract toggleVerseBookmark(ref: AyahRef, page: number): Promise<'added' | 'removed'>;
   /** Soft-deletes; resolves to an undo function valid for ~6 s. */
   abstract removeBookmark(id: string): Promise<() => Promise<void>>;
+
+  // --- bookmark management (folders = collections such as khatam rounds) ---
+  /** Active folders sorted by name (natural order, so "Khatam ke-2" < "Khatam ke-10"). */
+  abstract readonly folders: Signal<BookmarkFolder[]>;
+  /** Rejects with an Indonesian message on empty/too long/duplicate name or FOLDER_LIMIT reached. */
+  abstract createFolder(name: string): Promise<BookmarkFolder>;
+  abstract renameFolder(id: string, name: string): Promise<void>;
+  /**
+   * Tombstones the folder. Its bookmarks move to "Tanpa folder", or are deleted too
+   * when `deleteBookmarks` is true. Resolves to an undo function valid for ~6 s.
+   */
+  abstract deleteFolder(id: string, opts?: { deleteBookmarks?: boolean }): Promise<() => Promise<void>>;
+  /** Moves the given active bookmarks into a folder (null = "Tanpa folder"). One transaction. */
+  abstract moveBookmarks(ids: readonly string[], folderId: string | null): Promise<void>;
+  /** Bulk soft-delete in one transaction; resolves to an undo function valid for ~6 s. */
+  abstract removeBookmarks(ids: readonly string[]): Promise<() => Promise<void>>;
+  /** Empty/whitespace note clears it; longer than BOOKMARK_NOTE_MAX rejects. */
+  abstract setBookmarkNote(id: string, note: string | null): Promise<void>;
 
   abstract exportJson(): Promise<Blob>;
   /** Rejects with an Indonesian Error message on invalid files. */

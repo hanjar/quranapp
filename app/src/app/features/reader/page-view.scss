@@ -3,8 +3,9 @@
   position: relative;
   flex: none;
   /* Fit: min(available width / pages, available height * aspect). Container is the reader stage. */
-  width: var(--mf-page-w, min(calc(100cqw / var(--mf-pages, 1)), calc(100cqh * 0.62727)));
-  aspect-ratio: 345 / 550;
+  /* 345:600 = the 345:550 mushaf text block plus a running head and a footer band. */
+  width: var(--mf-page-w, min(calc(100cqw / var(--mf-pages, 1)), calc(100cqh * 0.575)));
+  aspect-ratio: 345 / 600;
   container-type: size;
   background: var(--mf-paper);
   box-shadow: 0 1px 4px color-mix(in srgb, var(--ui-ink) 14%, transparent);
@@ -24,33 +25,34 @@
   pointer-events: none;
 }
 .frame--outer {
-  inset: 1.2% 2.4%;
+  inset: 5.4% 2.4% 6.2%;
   border-width: var(--mf-frame-outer-w, 1.5px);
   border-radius: 2px;
 }
 .frame--inner {
-  inset: 2% 3.4%;
+  inset: 6.1% 3.4% 6.9%;
   border-color: var(--mf-frame-ink-inner, var(--mf-frame-ink));
   border-width: var(--mf-frame-inner-w, 0.75px);
   border-radius: 2px;
 }
 :host(.is-cover) {
   .frame--outer {
-    inset: 3.5% 6%;
+    inset: 6.5% 6% 7.5%;
     border-radius: 40% 40% 6px 6px / 14% 14% 6px 6px;
   }
   .frame--inner {
-    inset: 4.7% 7.2%;
+    inset: 7.6% 7.2% 8.6%;
     border-radius: 40% 40% 6px 6px / 14% 14% 6px 6px;
   }
   .art {
-    inset: 8% 10% 8%;
+    inset: 11% 10% 12%;
   }
 }
 
+/* Text block keeps the artwork's 345:550 shape: 0.916 W wide, 0.84 H tall. */
 .art {
   position: absolute;
-  inset: 2.6% 4.2% 4.6%;
+  inset: 7.5% 4.2% 8.5%;
 }
 .art ::ng-deep svg.mf-page-svg {
   display: block;
@@ -83,11 +85,38 @@
   stroke-dasharray: 3 2;
 }
 
+.head {
+  position: absolute;
+  top: 0;
+  left: 3.4%;
+  right: 3.4%;
+  height: 5.4%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: clamp(9px, 2.1cqh, 15px);
+  color: var(--ui-muted);
+  pointer-events: none;
+  white-space: nowrap;
+}
+.head__surah {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.head__juz {
+  flex: none;
+}
+
 .num {
   position: absolute;
   left: 0;
   right: 0;
-  bottom: 0.3%;
+  bottom: 0;
+  height: 6.2%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   text-align: center;
   font-size: clamp(9px, 2.1cqh, 15px);
   color: var(--ui-muted);

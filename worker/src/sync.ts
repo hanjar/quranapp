@@ -1,10 +1,12 @@
 import {
   type BookmarkData,
+  type FolderData,
   type Entity,
   type ParsedOp,
   type PositionData,
   type PrefsData,
   parseBookmark,
+  parseFolder,
   parseOp,
   parsePosition,
   parsePrefs,
@@ -12,6 +14,7 @@ import {
 import { isRecord } from './util';
 
 export const MAX_ACTIVE_BOOKMARKS = 5000;
+export const MAX_ACTIVE_FOLDERS = 100;
 export const DEFAULT_PAGE_LIMIT = 200;
 export const MAX_PAGE_LIMIT = 500;
 const MAX_ATTEMPTS = 3;
@@ -42,6 +45,18 @@ interface BookmarkRow {
   page: number;
   surah: number | null;
   ayah: number | null;
+  folder_id: string | null;
+  note: string | null;
+  created_at: number;
+  updated_at: number;
+  deleted_at: number | null;
+  rev: number;
+}
+
+interface FolderRow {
+  id: string;
+  name: string;
+  name_key: string;
   created_at: number;
   updated_at: number;
   deleted_at: number | null;
@@ -79,9 +94,22 @@ export function bookmarkChange(r: BookmarkRow): Change {
           surah: r.surah,
           ayah: r.ayah,
           key: r.semantic_key,
+          folderId: r.folder_id,
+          note: r.note,
           createdAt: r.created_at,
           updatedAt: r.updated_at,
         },
+  };
+}
+
+export function folderChange(r: FolderRow): Change {
+  const deleted = r.deleted_at !== null;
+  return {
+    entity: 'folder',
+    id: r.id,
+    rev: r.rev,
+    deleted,
+    data: deleted ? null : { name: r.name, createdAt: r.created_at, updatedAt: r.updated_at },
   };
 }
 
@@ -143,12 +171,14 @@ export async function pullChanges(db: D1Database, userId: string, cursor: number
 
   if (needsReset) {
     // Full snapshot of live data in ONE response (no pagination), so clients never loop on reset.
-    const [bm, pos, pref] = await db.batch([
+    const [bm, pos, pref, fol] = await db.batch([
       db.prepare('SELECT * FROM bookmarks WHERE user_id = ?1 AND deleted_at IS NULL ORDER BY rev').bind(userId),
       db.prepare('SELECT * FROM reading_progress WHERE user_id = ?1 ORDER BY rev').bind(userId),
       db.prepare('SELECT payload, rev FROM preferences WHERE user_id = ?1').bind(userId),
+      db.prepare('SELECT * FROM folders WHERE user_id = ?1 AND deleted_at IS NULL ORDER BY rev').bind(userId),
     ]);
     const changes = [
+      ...((fol?.results ?? []) as FolderRow[]).map(folderChange),
       ...(bm?.results as BookmarkRow[]).map(bookmarkChange),
       ...(pos?.results as PositionRow[]).map(positionChange),
       ...(pref?.results as PrefsRow[]).map(prefsChange),
@@ -157,13 +187,15 @@ export async function pullChanges(db: D1Database, userId: string, cursor: number
   }
 
   const n = limit + 1;
-  const [bm, pos, pref, rv2] = await db.batch([
+  const [bm, pos, pref, rv2, fol] = await db.batch([
     db.prepare('SELECT * FROM bookmarks WHERE user_id = ?1 AND rev > ?2 ORDER BY rev LIMIT ?3').bind(userId, cursor, n),
     db.prepare('SELECT * FROM reading_progress WHERE user_id = ?1 AND rev > ?2 ORDER BY rev LIMIT ?3').bind(userId, cursor, n),
     db.prepare('SELECT payload, rev FROM preferences WHERE user_id = ?1 AND rev > ?2').bind(userId, cursor),
     db.prepare('SELECT revision FROM user_revisions WHERE user_id = ?1').bind(userId),
+    db.prepare('SELECT * FROM folders WHERE user_id = ?1 AND rev > ?2 ORDER BY rev LIMIT ?3').bind(userId, cursor, n),
   ]);
   const merged = [
+    ...((fol?.results ?? []) as FolderRow[]).map(folderChange),
     ...(bm?.results as BookmarkRow[]).map(bookmarkChange),
     ...(pos?.results as PositionRow[]).map(positionChange),
     ...(pref?.results as PrefsRow[]).map(prefsChange),
@@ -186,6 +218,9 @@ type Stmt = D1PreparedStatement;
 interface Sim {
   rev: number;
   bookmarks: Map<string, BookmarkRow>;
+  folders: Map<string, FolderRow>;
+  activeFolderByName: Map<string, string>;
+  activeFolderCount: number;
   activeByKey: Map<string, string>;
   activeCount: number;
   prefs: PrefsRow | null;
@@ -218,7 +253,18 @@ export async function applyBatch(
       }
     }
 
-    const [logRes, byIdRes, byKeyRes, prefRes, countRes] = await db.batch([
+    const folderIds: string[] = [];
+    const folderNames: string[] = [];
+    for (const op of validOps) {
+      if (op.entity !== 'folder') continue;
+      folderIds.push(op.entityId);
+      if (op.action === 'upsert') {
+        const f = parseFolder(op.payload);
+        if (f.ok) folderNames.push(f.value.nameKey);
+      }
+    }
+
+    const [logRes, byIdRes, byKeyRes, prefRes, countRes, fIdRes, fNameRes, fCountRes] = await db.batch([
       db
         .prepare('SELECT op_id, result_json FROM op_log WHERE user_id = ?1 AND op_id IN (SELECT value FROM json_each(?2))')
         .bind(userId, JSON.stringify(opIds)),
@@ -232,11 +278,23 @@ export async function applyBatch(
         .bind(userId, JSON.stringify(keys)),
       db.prepare('SELECT payload, rev FROM preferences WHERE user_id = ?1').bind(userId),
       db.prepare('SELECT COUNT(*) AS n FROM bookmarks WHERE user_id = ?1 AND deleted_at IS NULL').bind(userId),
+      db
+        .prepare('SELECT * FROM folders WHERE user_id = ?1 AND id IN (SELECT value FROM json_each(?2))')
+        .bind(userId, JSON.stringify(folderIds)),
+      db
+        .prepare(
+          'SELECT * FROM folders WHERE user_id = ?1 AND deleted_at IS NULL AND name_key IN (SELECT value FROM json_each(?2))',
+        )
+        .bind(userId, JSON.stringify(folderNames)),
+      db.prepare('SELECT COUNT(*) AS n FROM folders WHERE user_id = ?1 AND deleted_at IS NULL').bind(userId),
     ]);
 
     const sim: Sim = {
       rev: base.revision,
       bookmarks: new Map(),
+      folders: new Map(),
+      activeFolderByName: new Map(),
+      activeFolderCount: (fCountRes?.results[0] as { n: number } | undefined)?.n ?? 0,
       activeByKey: new Map(),
       activeCount: (countRes?.results[0] as { n: number } | undefined)?.n ?? 0,
       prefs: (prefRes?.results[0] as PrefsRow | undefined) ?? null,
@@ -248,6 +306,12 @@ export async function applyBatch(
     }
     for (const r of [...((byIdRes?.results ?? []) as BookmarkRow[]), ...((byKeyRes?.results ?? []) as BookmarkRow[])]) {
       sim.bookmarks.set(r.id, r);
+    }
+    for (const r of [...((fIdRes?.results ?? []) as FolderRow[]), ...((fNameRes?.results ?? []) as FolderRow[])]) {
+      sim.folders.set(r.id, r);
+    }
+    for (const r of sim.folders.values()) {
+      if (r.deleted_at === null) sim.activeFolderByName.set(r.name_key, r.id);
     }
     for (const r of sim.bookmarks.values()) {
       if (r.deleted_at === null) sim.activeByKey.set(r.semantic_key, r.id);
@@ -311,6 +375,10 @@ function applyOp(
   switch (op.entity) {
     case 'bookmark':
       return op.action === 'upsert' ? upsertBookmark(db, userId, op, sim, writes, reject) : deleteBookmark(db, userId, op, sim, writes, now);
+    case 'folder':
+      return op.action === 'upsert'
+        ? upsertFolder(db, userId, op, sim, writes, reject)
+        : deleteFolder(db, userId, op, sim, writes, now);
     case 'position': {
       if (op.action !== 'upsert') return reject('position cannot be deleted');
       const p = parsePosition(op.payload);
@@ -373,6 +441,8 @@ function upsertBookmark(
       surah: data.surah,
       ayah: data.ayah,
       updated_at: data.updatedAt,
+      folder_id: data.folderId,
+      note: data.note,
       rev,
     };
     sim.activeByKey.delete(existing.semantic_key);
@@ -381,10 +451,10 @@ function upsertBookmark(
     writes.push((g) =>
       db
         .prepare(
-          `UPDATE bookmarks SET semantic_key = ?2, kind = ?3, edition_id = ?4, page = ?6, surah = ?7, ayah = ?8, updated_at = ?9, rev = ?10
+          `UPDATE bookmarks SET semantic_key = ?2, kind = ?3, edition_id = ?4, page = ?6, surah = ?7, ayah = ?8, updated_at = ?9, rev = ?10, folder_id = ?12, note = ?13
            WHERE user_id = ?1 AND id = ?11 AND ${GUARD_SQL}`,
         )
-        .bind(userId, row.semantic_key, row.kind, row.edition_id, g.finalRev, row.page, row.surah, row.ayah, row.updated_at, rev, row.id),
+        .bind(userId, row.semantic_key, row.kind, row.edition_id, g.finalRev, row.page, row.surah, row.ayah, row.updated_at, rev, row.id, row.folder_id, row.note),
     );
     return { opId: op.opId, status: 'applied', rev };
   }
@@ -405,6 +475,8 @@ function upsertBookmark(
     page: data.page,
     surah: data.surah,
     ayah: data.ayah,
+    folder_id: data.folderId,
+    note: data.note,
     created_at: data.createdAt,
     updated_at: data.updatedAt,
     deleted_at: null,
@@ -416,10 +488,10 @@ function upsertBookmark(
   writes.push((g) =>
     db
       .prepare(
-        `INSERT INTO bookmarks (user_id, id, semantic_key, kind, edition_id, page, surah, ayah, created_at, updated_at, deleted_at, rev)
-         SELECT ?1, ?2, ?3, ?4, ?6, ?7, ?8, ?9, ?10, ?11, NULL, ?12 WHERE ${GUARD_SQL}`,
+        `INSERT INTO bookmarks (user_id, id, semantic_key, kind, edition_id, page, surah, ayah, created_at, updated_at, deleted_at, rev, folder_id, note)
+         SELECT ?1, ?2, ?3, ?4, ?6, ?7, ?8, ?9, ?10, ?11, NULL, ?12, ?13, ?14 WHERE ${GUARD_SQL}`,
       )
-      .bind(userId, row.id, row.semantic_key, row.kind, g.finalRev, row.edition_id, row.page, row.surah, row.ayah, row.created_at, row.updated_at, rev),
+      .bind(userId, row.id, row.semantic_key, row.kind, g.finalRev, row.edition_id, row.page, row.surah, row.ayah, row.created_at, row.updated_at, rev, row.folder_id, row.note),
   );
   return { opId: op.opId, status: 'applied', rev };
 }
@@ -468,4 +540,92 @@ function upsertPrefsStmt(db: D1Database, userId: string, p: PrefsData, rev: numb
        ON CONFLICT (user_id) DO UPDATE SET payload = excluded.payload, updated_at = excluded.updated_at, rev = excluded.rev`,
     )
     .bind(userId, JSON.stringify(p), p.updatedAt, rev, g.finalRev);
+}
+
+function upsertFolder(
+  db: D1Database,
+  userId: string,
+  op: ParsedOp,
+  sim: Sim,
+  writes: ((g: Guard) => Stmt)[],
+  reject: (e: string) => OpResult,
+): OpResult {
+  const p = parseFolder(op.payload);
+  if (!p.ok) return reject(p.error);
+  const data: FolderData = p.value;
+  const existing = sim.folders.get(op.entityId);
+  const nameOwner = sim.activeFolderByName.get(data.nameKey);
+
+  if (existing) {
+    if (existing.deleted_at !== null) {
+      if (op.baseRev === null) return reject('id_deleted: use a new id to re-add');
+      return { opId: op.opId, status: 'conflict', current: folderChange(existing) };
+    }
+    if (op.baseRev !== existing.rev) return { opId: op.opId, status: 'conflict', current: folderChange(existing) };
+    if (nameOwner && nameOwner !== existing.id) return reject('folder_name_taken');
+    const rev = ++sim.rev;
+    const row: FolderRow = { ...existing, name: data.name, name_key: data.nameKey, updated_at: data.updatedAt, rev };
+    sim.activeFolderByName.delete(existing.name_key);
+    sim.activeFolderByName.set(row.name_key, row.id);
+    sim.folders.set(row.id, row);
+    writes.push((g) =>
+      db
+        .prepare(
+          `UPDATE folders SET name = ?2, name_key = ?3, updated_at = ?4, rev = ?6
+           WHERE user_id = ?1 AND id = ?7 AND ${GUARD_SQL}`,
+        )
+        .bind(userId, row.name, row.name_key, row.updated_at, g.finalRev, rev, row.id),
+    );
+    return { opId: op.opId, status: 'applied', rev };
+  }
+
+  if (op.baseRev !== null) return reject('not_found');
+  if (nameOwner) return reject('folder_name_taken');
+  if (sim.activeFolderCount >= MAX_ACTIVE_FOLDERS) return reject('limit_reached');
+  const rev = ++sim.rev;
+  const row: FolderRow = {
+    id: op.entityId,
+    name: data.name,
+    name_key: data.nameKey,
+    created_at: data.createdAt,
+    updated_at: data.updatedAt,
+    deleted_at: null,
+    rev,
+  };
+  sim.folders.set(row.id, row);
+  sim.activeFolderByName.set(row.name_key, row.id);
+  sim.activeFolderCount++;
+  writes.push((g) =>
+    db
+      .prepare(
+        `INSERT INTO folders (user_id, id, name, name_key, created_at, updated_at, deleted_at, rev)
+         SELECT ?1, ?2, ?3, ?4, ?6, ?7, NULL, ?8 WHERE ${GUARD_SQL}`,
+      )
+      .bind(userId, row.id, row.name, row.name_key, g.finalRev, row.created_at, row.updated_at, rev),
+  );
+  return { opId: op.opId, status: 'applied', rev };
+}
+
+function deleteFolder(
+  db: D1Database,
+  userId: string,
+  op: ParsedOp,
+  sim: Sim,
+  writes: ((g: Guard) => Stmt)[],
+  now: number,
+): OpResult {
+  const existing = sim.folders.get(op.entityId);
+  if (!existing) return { opId: op.opId, status: 'applied' };
+  if (existing.deleted_at !== null) return { opId: op.opId, status: 'applied', rev: existing.rev };
+  // Delete beats stale edits. No server-side cascade: clients send bookmark moves/deletes themselves.
+  const rev = ++sim.rev;
+  sim.folders.set(existing.id, { ...existing, deleted_at: now, rev });
+  sim.activeFolderByName.delete(existing.name_key);
+  sim.activeFolderCount--;
+  writes.push((g) =>
+    db
+      .prepare(`UPDATE folders SET deleted_at = ?2, rev = ?3 WHERE user_id = ?1 AND id = ?4 AND ${GUARD_SQL}`)
+      .bind(userId, now, rev, existing.id, g.finalRev),
+  );
+  return { opId: op.opId, status: 'applied', rev };
 }

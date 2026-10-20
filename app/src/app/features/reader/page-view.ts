@@ -80,6 +80,17 @@ export class PageView implements OnDestroy {
     return names ? `Halaman ${p}, ${names}` : `Halaman ${p}`;
   });
 
+  /** Running head like a printed mushaf: surah(s) on the page and the juz. */
+  protected readonly header = computed(() => {
+    const p = this.page();
+    if (!this.content.index()) return null;
+    const meta = this.content.pageMeta(p);
+    const surahs = meta.surahs
+      .map((n) => `${n} · ${this.content.surah(n).nameLatin}`)
+      .join(' – ');
+    return { surahs, juz: `Juz ${meta.juz}` };
+  });
+
   constructor() {
     effect(() => {
       const p = this.page();

@@ -134,3 +134,15 @@ of zero cost is made; heavy use may require the paid plan.
 
 `@cloudflare/vitest-pool-workers` is deprecated upstream and renamed `@cloudflare/vitest-plugin`; this
 package uses the latter (same API: `cloudflareTest`, `readD1Migrations`, `applyD1Migrations`).
+
+## Folders and notes (migration `0002_folders_notes.sql`)
+
+- Entity `folder` (`entityId` = folder id): upsert payload `{name, createdAt, updatedAt}`; delete = tombstone
+  (180-day retention like bookmarks). `Change.data` = `{name, createdAt, updatedAt}`.
+  Name is trimmed, 1-40 characters, unique per user among active folders case-insensitively
+  (`rejected` / `folder_name_taken`); max 100 active folders (`rejected` / `limit_reached`).
+  Stale `baseRev` -> `conflict` + `current`. Deleting a folder does not cascade: clients send the bookmark
+  moves/deletes themselves.
+- Bookmarks gain `folderId` (string <= 64 or null; may point to an unknown folder) and `note` (<= 500 chars or
+  null). Missing fields from older clients are stored as null.
+- `GET /export` (`folders`) and `reset:true` snapshots include folders. Apply with `npm run migrate:remote`.

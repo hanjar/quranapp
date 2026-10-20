@@ -4,7 +4,11 @@ import { ImportResult, UserDataApi } from '../contracts';
 import {
   AyahRef,
   Bookmark,
+  BOOKMARK_NOTE_MAX,
+  BookmarkFolder,
   bookmarkKey,
+  FOLDER_LIMIT,
+  FOLDER_NAME_MAX,
   DEFAULT_EDITION,
   DEFAULT_PREFERENCES,
   EditionId,
@@ -31,10 +35,19 @@ function bookmarkPayload(b: Bookmark) {
     surah: b.surah,
     ayah: b.ayah,
     key: b.key,
+    folderId: b.folderId,
+    note: b.note,
     createdAt: b.createdAt,
     updatedAt: b.updatedAt,
   };
 }
+
+function folderPayload(f: BookmarkFolder) {
+  return { name: f.name, createdAt: f.createdAt, updatedAt: f.updatedAt };
+}
+
+const naturalCompare = (a: string, b: string) => a.localeCompare(b, 'id', { numeric: true });
+const sameName = (a: string, b: string) => a.toLocaleLowerCase('id') === b.toLocaleLowerCase('id');
 
 function prefsPayload(p: Preferences) {
   return {
@@ -81,12 +94,14 @@ export class UserDataService extends UserDataApi {
   private readonly _prefs = signal<Preferences>({ ...DEFAULT_PREFERENCES });
   private readonly _position = signal<ReadingPosition | null>(null);
   private readonly _bookmarks = signal<Bookmark[]>([]);
+  private readonly _folders = signal<BookmarkFolder[]>([]);
 
   readonly ready = this._ready.asReadonly();
   readonly deviceId = this._deviceId.asReadonly();
   readonly prefs = this._prefs.asReadonly();
   readonly position = this._position.asReadonly();
   readonly bookmarks = this._bookmarks.asReadonly();
+  readonly folders = this._folders.asReadonly();
 
   private readonly keys = computed(() => new Set(this._bookmarks().map((b) => b.key)));
 
@@ -98,7 +113,7 @@ export class UserDataService extends UserDataApi {
 
   private get tables() {
     const d = this.db;
-    return [d.bookmarks, d.positions, d.prefs, d.outbox, d.sync, d.meta];
+    return [d.bookmarks, d.folders, d.positions, d.prefs, d.outbox, d.sync, d.meta];
   }
 
   /** Serializes all writes so read-modify-write sequences never interleave. */
@@ -149,6 +164,13 @@ export class UserDataService extends UserDataApi {
     // A not-yet-flushed local page change is newer than what IndexedDB holds.
     this._position.set(pending && stored ? { ...stored, ...pending } : stored);
     await this.refreshBookmarks();
+    await this.refreshFolders();
+  }
+
+  private async refreshFolders(): Promise<void> {
+    const all = await this.db.folders.filter((f) => f.deletedAt === null).toArray();
+    all.sort((a, b) => naturalCompare(a.name, b.name));
+    this._folders.set(all);
   }
 
   private stripPrefs(row: PrefsRow): Preferences {
@@ -327,6 +349,8 @@ export class UserDataService extends UserDataApi {
           updatedAt: now,
           deletedAt: null,
           rev: null,
+          folderId: null,
+          note: null,
         };
         await this.db.bookmarks.add(fresh);
         if (account) {
@@ -347,62 +371,241 @@ export class UserDataService extends UserDataApi {
     });
   }
 
-  async removeBookmark(id: string): Promise<() => Promise<void>> {
-    const removedAt = await this.serial(async () => {
-      const at = await this.db.transaction('rw', this.tables, async () => {
-        const b = await this.db.bookmarks.get(id);
-        if (!b || b.deletedAt !== null) return null;
-        const now = Date.now();
-        const gone: Bookmark = { ...b, deletedAt: now, updatedAt: now };
-        await this.db.bookmarks.put(gone);
-        const account = await activeSyncAccount(this.db);
-        if (account) {
-          await enqueueOutbox(
-            this.db,
-            account,
-            'bookmark',
-            id,
-            'delete',
-            bookmarkPayload(gone),
-            gone.rev,
-          );
-        }
-        return now;
-      });
-      await this.refreshBookmarks();
-      return at;
-    });
-    if (removedAt === null) return async () => undefined;
+  removeBookmark(id: string): Promise<() => Promise<void>> {
+    return this.removeBookmarks([id]);
+  }
 
+  /** Common undo wrapper: valid for UNDO_WINDOW_MS after `at`, serialized, one transaction. */
+  private undoable(at: number, restore: () => Promise<void>, after: () => Promise<void>) {
     return () =>
       this.serial(async () => {
-        if (Date.now() - removedAt > UNDO_WINDOW_MS) return;
-        await this.db.transaction('rw', this.tables, async () => {
-          const b = await this.db.bookmarks.get(id);
-          if (!b || b.deletedAt === null) return;
-          const clash = await this.db.bookmarks
-            .where('key')
-            .equals(b.key)
-            .filter((x) => x.deletedAt === null)
-            .first();
-          if (clash) return;
-          const back: Bookmark = { ...b, deletedAt: null, updatedAt: Date.now() };
-          await this.db.bookmarks.put(back);
-          const account = await activeSyncAccount(this.db);
-          if (account) {
-            await enqueueOutbox(
-              this.db,
-              account,
-              'bookmark',
-              id,
-              'upsert',
-              bookmarkPayload(back),
-              back.rev,
-            );
-          }
-        });
-        await this.refreshBookmarks();
+        if (Date.now() - at > UNDO_WINDOW_MS) return;
+        await this.db.transaction('rw', this.tables, restore);
+        await after();
       });
+  }
+
+  private async putBookmark(
+    b: Bookmark,
+    account: string | null,
+    action: 'upsert' | 'delete',
+    baseRev: number | null,
+  ) {
+    await this.db.bookmarks.put(b);
+    if (account) {
+      await enqueueOutbox(this.db, account, 'bookmark', b.id, action, bookmarkPayload(b), baseRev);
+    }
+  }
+
+  private async putFolder(
+    f: BookmarkFolder,
+    account: string | null,
+    action: 'upsert' | 'delete',
+    baseRev: number | null,
+  ) {
+    await this.db.folders.put(f);
+    if (account) {
+      await enqueueOutbox(this.db, account, 'folder', f.id, action, folderPayload(f), baseRev);
+    }
+  }
+
+  /** Restores previously active bookmarks to their snapshot (skips rows whose key is taken again). */
+  private async restoreBookmarks(prevs: Bookmark[], account: string | null, now: number) {
+    for (const prev of prevs) {
+      const cur = await this.db.bookmarks.get(prev.id);
+      if (!cur) continue;
+      if (prev.deletedAt === null && cur.deletedAt !== null) {
+        const clash = await this.db.bookmarks
+          .where('key')
+          .equals(prev.key)
+          .filter((x) => x.deletedAt === null)
+          .first();
+        if (clash) continue;
+      }
+      await this.putBookmark({ ...prev, rev: cur.rev, updatedAt: now }, account, 'upsert', cur.rev);
+    }
+  }
+
+  async removeBookmarks(ids: readonly string[]): Promise<() => Promise<void>> {
+    const { prevs, at } = await this.serial(async () => {
+      const out = await this.db.transaction('rw', this.tables, async () => {
+        const account = await activeSyncAccount(this.db);
+        const now = Date.now();
+        const prevs: Bookmark[] = [];
+        for (const id of new Set(ids)) {
+          const b = await this.db.bookmarks.get(id);
+          if (!b || b.deletedAt !== null) continue;
+          prevs.push(b);
+          await this.putBookmark({ ...b, deletedAt: now, updatedAt: now }, account, 'delete', b.rev);
+        }
+        return { prevs, at: now };
+      });
+      await this.refreshBookmarks();
+      return out;
+    });
+    if (!prevs.length) return async () => undefined;
+    return this.undoable(
+      at,
+      async () => this.restoreBookmarks(prevs, await activeSyncAccount(this.db), Date.now()),
+      () => this.refreshBookmarks(),
+    );
+  }
+
+  async moveBookmarks(ids: readonly string[], folderId: string | null): Promise<void> {
+    await this.serial(async () => {
+      await this.db.transaction('rw', this.tables, async () => {
+        if (folderId !== null) {
+          const f = await this.db.folders.get(folderId);
+          if (!f || f.deletedAt !== null) throw new Error('Folder tidak ditemukan.');
+        }
+        const account = await activeSyncAccount(this.db);
+        const now = Date.now();
+        for (const id of new Set(ids)) {
+          const b = await this.db.bookmarks.get(id);
+          if (!b || b.deletedAt !== null || b.folderId === folderId) continue;
+          await this.putBookmark({ ...b, folderId, updatedAt: now }, account, 'upsert', b.rev);
+        }
+      });
+      await this.refreshBookmarks();
+    });
+  }
+
+  async setBookmarkNote(id: string, note: string | null): Promise<void> {
+    const clean = note?.trim() || null;
+    if (clean !== null && clean.length > BOOKMARK_NOTE_MAX) {
+      throw new Error(`Catatan maksimal ${BOOKMARK_NOTE_MAX} karakter.`);
+    }
+    await this.serial(async () => {
+      await this.db.transaction('rw', this.tables, async () => {
+        const b = await this.db.bookmarks.get(id);
+        if (!b || b.deletedAt !== null) throw new Error('Penanda tidak ditemukan.');
+        if (b.note === clean) return;
+        const account = await activeSyncAccount(this.db);
+        await this.putBookmark({ ...b, note: clean, updatedAt: Date.now() }, account, 'upsert', b.rev);
+      });
+      await this.refreshBookmarks();
+    });
+  }
+
+  // ---- folders -------------------------------------------------------------
+
+  private cleanFolderName(name: string): string {
+    const n = (name ?? '').trim();
+    if (!n) throw new Error('Nama folder tidak boleh kosong.');
+    if (n.length > FOLDER_NAME_MAX) {
+      throw new Error(`Nama folder maksimal ${FOLDER_NAME_MAX} karakter.`);
+    }
+    return n;
+  }
+
+  private activeFolders(): Promise<BookmarkFolder[]> {
+    return this.db.folders.filter((f) => f.deletedAt === null).toArray();
+  }
+
+  createFolder(name: string): Promise<BookmarkFolder> {
+    return this.serial(async () => {
+      const clean = this.cleanFolderName(name);
+      const folder = await this.db.transaction('rw', this.tables, async () => {
+        const active = await this.activeFolders();
+        if (active.length >= FOLDER_LIMIT) {
+          throw new Error(`Jumlah folder maksimal ${FOLDER_LIMIT}.`);
+        }
+        if (active.some((f) => sameName(f.name, clean))) throw new Error('Nama folder sudah dipakai.');
+        const now = Date.now();
+        const f: BookmarkFolder = {
+          id: uuid(),
+          name: clean,
+          createdAt: now,
+          updatedAt: now,
+          deletedAt: null,
+          rev: null,
+        };
+        await this.putFolder(f, await activeSyncAccount(this.db), 'upsert', null);
+        return f;
+      });
+      await this.refreshFolders();
+      return folder;
+    });
+  }
+
+  renameFolder(id: string, name: string): Promise<void> {
+    return this.serial(async () => {
+      const clean = this.cleanFolderName(name);
+      await this.db.transaction('rw', this.tables, async () => {
+        const f = await this.db.folders.get(id);
+        if (!f || f.deletedAt !== null) throw new Error('Folder tidak ditemukan.');
+        if (f.name === clean) return;
+        const active = await this.activeFolders();
+        if (active.some((o) => o.id !== id && sameName(o.name, clean))) {
+          throw new Error('Nama folder sudah dipakai.');
+        }
+        await this.putFolder(
+          { ...f, name: clean, updatedAt: Date.now() },
+          await activeSyncAccount(this.db),
+          'upsert',
+          f.rev,
+        );
+      });
+      await this.refreshFolders();
+    });
+  }
+
+  async deleteFolder(
+    id: string,
+    opts?: { deleteBookmarks?: boolean },
+  ): Promise<() => Promise<void>> {
+    const removeToo = !!opts?.deleteBookmarks;
+    const { folder, prevs, at } = await this.serial(async () => {
+      const out = await this.db.transaction('rw', this.tables, async () => {
+        const f = await this.db.folders.get(id);
+        if (!f || f.deletedAt !== null) throw new Error('Folder tidak ditemukan.');
+        const account = await activeSyncAccount(this.db);
+        const now = Date.now();
+        const prevs = await this.db.bookmarks
+          .where('folderId')
+          .equals(id)
+          .filter((b) => b.deletedAt === null)
+          .toArray();
+        for (const b of prevs) {
+          if (removeToo) {
+            await this.putBookmark({ ...b, deletedAt: now, updatedAt: now }, account, 'delete', b.rev);
+          } else {
+            await this.putBookmark({ ...b, folderId: null, updatedAt: now }, account, 'upsert', b.rev);
+          }
+        }
+        await this.putFolder({ ...f, deletedAt: now, updatedAt: now }, account, 'delete', f.rev);
+        return { folder: f, prevs, at: now };
+      });
+      await this.refreshFolders();
+      await this.refreshBookmarks();
+      return out;
+    });
+    return this.undoable(
+      at,
+      async () => {
+        const cur = await this.db.folders.get(id);
+        if (!cur || cur.deletedAt === null) return;
+        const active = await this.activeFolders();
+        if (active.some((f) => sameName(f.name, folder.name))) return;
+        const account = await activeSyncAccount(this.db);
+        const now = Date.now();
+        await this.putFolder({ ...folder, rev: cur.rev, updatedAt: now }, account, 'upsert', cur.rev);
+        if (removeToo) {
+          await this.restoreBookmarks(prevs, account, now);
+          return;
+        }
+        for (const prev of prevs) {
+          const b = await this.db.bookmarks.get(prev.id);
+          // Only undo moves the user has not changed since.
+          if (!b || b.deletedAt !== null || b.folderId !== null) continue;
+          await this.putBookmark({ ...b, folderId: prev.folderId, updatedAt: now }, account, 'upsert', b.rev);
+        }
+      },
+      async () => {
+        await this.refreshFolders();
+        await this.refreshBookmarks();
+      },
+    );
   }
 
   // ---- export / import -----------------------------------------------------
@@ -413,10 +616,11 @@ export class UserDataService extends UserDataApi {
     bookmarks.sort((a, b) => a.createdAt - b.createdAt);
     const file: ExportFile = {
       format: 'mushaf-digital-export',
-      version: 1,
+      version: 2,
       exportedAt: Date.now(),
       editionId: DEFAULT_EDITION,
       bookmarks,
+      folders: (await this.activeFolders()).sort((x, y) => naturalCompare(x.name, y.name)),
       position: (await this.db.positions.get(EDITION)) ?? null,
       preferences: this._prefs(),
     };
@@ -433,6 +637,27 @@ export class UserDataService extends UserDataApi {
         const existing = new Set(
           (await this.db.bookmarks.filter((b) => b.deletedAt === null).toArray()).map((b) => b.key),
         );
+        // Folders: merge by case-insensitive name, never reuse ids from the file.
+        const folders = await this.activeFolders();
+        const folderMap = new Map<string, string>();
+        for (const ff of parsed.folders) {
+          let target = folders.find((f) => sameName(f.name, ff.name));
+          if (!target) {
+            if (folders.length >= FOLDER_LIMIT) throw new Error(`Jumlah folder maksimal ${FOLDER_LIMIT}.`);
+            const now = Date.now();
+            target = {
+              id: uuid(),
+              name: ff.name,
+              createdAt: ff.createdAt || now,
+              updatedAt: now,
+              deletedAt: null,
+              rev: null,
+            };
+            folders.push(target);
+            await this.putFolder(target, account, 'upsert', null);
+          }
+          folderMap.set(ff.id, target.id);
+        }
         let added = 0;
         let skipped = 0;
         for (const b of parsed.bookmarks) {
@@ -441,7 +666,11 @@ export class UserDataService extends UserDataApi {
             continue;
           }
           existing.add(b.key);
-          const row: Bookmark = { ...b, id: uuid() };
+          const row: Bookmark = {
+            ...b,
+            id: uuid(),
+            folderId: b.folderId ? (folderMap.get(b.folderId) ?? null) : null,
+          };
           await this.db.bookmarks.add(row);
           if (account) {
             await enqueueOutbox(

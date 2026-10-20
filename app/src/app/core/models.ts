@@ -112,6 +112,28 @@ export interface Bookmark {
   updatedAt: number;
   deletedAt: number | null; // tombstone
   rev: number | null; // server revision, null = never synced
+  /** Folder (collection, e.g. a khatam round) or null = "Tanpa folder". May point to a deleted/unknown folder: treat as null. */
+  folderId: string | null;
+  /** Optional personal note, trimmed, max BOOKMARK_NOTE_MAX chars. */
+  note: string | null;
+}
+
+export const BOOKMARK_NOTE_MAX = 500;
+export const FOLDER_NAME_MAX = 40;
+export const FOLDER_LIMIT = 100;
+
+/**
+ * A user-made collection of bookmarks, e.g. "Khatam ke-3" or "Ramadhan 1447 · Khatam 1".
+ * Deleting a folder never deletes its bookmarks unless the user explicitly asks;
+ * by default they move to "Tanpa folder" (folderId = null).
+ */
+export interface BookmarkFolder {
+  id: string; // uuid v4
+  name: string; // trimmed, 1..FOLDER_NAME_MAX chars
+  createdAt: number;
+  updatedAt: number;
+  deletedAt: number | null; // tombstone
+  rev: number | null;
 }
 
 export interface ReadingPosition {
@@ -148,13 +170,13 @@ export const DEFAULT_PREFERENCES: Preferences = {
   rev: null,
 };
 
-export type SyncEntity = 'bookmark' | 'position' | 'prefs';
+export type SyncEntity = 'bookmark' | 'folder' | 'position' | 'prefs';
 
 export interface OutboxOperation {
   opId: string; // uuid v4, idempotency key
   accountId: string; // ops are isolated per account
   entity: SyncEntity;
-  entityId: string; // bookmark.id | editionId | 'prefs'
+  entityId: string; // bookmark.id | folder.id | editionId | 'prefs'
   action: 'upsert' | 'delete';
   payload: unknown;
   baseRev: number | null;
@@ -191,12 +213,14 @@ export interface Account {
 }
 
 /** Shape of the versioned export/import file (US-12). */
+/** Version 2 adds folders and bookmark folderId/note. Version 1 files stay importable. */
 export interface ExportFile {
   format: 'mushaf-digital-export';
-  version: 1;
+  version: 1 | 2;
   exportedAt: number;
   editionId: EditionId;
   bookmarks: Bookmark[];
+  folders?: BookmarkFolder[];
   position: ReadingPosition | null;
   preferences: Preferences;
 }

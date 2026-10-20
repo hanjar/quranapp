@@ -43,6 +43,17 @@ export async function runCleanup(db: D1Database, now: number): Promise<void> {
            WHERE b.user_id = user_revisions.user_id AND b.deleted_at IS NOT NULL AND b.deleted_at < ?1)`,
       )
       .bind(tombCutoff),
+    db
+      .prepare(
+        `UPDATE user_revisions SET tombstone_horizon = MAX(tombstone_horizon, (
+           SELECT MAX(f.rev) FROM folders f
+           WHERE f.user_id = user_revisions.user_id AND f.deleted_at IS NOT NULL AND f.deleted_at < ?1))
+         WHERE EXISTS (
+           SELECT 1 FROM folders f
+           WHERE f.user_id = user_revisions.user_id AND f.deleted_at IS NOT NULL AND f.deleted_at < ?1)`,
+      )
+      .bind(tombCutoff),
+    db.prepare('DELETE FROM folders WHERE deleted_at IS NOT NULL AND deleted_at < ?1').bind(tombCutoff),
     db.prepare('DELETE FROM bookmarks WHERE deleted_at IS NOT NULL AND deleted_at < ?1').bind(tombCutoff),
     db.prepare('DELETE FROM sessions WHERE expires_at < ?1').bind(now),
     db.prepare('DELETE FROM oauth_states WHERE expires_at < ?1').bind(now),

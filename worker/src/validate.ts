@@ -15,7 +15,7 @@ export const UI_THEMES = ['klasik', 'segar', 'ceria', 'samudra'] as const;
 export const LAYOUT_MODES = ['auto', 'single', 'spread'] as const;
 export const MOTION_PREFS = ['system', 'reduce'] as const;
 
-export type Entity = 'bookmark' | 'position' | 'prefs';
+export type Entity = 'bookmark' | 'position' | 'prefs' | 'folder';
 
 export interface BookmarkData {
   kind: 'verse' | 'page';
@@ -24,6 +24,15 @@ export interface BookmarkData {
   surah: number | null;
   ayah: number | null;
   key: string;
+  folderId: string | null;
+  note: string | null;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface FolderData {
+  name: string;
+  nameKey: string;
   createdAt: number;
   updatedAt: number;
 }
@@ -103,13 +112,35 @@ export function parseBookmark(raw: unknown): Result<BookmarkData> {
   const createdAt = timestamp(raw['createdAt']);
   const updatedAt = timestamp(raw['updatedAt']);
   if (createdAt === null || updatedAt === null) return fail('invalid timestamps');
+  const folderRaw = raw['folderId'];
+  if (folderRaw !== undefined && folderRaw !== null && (typeof folderRaw !== 'string' || !ID_RE.test(folderRaw))) {
+    return fail('invalid folderId');
+  }
+  const noteRaw = raw['note'];
+  if (noteRaw !== undefined && noteRaw !== null && (typeof noteRaw !== 'string' || noteRaw.length > 500)) {
+    return fail('note must be a string of at most 500 characters');
+  }
+  const folderId = typeof folderRaw === 'string' ? folderRaw : null;
+  const note = typeof noteRaw === 'string' && noteRaw.length > 0 ? noteRaw : null;
   const s = kind === 'verse' ? surah.value : null;
   const a = kind === 'verse' ? ayah.value : null;
   // The semantic key is always derived server-side; a client-supplied key is ignored.
   return {
     ok: true,
-    value: { kind, editionId, page, surah: s, ayah: a, key: bookmarkKey(editionId, kind, page, s, a), createdAt, updatedAt },
+    value: { kind, editionId, page, surah: s, ayah: a, key: bookmarkKey(editionId, kind, page, s, a), folderId, note, createdAt, updatedAt },
   };
+}
+
+export function parseFolder(raw: unknown): Result<FolderData> {
+  if (!isRecord(raw)) return fail('payload must be an object');
+  const name = typeof raw['name'] === 'string' ? raw['name'].trim() : '';
+  if (name.length < 1 || [...name].length > 40) return fail('name must be 1-40 characters');
+  // eslint-disable-next-line no-control-regex
+  if (/[\u0000-\u001f\u007f]/.test(name)) return fail('name contains control characters');
+  const createdAt = timestamp(raw['createdAt']);
+  const updatedAt = timestamp(raw['updatedAt']);
+  if (createdAt === null || updatedAt === null) return fail('invalid timestamps');
+  return { ok: true, value: { name, nameKey: name.toLowerCase(), createdAt, updatedAt } };
 }
 
 export function parsePosition(raw: unknown): Result<PositionData> {
@@ -159,7 +190,7 @@ export function parseOp(raw: unknown): { opId: string | null; op: Result<ParsedO
   if (!isRecord(raw)) return { opId: null, op: fail('operation must be an object') };
   const opId = typeof raw['opId'] === 'string' && OP_ID_RE.test(raw['opId']) ? raw['opId'] : null;
   if (!opId) return { opId: null, op: fail('invalid opId') };
-  const entity = oneOf(raw['entity'], ['bookmark', 'position', 'prefs'] as const);
+  const entity = oneOf(raw['entity'], ['bookmark', 'folder', 'position', 'prefs'] as const);
   if (!entity) return { opId, op: fail('invalid entity') };
   const entityId = raw['entityId'];
   if (!validEntityId(entityId)) return { opId, op: fail('invalid entityId') };

@@ -10,6 +10,7 @@ beforeAll(async () => {
 beforeEach(async () => {
   for (const t of [
     'op_log',
+    'folders',
     'bookmarks',
     'reading_progress',
     'preferences',

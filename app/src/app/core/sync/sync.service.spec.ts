@@ -28,6 +28,8 @@ function bm(id: string, over: Partial<Bookmark> = {}): Bookmark {
     updatedAt: 1,
     deletedAt: null,
     rev: null,
+    folderId: null,
+    note: null,
     ...over,
   };
 }
