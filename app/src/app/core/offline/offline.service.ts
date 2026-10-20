@@ -48,6 +48,20 @@ export class OfflineService extends OfflineApi {
     }
   }
 
+  /** Background meta writes tolerate a closed database (app/test teardown) only. */
+  private async quiet(fn: () => Promise<unknown>): Promise<void> {
+    try {
+      await fn();
+    } catch (e) {
+      if ((e as { name?: string } | null)?.name !== 'DatabaseClosedError') throw e;
+    }
+  }
+
+  /** Resolves when any in-flight download has finished (tests / teardown). */
+  async idle(): Promise<void> {
+    while (this.active) await this.active.catch(() => undefined);
+  }
+
   private patch(p: Partial<OfflineStatus>): void {
     this._status.update((s) => ({ ...s, ...p }));
   }
@@ -170,8 +184,8 @@ export class OfflineService extends OfflineApi {
       complete: this.cached.size >= PAGE_COUNT,
       persisted: this._status().persisted,
     };
-    await this.db.meta.put({ key: META_OFFLINE_PACKAGE, value: pkg });
-    await this.db.meta.delete(META_PAGE_LRU);
+    await this.quiet(() => this.db.meta.put({ key: META_OFFLINE_PACKAGE, value: pkg }));
+    await this.quiet(() => this.db.meta.delete(META_PAGE_LRU));
 
     const queue: number[] = [];
     for (let p = 1; p <= PAGE_COUNT; p++) if (!this.cached.has(p)) queue.push(p);
@@ -210,7 +224,9 @@ export class OfflineService extends OfflineApi {
     else if (failed.length > 0 || this.cached.size < PAGE_COUNT) state = 'error';
     else state = 'done';
     if (state === 'done') {
-      await this.db.meta.put({ key: META_OFFLINE_PACKAGE, value: { ...pkg, complete: true } });
+      await this.quiet(() =>
+        this.db.meta.put({ key: META_OFFLINE_PACKAGE, value: { ...pkg, complete: true } }),
+      );
     }
     if (wentOffline) this.paused = true;
     this.patch({ state, failedPages: [...failed].sort((a, b) => a - b) });
@@ -221,8 +237,8 @@ export class OfflineService extends OfflineApi {
     this.paused = false;
     if (this.active) await this.active.catch(() => undefined);
     await deletePageCaches();
-    await this.db.meta.delete(META_PAGE_LRU);
-    await this.db.meta.delete(META_OFFLINE_PACKAGE);
+    await this.quiet(() => this.db.meta.delete(META_PAGE_LRU));
+    await this.quiet(() => this.db.meta.delete(META_OFFLINE_PACKAGE));
     this.cached = new Set();
     this.patch({ cachedPages: 0, cachedBytes: 0, failedPages: [], state: 'idle' });
   }

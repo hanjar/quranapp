@@ -34,7 +34,8 @@ describe('OfflineService', () => {
     svc = TestBed.inject(OfflineService);
   });
 
-  afterEach(() => {
+  afterEach(async () => {
+    await svc.idle();
     web.restore();
     db.close();
   });

@@ -76,6 +76,7 @@ export class ContentService extends ContentApi {
   private readonly docs = new Map<number, SVGSVGElement>();
   private readonly inflight = new Map<number, Promise<SVGSVGElement>>();
   private lruChain: Promise<void> = Promise.resolve();
+  private cleanup: Promise<void> = Promise.resolve();
 
   load(): Promise<void> {
     if (this._index()) return Promise.resolve();
@@ -110,7 +111,7 @@ export class ContentService extends ContentApi {
       this._loadError.set(LOAD_ERROR);
       return;
     }
-    void this.cleanupOldCaches().catch(() => undefined);
+    this.cleanup = this.cleanupOldCaches().catch(() => undefined);
   }
 
   private async cleanupOldCaches(): Promise<void> {
@@ -256,8 +257,11 @@ export class ContentService extends ContentApi {
   }
 
   /** Resolves when pending LRU bookkeeping has been written (used by tests). */
-  settled(): Promise<void> {
-    return this.lruChain;
+  async settled(): Promise<void> {
+    await this.cleanup;
+    await this.lruChain;
+    while (this.inflight.size) await Promise.allSettled([...this.inflight.values()]);
+    await this.lruChain;
   }
 
   prefetch(pages: number[]): void {

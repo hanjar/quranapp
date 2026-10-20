@@ -34,7 +34,9 @@ describe('UserDataService', () => {
     await create();
   });
 
-  afterEach(() => {
+  afterEach(async () => {
+    await svc.flushPosition();
+    await svc.idle();
     vi.useRealTimers();
     db.close();
   });

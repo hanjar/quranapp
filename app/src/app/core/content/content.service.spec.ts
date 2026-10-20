@@ -28,7 +28,8 @@ describe('ContentService', () => {
     svc = freshService();
   });
 
-  afterEach(() => {
+  afterEach(async () => {
+    await svc.settled();
     web.restore();
     db.close();
   });

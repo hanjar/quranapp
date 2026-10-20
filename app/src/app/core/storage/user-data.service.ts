@@ -125,9 +125,9 @@ export class UserDataService extends UserDataApi {
     }
     if (typeof document !== 'undefined') {
       document.addEventListener('visibilitychange', () => {
-        if (document.visibilityState === 'hidden') void this.flushPosition();
+        if (document.visibilityState === 'hidden') this.flushQuietly();
       });
-      window.addEventListener('pagehide', () => void this.flushPosition());
+      window.addEventListener('pagehide', () => this.flushQuietly());
     }
     this._ready.set(true);
   }
@@ -178,10 +178,20 @@ export class UserDataService extends UserDataApi {
     this.pendingPos = { page, surah: ayah?.surah ?? null, ayah: ayah?.ayah ?? null };
     const wait = this.lastPosWrite + POSITION_THROTTLE_MS - Date.now();
     if (wait <= 0) {
-      void this.flushPosition();
+      this.flushQuietly();
     } else if (this.posTimer === null) {
-      this.posTimer = setTimeout(() => void this.flushPosition(), wait);
+      this.posTimer = setTimeout(() => this.flushQuietly(), wait);
     }
+  }
+
+  /** Fire-and-forget flush: a closed database must never surface as an unhandled rejection. */
+  private flushQuietly(): void {
+    this.flushPosition().catch(() => undefined);
+  }
+
+  /** Resolves when all queued writes have finished (tests / teardown). */
+  idle(): Promise<void> {
+    return this.chain.then(() => undefined);
   }
 
   flushPosition(): Promise<void> {
