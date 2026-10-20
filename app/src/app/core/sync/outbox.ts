@@ -1,6 +1,8 @@
 import {
   Bookmark,
   BookmarkFolder,
+  KhatamRound,
+  ReadDay,
   OutboxOperation,
   Preferences,
   ReadingPosition,
@@ -74,6 +76,14 @@ export function positionPayload(p: ReadingPosition): Record<string, unknown> {
   };
 }
 
+export function readDayPayload(d: ReadDay): Record<string, unknown> {
+  return { day: d.day, pages: d.pages, updatedAt: d.updatedAt };
+}
+
+export function roundPayload(r: KhatamRound): Record<string, unknown> {
+  return { n: r.n, startedAt: r.startedAt, finishedAt: r.finishedAt, updatedAt: r.updatedAt };
+}
+
 export function prefsPayload(p: Preferences): Record<string, unknown> {
   return {
     paperTheme: p.paperTheme,
@@ -82,6 +92,8 @@ export function prefsPayload(p: Preferences): Record<string, unknown> {
     controlsAlwaysVisible: p.controlsAlwaysVisible,
     motion: p.motion,
     highContrast: p.highContrast,
+    dailyTarget: p.dailyTarget,
+    trackProgress: p.trackProgress,
     updatedAt: p.updatedAt,
   };
 }
@@ -97,11 +109,7 @@ export async function enqueueLocalSnapshot(
 ): Promise<number> {
   return db.transaction(
     'rw',
-    db.bookmarks,
-    db.folders,
-    db.positions,
-    db.prefs,
-    db.outbox,
+    [db.bookmarks, db.folders, db.positions, db.prefs, db.readDays, db.rounds, db.outbox],
     async () => {
       const pending = await db.outbox.where('accountId').equals(accountId).toArray();
       const has = (e: SyncEntity, id: string) =>
@@ -130,6 +138,14 @@ export async function enqueueLocalSnapshot(
         ops.push(
           makeOp(accountId, 'prefs', 'prefs', 'upsert', prefsPayload(prefs), prefs.rev, later),
         );
+      }
+      for (const r of await db.rounds.toArray()) {
+        if (!has('khatam', r.id))
+          ops.push(makeOp(accountId, 'khatam', r.id, 'upsert', roundPayload(r), r.rev, later));
+      }
+      for (const d of await db.readDays.toArray()) {
+        if (!has('readday', d.day))
+          ops.push(makeOp(accountId, 'readday', d.day, 'upsert', readDayPayload(d), d.rev, later));
       }
       if (ops.length) await db.outbox.bulkAdd(ops);
       return ops.length;

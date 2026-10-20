@@ -15,7 +15,9 @@ export const UI_THEMES = ['klasik', 'segar', 'ceria', 'samudra'] as const;
 export const LAYOUT_MODES = ['auto', 'single', 'spread'] as const;
 export const MOTION_PREFS = ['system', 'reduce'] as const;
 
-export type Entity = 'bookmark' | 'position' | 'prefs' | 'folder';
+export type Entity = 'bookmark' | 'position' | 'prefs' | 'folder' | 'readday' | 'khatam';
+
+export const MAX_DAILY_TARGET = 40;
 
 export interface BookmarkData {
   kind: 'verse' | 'page';
@@ -54,6 +56,25 @@ export interface PrefsData {
   motion: (typeof MOTION_PREFS)[number];
   highContrast: boolean;
   onboardingDone: boolean;
+  /** Optional so older clients that never send them do not reset the stored values. */
+  dailyTarget?: number;
+  trackProgress?: boolean;
+  updatedAt: number;
+}
+
+/** `[firstAt, lastAt]` epoch ms. */
+export type PageSpan = [number, number];
+
+export interface ReadDayData {
+  day: string;
+  pages: Record<string, PageSpan>;
+  updatedAt: number;
+}
+
+export interface RoundData {
+  n: number;
+  startedAt: number;
+  finishedAt: number | null;
   updatedAt: number;
 }
 
@@ -175,10 +196,74 @@ export function parsePrefs(raw: unknown): Result<PrefsData> {
   }
   const updatedAt = timestamp(raw['updatedAt']);
   if (updatedAt === null) return fail('invalid updatedAt');
-  return {
-    ok: true,
-    value: { paperTheme, uiTheme, layoutMode, controlsAlwaysVisible: cav, motion, highContrast: hc, onboardingDone: ob, updatedAt },
+  const value: PrefsData = {
+    paperTheme,
+    uiTheme,
+    layoutMode,
+    controlsAlwaysVisible: cav,
+    motion,
+    highContrast: hc,
+    onboardingDone: ob,
+    updatedAt,
   };
+  if (raw['dailyTarget'] !== undefined) {
+    const dt = int(raw['dailyTarget'], 1, MAX_DAILY_TARGET);
+    if (dt === null) return fail('dailyTarget must be 1-40');
+    value.dailyTarget = dt;
+  }
+  if (raw['trackProgress'] !== undefined) {
+    if (typeof raw['trackProgress'] !== 'boolean') return fail('trackProgress must be a boolean');
+    value.trackProgress = raw['trackProgress'];
+  }
+  return { ok: true, value };
+}
+
+const DAY_RE = /^(20\d\d)-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/;
+
+/** True for a real calendar day 'YYYY-MM-DD' in 2000-2099. */
+export function validDay(v: unknown): v is string {
+  if (typeof v !== 'string' || !DAY_RE.test(v)) return false;
+  const [y, m, d] = v.split('-').map(Number) as [number, number, number];
+  const dt = new Date(Date.UTC(y, m - 1, d));
+  return dt.getUTCFullYear() === y && dt.getUTCMonth() === m - 1 && dt.getUTCDate() === d;
+}
+
+export function parseReadDay(raw: unknown): Result<ReadDayData> {
+  if (!isRecord(raw)) return fail('payload must be an object');
+  if (!validDay(raw['day'])) return fail('invalid day');
+  const pagesRaw = raw['pages'];
+  if (!isRecord(pagesRaw)) return fail('pages must be an object');
+  const keys = Object.keys(pagesRaw);
+  if (keys.length === 0 || keys.length > 604) return fail('pages must hold 1-604 entries');
+  const pages: Record<string, PageSpan> = {};
+  for (const k of keys) {
+    const page = Number(k);
+    if (!Number.isInteger(page) || page < 1 || page > 604 || String(page) !== k) return fail('page must be 1-604');
+    const span = pagesRaw[k];
+    if (!Array.isArray(span) || span.length !== 2) return fail('page span must be [firstAt, lastAt]');
+    const a = timestamp(span[0]);
+    const b = timestamp(span[1]);
+    if (a === null || b === null || a > b) return fail('invalid page span');
+    pages[k] = [a, b];
+  }
+  const updatedAt = timestamp(raw['updatedAt']);
+  if (updatedAt === null) return fail('invalid updatedAt');
+  return { ok: true, value: { day: raw['day'], pages, updatedAt } };
+}
+
+export function parseRound(raw: unknown): Result<RoundData> {
+  if (!isRecord(raw)) return fail('payload must be an object');
+  const n = int(raw['n'], 1, 1000);
+  if (n === null) return fail('n must be 1-1000');
+  const startedAt = timestamp(raw['startedAt']);
+  const updatedAt = timestamp(raw['updatedAt']);
+  if (startedAt === null || updatedAt === null) return fail('invalid timestamps');
+  let finishedAt: number | null = null;
+  if (raw['finishedAt'] !== undefined && raw['finishedAt'] !== null) {
+    finishedAt = timestamp(raw['finishedAt']);
+    if (finishedAt === null || finishedAt < startedAt) return fail('invalid finishedAt');
+  }
+  return { ok: true, value: { n, startedAt, finishedAt, updatedAt } };
 }
 
 export function validEntityId(v: unknown): v is string {
@@ -190,7 +275,7 @@ export function parseOp(raw: unknown): { opId: string | null; op: Result<ParsedO
   if (!isRecord(raw)) return { opId: null, op: fail('operation must be an object') };
   const opId = typeof raw['opId'] === 'string' && OP_ID_RE.test(raw['opId']) ? raw['opId'] : null;
   if (!opId) return { opId: null, op: fail('invalid opId') };
-  const entity = oneOf(raw['entity'], ['bookmark', 'folder', 'position', 'prefs'] as const);
+  const entity = oneOf(raw['entity'], ['bookmark', 'folder', 'position', 'prefs', 'readday', 'khatam'] as const);
   if (!entity) return { opId, op: fail('invalid entity') };
   const entityId = raw['entityId'];
   if (!validEntityId(entityId)) return { opId, op: fail('invalid entityId') };

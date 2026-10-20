@@ -154,8 +154,21 @@ export interface Preferences {
   motion: MotionPref;
   highContrast: boolean;
   onboardingDone: boolean;
+  /** Reading-progress goal in pages per day (DAILY_TARGET_MIN..DAILY_TARGET_MAX). Synced. */
+  dailyTarget: number;
+  /** "Catat progres membaca": false stops recording page views. Synced. */
+  trackProgress: boolean;
   updatedAt: number;
   rev: number | null;
+}
+
+export const DAILY_TARGET_MIN = 1;
+export const DAILY_TARGET_MAX = 40;
+export const DEFAULT_DAILY_TARGET = 5;
+
+export function clampDailyTarget(n: number): number {
+  if (!Number.isFinite(n)) return DEFAULT_DAILY_TARGET;
+  return Math.min(DAILY_TARGET_MAX, Math.max(DAILY_TARGET_MIN, Math.round(n)));
 }
 
 export const DEFAULT_PREFERENCES: Preferences = {
@@ -166,11 +179,41 @@ export const DEFAULT_PREFERENCES: Preferences = {
   motion: 'system',
   highContrast: false,
   onboardingDone: false,
+  dailyTarget: DEFAULT_DAILY_TARGET,
+  trackProgress: true,
   updatedAt: 0,
   rev: null,
 };
 
-export type SyncEntity = 'bookmark' | 'folder' | 'position' | 'prefs';
+// ---------------------------------------------------------------------------
+// Reading progress (automatic, local-first, synced). See docs/progress.md.
+// ---------------------------------------------------------------------------
+
+/** `[firstAt, lastAt]` epoch ms of reading one page on one local day. */
+export type PageReadSpan = [number, number];
+
+/**
+ * One local calendar day of reading. Grow-only: two copies merge by union, per page
+ * min(firstAt) / max(lastAt) (see mergeReadPages). Keys of `pages` are page numbers as strings.
+ */
+export interface ReadDay {
+  day: string; // 'YYYY-MM-DD' (device-local calendar day)
+  pages: Record<string, PageReadSpan>;
+  updatedAt: number;
+  rev: number | null;
+}
+
+/** One khatam (full read-through) round. Last-writer-wins per round, `n` unique among live rounds. */
+export interface KhatamRound {
+  id: string; // uuid v4
+  n: number; // 1, 2, 3 …
+  startedAt: number;
+  finishedAt: number | null;
+  updatedAt: number;
+  rev: number | null;
+}
+
+export type SyncEntity = 'bookmark' | 'folder' | 'position' | 'prefs' | 'readday' | 'khatam';
 
 export interface OutboxOperation {
   opId: string; // uuid v4, idempotency key
@@ -241,6 +284,20 @@ export function bookmarkKey(
 
 export function isValidPage(p: unknown): p is number {
   return Number.isInteger(p) && (p as number) >= 1 && (p as number) <= PAGE_COUNT;
+}
+
+/** Union-merges two page maps: per page min(firstAt), max(lastAt). Pure; inputs untouched. */
+export function mergeReadPages(
+  a: Record<string, PageReadSpan>,
+  b: Record<string, PageReadSpan>,
+): Record<string, PageReadSpan> {
+  const out: Record<string, PageReadSpan> = {};
+  for (const [k, v] of Object.entries(a)) out[k] = [v[0], v[1]];
+  for (const [k, v] of Object.entries(b)) {
+    const cur = out[k];
+    out[k] = cur ? [Math.min(cur[0], v[0]), Math.max(cur[1], v[1])] : [v[0], v[1]];
+  }
+  return out;
 }
 
 export function uuid(): string {

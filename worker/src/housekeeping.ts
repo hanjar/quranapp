@@ -74,6 +74,28 @@ export async function runCleanup(db: D1Database, now: number): Promise<void> {
            WHERE f.user_id = user_revisions.user_id AND f.deleted_at IS NOT NULL AND f.deleted_at < ?1)`,
       )
       .bind(tombCutoff),
+    db
+      .prepare(
+        `UPDATE user_revisions SET tombstone_horizon = MAX(tombstone_horizon, (
+           SELECT MAX(d.rev) FROM reading_days d
+           WHERE d.user_id = user_revisions.user_id AND d.deleted_at IS NOT NULL AND d.deleted_at < ?1))
+         WHERE EXISTS (
+           SELECT 1 FROM reading_days d
+           WHERE d.user_id = user_revisions.user_id AND d.deleted_at IS NOT NULL AND d.deleted_at < ?1)`,
+      )
+      .bind(tombCutoff),
+    db
+      .prepare(
+        `UPDATE user_revisions SET tombstone_horizon = MAX(tombstone_horizon, (
+           SELECT MAX(k.rev) FROM khatam_rounds k
+           WHERE k.user_id = user_revisions.user_id AND k.deleted_at IS NOT NULL AND k.deleted_at < ?1))
+         WHERE EXISTS (
+           SELECT 1 FROM khatam_rounds k
+           WHERE k.user_id = user_revisions.user_id AND k.deleted_at IS NOT NULL AND k.deleted_at < ?1)`,
+      )
+      .bind(tombCutoff),
+    db.prepare('DELETE FROM reading_days WHERE deleted_at IS NOT NULL AND deleted_at < ?1').bind(tombCutoff),
+    db.prepare('DELETE FROM khatam_rounds WHERE deleted_at IS NOT NULL AND deleted_at < ?1').bind(tombCutoff),
     db.prepare('DELETE FROM folders WHERE deleted_at IS NOT NULL AND deleted_at < ?1').bind(tombCutoff),
     db.prepare('DELETE FROM bookmarks WHERE deleted_at IS NOT NULL AND deleted_at < ?1').bind(tombCutoff),
     db.prepare('DELETE FROM sessions WHERE expires_at < ?1').bind(now),

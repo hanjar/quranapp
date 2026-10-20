@@ -30,6 +30,8 @@ import {
   SyncBusyError,
   applyBatch,
   bookmarkChange,
+  readDayChange,
+  roundChange,
   folderChange,
   getRevision,
   positionChange,
@@ -385,19 +387,23 @@ export function createApp(overrides: Partial<Deps> = {}): Hono<AppBindings> {
   app.get('/export', async (c) => {
     const auth = requireAuth(c);
     const db = c.env.DB;
-    const [user, bm, pos, pref, rev, fol] = await db.batch([
+    const [user, bm, pos, pref, rev, fol, rd, kr] = await db.batch([
       db.prepare('SELECT id, email, name, created_at FROM users WHERE id = ?1').bind(auth.userId),
       db.prepare('SELECT * FROM bookmarks WHERE user_id = ?1 AND deleted_at IS NULL ORDER BY rev').bind(auth.userId),
       db.prepare('SELECT * FROM reading_progress WHERE user_id = ?1').bind(auth.userId),
       db.prepare('SELECT payload, rev FROM preferences WHERE user_id = ?1').bind(auth.userId),
       db.prepare('SELECT revision FROM user_revisions WHERE user_id = ?1').bind(auth.userId),
       db.prepare('SELECT * FROM folders WHERE user_id = ?1 AND deleted_at IS NULL ORDER BY rev').bind(auth.userId),
+      db.prepare('SELECT * FROM reading_days WHERE user_id = ?1 AND deleted_at IS NULL ORDER BY day').bind(auth.userId),
+      db.prepare('SELECT * FROM khatam_rounds WHERE user_id = ?1 AND deleted_at IS NULL ORDER BY n').bind(auth.userId),
     ]);
     const u = user?.results[0] as { id: string; email: string | null; name: string | null; created_at: number } | undefined;
     const bmChanges = ((bm?.results ?? []) as Parameters<typeof bookmarkChange>[0][]).map(bookmarkChange);
     const folChanges = ((fol?.results ?? []) as Parameters<typeof folderChange>[0][]).map(folderChange);
     const posChanges = ((pos?.results ?? []) as Parameters<typeof positionChange>[0][]).map(positionChange);
     const prefChanges = ((pref?.results ?? []) as Parameters<typeof prefsChange>[0][]).map(prefsChange);
+    const dayChanges = ((rd?.results ?? []) as Parameters<typeof readDayChange>[0][]).map(readDayChange);
+    const roundChanges = ((kr?.results ?? []) as Parameters<typeof roundChange>[0][]).map(roundChange);
     return ok(c, {
       exportedAt: new Date(deps.now()).toISOString(),
       account: u ? { id: u.id, email: u.email, name: u.name, createdAt: u.created_at } : null,
@@ -405,6 +411,8 @@ export function createApp(overrides: Partial<Deps> = {}): Hono<AppBindings> {
       bookmarks: bmChanges.map((x) => ({ id: x.id, rev: x.rev, ...x.data })),
       folders: folChanges.map((x) => ({ id: x.id, rev: x.rev, ...x.data })),
       positions: posChanges.map((x) => ({ rev: x.rev, ...x.data })),
+      readingDays: dayChanges.map((x) => ({ rev: x.rev, ...x.data })),
+      khatamRounds: roundChanges.map((x) => ({ id: x.id, rev: x.rev, ...x.data })),
       preferences: prefChanges[0] ? { rev: prefChanges[0].rev, ...prefChanges[0].data } : null,
     });
   });
@@ -418,6 +426,8 @@ export function createApp(overrides: Partial<Deps> = {}): Hono<AppBindings> {
       db.prepare('DELETE FROM bookmarks WHERE user_id = ?1').bind(id),
       db.prepare('DELETE FROM folders WHERE user_id = ?1').bind(id),
       db.prepare('DELETE FROM reading_progress WHERE user_id = ?1').bind(id),
+      db.prepare('DELETE FROM reading_days WHERE user_id = ?1').bind(id),
+      db.prepare('DELETE FROM khatam_rounds WHERE user_id = ?1').bind(id),
       db.prepare('DELETE FROM preferences WHERE user_id = ?1').bind(id),
       db.prepare('DELETE FROM sessions WHERE user_id = ?1').bind(id),
       db.prepare('DELETE FROM user_revisions WHERE user_id = ?1').bind(id),

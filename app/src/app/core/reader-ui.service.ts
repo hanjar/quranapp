@@ -39,6 +39,8 @@ export class ReaderUiService {
   readonly sheet = signal<SheetName | null>(null);
   readonly browseTab = signal<BrowseTab>('surah');
   readonly tourOpen = signal(false);
+  /** data-search-id of a row the opened sheet should scroll to, focus and highlight (universal search). */
+  readonly focusTarget = signal<string | null>(null);
   readonly zoom = signal(1);
   readonly toast = signal<Toast | null>(null);
 

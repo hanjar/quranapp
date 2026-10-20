@@ -182,3 +182,23 @@ npm run deploy
 
 Create the labels `feedback`, `feedback:saran`, `feedback:bug`, `feedback:konten`, `feedback:lainnya` in the repo
 (GitHub also auto-creates missing labels when the token may do so; otherwise issues are created without them).
+
+## Reading progress (migration `0004_progress.sql`)
+
+Two more sync entities, both behind the same `/sync` + `/sync/batch` contract:
+
+- `readday` (entityId = local calendar day `YYYY-MM-DD`; payload `{day, pages:{"<1-604>":[firstAt,lastAt]}, updatedAt}`).
+  **Union merge, not last-writer-wins**: per page min(firstAt)/max(lastAt) against the stored row, so two devices
+  reading the same day both count. No `baseRev`, never `conflict`. A merge that changes nothing writes nothing and
+  keeps the revision (no echo loops). Pull change data = merged `{day, pages, updatedAt}`.
+- `khatam` (entityId = round uuid; payload `{n, startedAt, finishedAt|null, updatedAt}`): LWW with `baseRev`
+  (stale = `conflict`), `n` unique among live rounds (`duplicate` + `current` otherwise), delete = tombstone.
+- Clear history = op `{entity:'readday', entityId:'all', action:'delete'}`: tombstones every live day (page data wiped)
+  and round, one fresh revision each, and sets `user_revisions.progress_cleared_at` (the clear watermark, server ms).
+  Uploads of pages with `lastAt <= watermark` are dropped and rounds with `startedAt <= watermark` are rejected
+  (`cleared_history`), so a stale device cannot resurrect cleared history. Day tombstone changes carry
+  `data:{clearedAt}` so clients drop only older reads. Other deletes of `readday` are rejected.
+- Limits: 2000 live days, 100 live rounds (`limit_reached`), `n` 1-1000.
+- Prefs payload gained optional `dailyTarget` (int 1-40) and `trackProgress` (bool); omitted = leave unchanged.
+- `/export` adds `readingDays` and `khatamRounds`; `DELETE /me/data` and the reset snapshot include both tables;
+  daily cleanup purges their tombstones after 180 days and raises `tombstone_horizon`.

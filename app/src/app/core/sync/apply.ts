@@ -4,17 +4,22 @@ import {
   BookmarkFolder,
   DEFAULT_PREFERENCES,
   EditionId,
+  KhatamRound,
   LayoutMode,
   MotionPref,
   OutboxOperation,
   PaperTheme,
+  PageReadSpan,
+  ReadDay,
   ReadingPosition,
   SyncEntity,
   UiTheme,
+  clampDailyTarget,
   isValidPage,
+  mergeReadPages,
 } from '../models';
 import { MushafDb } from '../storage/db';
-import { bookmarkPayload, folderPayload, makeOp } from './outbox';
+import { bookmarkPayload, folderPayload, makeOp, readDayPayload, roundPayload } from './outbox';
 import { BatchResult, Change } from './sync-types';
 
 /**
@@ -50,7 +55,15 @@ const UI: readonly string[] = ['klasik', 'segar', 'ceria', 'samudra'];
 const LAYOUT: readonly string[] = ['auto', 'single', 'spread'];
 const MOTION: readonly string[] = ['system', 'reduce'];
 
-const TABLES = (db: MushafDb) => [db.bookmarks, db.folders, db.positions, db.prefs, db.outbox];
+const TABLES = (db: MushafDb) => [
+  db.bookmarks,
+  db.folders,
+  db.positions,
+  db.prefs,
+  db.readDays,
+  db.rounds,
+  db.outbox,
+];
 
 // -- pending-op helpers -----------------------------------------------------
 
@@ -249,6 +262,8 @@ async function applyPrefs(ctx: Ctx, ch: Change): Promise<void> {
     motion: motion && MOTION.includes(motion) ? (motion as MotionPref) : base.motion,
     controlsAlwaysVisible: bool(d, 'controlsAlwaysVisible') ?? base.controlsAlwaysVisible,
     highContrast: bool(d, 'highContrast') ?? base.highContrast,
+    dailyTarget: num(d, 'dailyTarget') != null ? clampDailyTarget(num(d, 'dailyTarget') as number) : base.dailyTarget,
+    trackProgress: bool(d, 'trackProgress') ?? base.trackProgress,
     updatedAt: num(d, 'updatedAt') ?? base.updatedAt,
     rev: ch.rev,
   });
@@ -304,8 +319,132 @@ async function applyPosition(ctx: Ctx, ch: Change): Promise<void> {
   ctx.changed = true;
 }
 
+/** Parses a wire `pages` object; malformed entries are dropped. */
+export function parseWirePages(raw: unknown): Record<string, PageReadSpan> {
+  const out: Record<string, PageReadSpan> = {};
+  if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) return out;
+  for (const [k, v] of Object.entries(raw as Record<string, unknown>)) {
+    const page = Number(k);
+    if (!isValidPage(page) || String(page) !== k || !Array.isArray(v) || v.length !== 2) continue;
+    const [a, b] = v as unknown[];
+    if (typeof a !== 'number' || typeof b !== 'number' || !Number.isFinite(a) || !Number.isFinite(b)) continue;
+    out[k] = [Math.min(a, b), Math.max(a, b)];
+  }
+  return out;
+}
+
+async function refreshPendingDay(ctx: Ctx, row: ReadDay): Promise<void> {
+  for (const op of pendingFor(ctx, 'readday', row.day, 'upsert')) {
+    op.payload = readDayPayload(row);
+    await ctx.db.outbox.update(op.opId, { payload: op.payload });
+  }
+}
+
+async function applyReadDay(ctx: Ctx, ch: Change): Promise<void> {
+  const { db } = ctx;
+  const d = ch.data;
+  const local = await db.readDays.get(ch.id);
+  if (ch.deleted) {
+    // `clearedAt` watermark: reads at/before it were wiped; later local reads survive.
+    const clearedAt = d ? num(d, 'clearedAt') : null;
+    if (!local) return;
+    const kept: Record<string, PageReadSpan> = {};
+    for (const [k, v] of Object.entries(local.pages)) {
+      if (clearedAt != null && v[1] > clearedAt) kept[k] = v;
+    }
+    if (!Object.keys(kept).length) {
+      await db.readDays.delete(ch.id);
+      await dropPending(ctx, 'readday', ch.id);
+    } else {
+      const row: ReadDay = { ...local, pages: kept };
+      await db.readDays.put(row);
+      await refreshPendingDay(ctx, row);
+    }
+    ctx.changed = true;
+    return;
+  }
+  if (!d) return;
+  const remotePages = parseWirePages(d['pages']);
+  if (!Object.keys(remotePages).length) return;
+  const merged = local ? mergeReadPages(local.pages, remotePages) : remotePages;
+  const remoteUpdated = num(d, 'updatedAt') ?? 0;
+  const row: ReadDay = {
+    day: ch.id,
+    pages: merged,
+    updatedAt: Math.max(local?.updatedAt ?? 0, remoteUpdated),
+    rev: local?.rev != null && local.rev > ch.rev ? local.rev : ch.rev,
+  };
+  if (local && JSON.stringify(local.pages) === JSON.stringify(merged) && local.rev === row.rev) return;
+  await db.readDays.put(row);
+  await bumpBaseRev(ctx, 'readday', ch.id, ch.rev);
+  ctx.changed = true;
+}
+
+async function applyRound(ctx: Ctx, ch: Change): Promise<void> {
+  const { db } = ctx;
+  const d = ch.data;
+  const local = await db.rounds.get(ch.id);
+  const now = ctx.opts.now ?? Date.now();
+  if (ch.deleted) {
+    await dropPending(ctx, 'khatam', ch.id);
+    if (local && !(local.rev != null && local.rev > ch.rev)) {
+      await db.rounds.delete(ch.id);
+      ctx.changed = true;
+    }
+    return;
+  }
+  if (!d) return;
+  const n = num(d, 'n');
+  const startedAt = num(d, 'startedAt');
+  if (n == null || !Number.isInteger(n) || n < 1 || startedAt == null) return;
+  if (local) {
+    if (local.rev != null && local.rev > ch.rev) return;
+    if (!ctx.opts.force && pendingFor(ctx, 'khatam', ch.id).length) {
+      await bumpBaseRev(ctx, 'khatam', ch.id, ch.rev); // local edit in flight: retry on top
+      return;
+    }
+  }
+  let finishedAt = num(d, 'finishedAt');
+  let start = startedAt;
+  let reenqueue = false;
+  // Same round number created on two devices: the server row wins, the finish mark survives.
+  const twins = await db.rounds.filter((r) => r.id !== ch.id && r.n === n).toArray();
+  for (const t of twins) {
+    if (t.finishedAt != null && finishedAt == null) {
+      finishedAt = t.finishedAt;
+      reenqueue = true;
+    }
+    if (t.startedAt < start) {
+      start = t.startedAt;
+      reenqueue = true;
+    }
+    await db.rounds.delete(t.id);
+    await dropPending(ctx, 'khatam', t.id);
+  }
+  const row: KhatamRound = {
+    id: ch.id,
+    n,
+    startedAt: start,
+    finishedAt,
+    updatedAt: reenqueue ? now : (num(d, 'updatedAt') ?? now),
+    rev: ch.rev,
+  };
+  await db.rounds.put(row);
+  await bumpBaseRev(ctx, 'khatam', ch.id, ch.rev);
+  if (reenqueue && !pendingFor(ctx, 'khatam', ch.id, 'upsert').length) {
+    const op = makeOp(ctx.accountId, 'khatam', ch.id, 'upsert', roundPayload(row), ch.rev, now);
+    await db.outbox.add(op);
+    ctx.pending.push(op);
+  }
+  ctx.changed = true;
+}
+
 async function applyOne(ctx: Ctx, ch: Change): Promise<void> {
   switch (ch.entity) {
+    case 'readday':
+      return applyReadDay(ctx, ch);
+    case 'khatam':
+      return applyRound(ctx, ch);
     case 'bookmark':
       return applyBookmark(ctx, ch);
     case 'folder':
@@ -392,6 +531,8 @@ export function handleResults(
             else if (op.entity === 'folder') await db.folders.update(op.entityId, { rev: r.rev });
             else if (op.entity === 'position')
               await db.positions.update(op.entityId, { rev: r.rev });
+            else if (op.entity === 'readday') await db.readDays.update(op.entityId, { rev: r.rev });
+            else if (op.entity === 'khatam') await db.rounds.update(op.entityId, { rev: r.rev });
             else await db.prefs.update('prefs', { rev: r.rev });
             await bumpBaseRev(ctx, op.entity, op.entityId, r.rev);
           }
@@ -399,7 +540,7 @@ export function handleResults(
         }
         case 'duplicate': {
           out.duplicates++;
-          if (op.entity === 'folder') {
+          if (op.entity === 'folder' || op.entity === 'khatam') {
             if (r.current) await applyOne(ctx, r.current); // name-collision merge keeps the server folder
             out.changed = true;
             break;
@@ -480,6 +621,34 @@ export function reconcileReset(
         await dropPending(ctx, 'folder', f.id);
       } else if (!pendingFor(ctx, 'folder', f.id, 'upsert').length) {
         const op = makeOp(accountId, 'folder', f.id, 'upsert', folderPayload(f), null, now - 1);
+        await db.outbox.add(op);
+        ctx.pending.push(op);
+      }
+    }
+    const remoteDays = new Set(changes.filter((c) => c.entity === 'readday' && !c.deleted).map((c) => c.id));
+    for (const rd of await db.readDays.toArray()) {
+      if (rd.rev != null && !remoteDays.has(rd.day)) {
+        // Cleared elsewhere. Keep (and re-send) only if a local edit is still in flight.
+        if (pendingFor(ctx, 'readday', rd.day, 'upsert').length) {
+          await db.readDays.put({ ...rd, rev: null });
+        } else {
+          await db.readDays.delete(rd.day);
+          ctx.changed = true;
+        }
+      } else if (rd.rev == null && !pendingFor(ctx, 'readday', rd.day, 'upsert').length) {
+        const op = makeOp(accountId, 'readday', rd.day, 'upsert', readDayPayload(rd), null, now);
+        await db.outbox.add(op);
+        ctx.pending.push(op);
+      }
+    }
+    const remoteRounds = new Set(changes.filter((c) => c.entity === 'khatam' && !c.deleted).map((c) => c.id));
+    for (const rr of await db.rounds.toArray()) {
+      if (rr.rev != null && !remoteRounds.has(rr.id)) {
+        await db.rounds.delete(rr.id);
+        await dropPending(ctx, 'khatam', rr.id);
+        ctx.changed = true;
+      } else if (rr.rev == null && !pendingFor(ctx, 'khatam', rr.id, 'upsert').length) {
+        const op = makeOp(accountId, 'khatam', rr.id, 'upsert', roundPayload(rr), null, now);
         await db.outbox.add(op);
         ctx.pending.push(op);
       }

@@ -16,6 +16,7 @@ import { ContentApi, OfflineApi, UserDataApi } from '../../core/contracts';
 import { AyahRef, PageLoadError, PageLoadErrorKind } from '../../core/models';
 import { ReaderUiService } from '../../core/reader-ui.service';
 import { AudioService } from '../../core/audio/audio.service';
+import { decorateSurahHeaders } from './surah-header';
 import { VerseStateContext, isCoverPage, paddedViewBox, verseKey, verseStateFlags } from './reader-logic';
 
 export type PageState = 'loading' | 'ready' | 'offline' | 'error';
@@ -161,6 +162,7 @@ export class PageView implements OnDestroy {
       if (token !== this.token) return;
       host.replaceChildren(svg);
       prepareSvg(svg, isCoverPage(page));
+      if (!isCoverPage(page)) decorateSurahHeaders(svg);
       this.verses.set(collectVerses(svg));
       this.svgEl.set(svg);
       this.state.set('ready');

@@ -9,6 +9,7 @@ import {
   untracked,
 } from '@angular/core';
 import { LatinService } from '../../core/content/latin.service';
+import { TafsirService } from '../../core/content/tafsir.service';
 import { TranslationService } from '../../core/content/translation.service';
 import { ContentApi, UserDataApi } from '../../core/contracts';
 import { ReaderUiService } from '../../core/reader-ui.service';
@@ -95,9 +96,55 @@ import { latinCopyText, shareText, translationCopyText, verseReference } from '.
           </div>
         }
       </section>
+      <section class="latin" aria-label="Tafsir">
+        <div class="latin-head">
+          <span class="mf-eyebrow">Tafsir</span>
+          <button
+            type="button"
+            class="latin-toggle"
+            [attr.aria-expanded]="tafsirOpen()"
+            aria-controls="mf-tafsir-body"
+            (click)="toggleTafsir()"
+          >
+            {{ tafsirOpen() ? 'Sembunyikan tafsir' : 'Baca tafsir' }}
+          </button>
+        </div>
+        @if (tafsirOpen()) {
+          <div id="mf-tafsir-body" aria-live="polite">
+            @if (tafsirParagraphs(); as paras) {
+              <div class="tafsir-text" lang="id">
+                @for (p of paras; track $index) {
+                  <p>{{ p }}</p>
+                }
+              </div>
+              <div class="latin-foot">
+                <span class="attr">Tafsir Kemenag RI · via EQuran.id</span>
+              </div>
+            } @else if (tafsirText() === undefined) {
+              <div class="skeleton" aria-busy="true" aria-label="Memuat tafsir">
+                <span></span><span></span><span class="short"></span>
+              </div>
+            } @else {
+              <p class="muted">
+                Tafsir belum dapat dimuat (perlu koneksi untuk memuat pertama kali).
+                <button type="button" class="latin-copy" (click)="retryTafsir()">Coba lagi</button>
+              </p>
+            }
+          </div>
+        }
+      </section>
       <div class="grid">
         <button type="button" class="act" [class.on]="nowPlaying()" (click)="play()">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" aria-hidden="true">
+          <svg
+            width="22"
+            height="22"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.6"
+            stroke-linejoin="round"
+            aria-hidden="true"
+          >
             @if (nowPlaying()) {
               <path d="M8 5v14M16 5v14" stroke-linecap="round" />
             } @else {
@@ -233,6 +280,22 @@ import { latinCopyText, shareText, translationCopyText, verseReference } from '.
       user-select: text;
       -webkit-user-select: text;
     }
+    .tafsir-text {
+      max-height: 40vh;
+      overflow-y: auto;
+      overscroll-behavior: contain;
+      font-size: 15.5px;
+      line-height: 1.65;
+      user-select: text;
+      -webkit-user-select: text;
+    }
+    .tafsir-text p {
+      margin: 0 0 var(--mf-space-3);
+      overflow-wrap: anywhere;
+    }
+    .tafsir-text p:last-child {
+      margin-bottom: 0;
+    }
     .latin-foot {
       display: flex;
       align-items: center;
@@ -323,7 +386,13 @@ export class VerseSheet {
     const v = this.ui.selectedVerse();
     const cur = this.audio.current();
     const st = this.audio.state();
-    return !!v && !!cur && cur.surah === v.surah && cur.ayah === v.ayah && (st === 'playing' || st === 'loading');
+    return (
+      !!v &&
+      !!cur &&
+      cur.surah === v.surah &&
+      cur.ayah === v.ayah &&
+      (st === 'playing' || st === 'loading')
+    );
   });
 
   protected play(): void {
@@ -360,6 +429,17 @@ export class VerseSheet {
   });
   private trSeq = 0;
 
+  private readonly tafsir = inject(TafsirService);
+  /** Collapsed by default for every ayah: the texts are long. */
+  protected readonly tafsirOpen = signal(false);
+  /** undefined = loading, null = unavailable. */
+  protected readonly tafsirText = signal<string | null | undefined>(undefined);
+  protected readonly tafsirParagraphs = computed(() => {
+    const t = this.tafsirText();
+    return t ? t.split(/\n{2,}/).filter((p) => p.trim()) : null;
+  });
+  private tafsirSeq = 0;
+
   constructor() {
     effect(() => {
       const v = this.ui.selectedVerse();
@@ -367,6 +447,9 @@ export class VerseSheet {
         const ref = v ? { surah: v.surah, ayah: v.ayah } : null;
         this.loadLatin(ref);
         this.loadTr(ref);
+        this.tafsirOpen.set(false);
+        this.tafsirSeq++;
+        this.tafsirText.set(undefined);
       });
     });
   }
@@ -379,6 +462,27 @@ export class VerseSheet {
       .get(ref)
       .then((t) => seq === this.trSeq && this.trText.set(t))
       .catch(() => seq === this.trSeq && this.trText.set(null));
+  }
+
+  protected toggleTafsir(): void {
+    const open = !this.tafsirOpen();
+    this.tafsirOpen.set(open);
+    if (open) this.loadTafsir();
+  }
+
+  protected retryTafsir(): void {
+    this.loadTafsir();
+  }
+
+  private loadTafsir(): void {
+    const v = this.ui.selectedVerse();
+    const seq = ++this.tafsirSeq;
+    this.tafsirText.set(undefined);
+    if (!v) return;
+    this.tafsir
+      .get({ surah: v.surah, ayah: v.ayah })
+      .then((t) => seq === this.tafsirSeq && this.tafsirText.set(t))
+      .catch(() => seq === this.tafsirSeq && this.tafsirText.set(null));
   }
 
   protected toggleTr(): void {

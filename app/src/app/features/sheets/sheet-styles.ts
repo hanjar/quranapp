@@ -44,5 +44,6 @@ export const SHEET_STYLES = `
   dt { color: var(--ui-muted); }
   dd { margin: 0; word-break: break-word; }
   .avatar { width: 44px; height: 44px; border-radius: 50%; background: var(--ui-primary); color: var(--ui-on); display: grid; place-items: center; font-size: 18px; font-weight: 600; flex: none; }
+  .mf-flash { background: color-mix(in srgb, var(--ui-primary) 14%, transparent); border-radius: var(--mf-radius-sm); transition: background var(--mf-dur-base); }
   .who { display: flex; align-items: center; gap: 12px; }
 `;

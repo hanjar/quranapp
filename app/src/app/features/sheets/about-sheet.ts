@@ -6,6 +6,7 @@ import { BUILD_INFO } from '../../core/build-info';
 import { ContentApi } from '../../core/contracts';
 import { ReaderUiService } from '../../core/reader-ui.service';
 import { formatDateTime } from '../shell/format';
+import { useSearchFocusTarget } from './focus-target';
 import { SHEET_STYLES } from './sheet-styles';
 
 /** Body of the "Tentang dan lisensi" sheet. */
@@ -46,6 +47,7 @@ import { SHEET_STYLES } from './sheet-styles';
       <button
         type="button"
         class="mf-btn mf-btn--outline"
+        data-search-id="about-update"
         [disabled]="checking()"
         (click)="checkForUpdate()"
       >
@@ -124,7 +126,7 @@ import { SHEET_STYLES } from './sheet-styles';
       </button>
     </section>
 
-    <section aria-label="Privasi">
+    <section aria-label="Privasi" data-search-id="about-privacy">
       <h3>Privasi</h3>
       <p>
         Posisi baca, penanda, dan preferensi disimpan di perangkat ini. Bila Anda mengaktifkan
@@ -135,6 +137,10 @@ import { SHEET_STYLES } from './sheet-styles';
   `,
 })
 export class AboutSheet {
+  constructor() {
+    useSearchFocusTarget();
+  }
+
   private readonly content = inject(ContentApi);
   protected readonly audio = inject(AudioService);
   private readonly sw = inject(SwUpdate);

@@ -11,6 +11,7 @@ import {
 } from '@angular/core';
 import { AudioService } from '../../core/audio/audio.service';
 import { LatinService } from '../../core/content/latin.service';
+import { TafsirService } from '../../core/content/tafsir.service';
 import { TranslationService } from '../../core/content/translation.service';
 import { ContentApi } from '../../core/contracts';
 import { AyahRef } from '../../core/models';
@@ -38,6 +39,7 @@ export class TranslationPane {
   private readonly content = inject(ContentApi);
   private readonly translation = inject(TranslationService);
   private readonly latin = inject(LatinService);
+  private readonly tafsir = inject(TafsirService);
   private readonly audio = inject(AudioService);
   private readonly ui = inject(ReaderUiService);
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
@@ -117,6 +119,36 @@ export class TranslationPane {
   protected ariaFor(a: PageAyah): string {
     const t = this.textOf(a).tr;
     return `Ayat ${a.surah}:${a.ayah}${t ? '. ' + t : ''}`;
+  }
+
+  // ---- Tafsir (one open at a time, loaded on demand) ----
+  private readonly openTafsirKey = signal<string | null>(null);
+  /** undefined = loading, null = unavailable. */
+  protected readonly tafsirText = signal<string | null | undefined>(undefined);
+  protected readonly tafsirParagraphs = computed(() => {
+    const t = this.tafsirText();
+    return t ? t.split(/\n{2,}/).filter((p) => p.trim()) : null;
+  });
+  private tafsirSeq = 0;
+
+  protected isTafsirOpen(a: PageAyah): boolean {
+    return this.openTafsirKey() === this.key(a);
+  }
+
+  protected toggleTafsir(a: PageAyah, forceReload = false): void {
+    const key = this.key(a);
+    if (!forceReload && this.openTafsirKey() === key) {
+      this.openTafsirKey.set(null);
+      this.tafsirSeq++;
+      return;
+    }
+    const seq = ++this.tafsirSeq;
+    this.openTafsirKey.set(key);
+    this.tafsirText.set(undefined);
+    this.tafsir
+      .get({ surah: a.surah, ayah: a.ayah })
+      .then((t) => seq === this.tafsirSeq && this.tafsirText.set(t))
+      .catch(() => seq === this.tafsirSeq && this.tafsirText.set(null));
   }
 
   protected retry(): void {

@@ -57,6 +57,8 @@ function prefsPayload(p: Preferences) {
     controlsAlwaysVisible: p.controlsAlwaysVisible,
     motion: p.motion,
     highContrast: p.highContrast,
+    dailyTarget: p.dailyTarget,
+    trackProgress: p.trackProgress,
     updatedAt: p.updatedAt,
   };
 }

@@ -14,6 +14,7 @@ import { InstallService } from '../../core/install.service';
 import { ReaderUiService } from '../../core/reader-ui.service';
 import { PAPER_THEMES, UI_THEMES } from '../../core/theme.service';
 import { exportFilename, formatMb, importSummary } from '../shell/format';
+import { useSearchFocusTarget } from './focus-target';
 import { SHEET_STYLES } from './sheet-styles';
 import { WAKE_OPTIONS, WakeLockService } from '../../core/wake-lock.service';
 
@@ -63,7 +64,7 @@ const SYNC_LABEL: Record<string, string> = {
       </section>
     }
 
-    <section aria-labelledby="st-paper">
+    <section aria-labelledby="st-paper" data-search-id="paper">
       <h3 id="st-paper">Warna kertas</h3>
       <div class="grid3">
         @for (t of paperThemes; track t.id) {
@@ -81,7 +82,7 @@ const SYNC_LABEL: Record<string, string> = {
       </div>
     </section>
 
-    <section aria-labelledby="st-ui">
+    <section aria-labelledby="st-ui" data-search-id="ui-theme">
       <h3 id="st-ui">Gaya antarmuka</h3>
       <div class="grid2">
         @for (u of uiThemes; track u.id) {
@@ -102,7 +103,7 @@ const SYNC_LABEL: Record<string, string> = {
       </div>
     </section>
 
-    <section aria-labelledby="st-layout">
+    <section aria-labelledby="st-layout" data-search-id="layout">
       <h3 id="st-layout">Tata letak halaman</h3>
       <div class="mf-segmented" role="group" aria-labelledby="st-layout">
         @for (l of layouts; track l.id) {
@@ -122,7 +123,7 @@ const SYNC_LABEL: Record<string, string> = {
       </p>
     </section>
 
-    <section aria-labelledby="st-audio">
+    <section aria-labelledby="st-audio" data-search-id="audio">
       <h3 id="st-audio">Audio</h3>
       <div class="row" style="cursor: default">
         <span>Qari</span><span class="end">{{ audio.qari.name }}</span>
@@ -138,7 +139,7 @@ const SYNC_LABEL: Record<string, string> = {
           </button>
         }
       </div>
-      <div class="switch-row">
+      <div class="switch-row" data-search-id="audio-follow">
         <span id="sw-follow">Ikuti bacaan (balik halaman otomatis)</span>
         <span class="hit"
           ><button
@@ -166,7 +167,7 @@ const SYNC_LABEL: Record<string, string> = {
     </section>
 
     <section aria-label="Tampilan">
-      <div class="switch-row">
+      <div class="switch-row" data-search-id="controls">
         <span id="sw-controls">Selalu tampilkan kontrol</span>
         <span class="hit"
           ><button
@@ -179,7 +180,7 @@ const SYNC_LABEL: Record<string, string> = {
           ></button
         ></span>
       </div>
-      <div class="switch-row">
+      <div class="switch-row" data-search-id="motion">
         <span id="sw-motion">Kurangi gerakan</span>
         <span class="hit"
           ><button
@@ -192,7 +193,7 @@ const SYNC_LABEL: Record<string, string> = {
           ></button
         ></span>
       </div>
-      <div class="switch-row">
+      <div class="switch-row" data-search-id="contrast">
         <span id="sw-contrast">Kontras tinggi antarmuka</span>
         <span class="hit"
           ><button
@@ -208,7 +209,7 @@ const SYNC_LABEL: Record<string, string> = {
       <div class="row" style="cursor: default">
         <span id="wake-label">Layar tetap menyala</span>
       </div>
-      <div class="mf-segmented" role="group" aria-labelledby="wake-label">
+      <div class="mf-segmented" role="group" aria-labelledby="wake-label" data-search-id="wake">
         @for (w of wakeOptions; track w.id) {
           <button
             type="button"
@@ -248,10 +249,10 @@ const SYNC_LABEL: Record<string, string> = {
           >
         </button>
       }
-      <button type="button" class="row" (click)="exportData()">
+      <button type="button" class="row" data-search-id="export" (click)="exportData()">
         <span>Ekspor data</span><span class="end">JSON</span>
       </button>
-      <button type="button" class="row" (click)="fileInput.click()">
+      <button type="button" class="row" data-search-id="import" (click)="fileInput.click()">
         <span>Impor data</span><span class="end">JSON</span>
       </button>
       <input
@@ -279,6 +280,10 @@ const SYNC_LABEL: Record<string, string> = {
   `,
 })
 export class SettingsSheet {
+  constructor() {
+    useSearchFocusTarget();
+  }
+
   protected readonly buildLabel = buildLabel();
   protected readonly audio = inject(AudioService);
   protected readonly audioModes = AUDIO_MODES;

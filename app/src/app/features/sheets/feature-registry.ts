@@ -1,0 +1,143 @@
+import { BrowseTab, SheetName } from '../../core/reader-ui.service';
+import { IndexedEntry, Searchable, indexEntries, searchEntries } from './universal-search';
+
+export type FeatureGroup = 'Aplikasi' | 'Tampilan' | 'Baca' | 'Audio' | 'Offline' | 'Data' | 'Akun' | 'Bantuan';
+
+/** What choosing a feature does. Executed by the search sheet. */
+export type FeatureAction =
+  /** Opens a sheet; `target` is a data-search-id inside it to scroll to, focus and highlight. */
+  | { type: 'sheet'; sheet: SheetName; target?: string; browseTab?: BrowseTab }
+  | { type: 'url'; url: string }
+  | { type: 'tour' }
+  | { type: 'install' }
+  | { type: 'toggle-translation' }
+  | { type: 'toggle-latin' }
+  | { type: 'font'; dir: 1 | -1 };
+
+/** Device/app capabilities that gate some features. */
+export interface FeatureEnv {
+  /** Not already installed as an app. */
+  installable: boolean;
+  /** Audio offline packages exist (manifest loaded and a playable format). */
+  audioOffline: boolean;
+  /** Cloud sync is configured. */
+  sync: boolean;
+  /** Screen Wake Lock API is available. */
+  wakeLock: boolean;
+}
+
+export type FeatureNeeds = keyof FeatureEnv;
+
+export interface FeatureEntry extends Searchable {
+  group: FeatureGroup;
+  action: FeatureAction;
+  needs?: FeatureNeeds;
+}
+
+function f(
+  id: string,
+  title: string,
+  description: string,
+  group: FeatureGroup,
+  action: FeatureAction,
+  keywords: string[],
+  needs?: FeatureNeeds,
+): FeatureEntry {
+  return { id, title, description, group, action, keywords, needs };
+}
+
+const settings = (target: string): FeatureAction => ({ type: 'sheet', sheet: 'settings', target });
+
+export const FEATURES: readonly FeatureEntry[] = [
+  f('install', 'Pasang ke perangkat', 'Pasang Mushaf Digital seperti aplikasi di layar utama.', 'Aplikasi', { type: 'install' },
+    ['install', 'instal', 'pasang', 'pasang aplikasi', 'aplikasi', 'app', 'home screen', 'layar utama', 'add to home screen', 'pwa', 'unduh aplikasi'], 'installable'),
+  f('offline-pages', 'Unduh mushaf untuk offline', 'Simpan semua halaman agar bisa dibaca tanpa internet.', 'Offline',
+    { type: 'sheet', sheet: 'offline', target: 'offline-pages' },
+    ['unduh', 'unduhan', 'download', 'offline', 'tanpa internet', 'simpan', 'simpan halaman', 'luring', 'hapus unduhan', 'penyimpanan', 'cache', 'kuota']),
+  f('offline-audio', 'Audio offline', 'Simpan bacaan surah atau juz untuk didengar tanpa internet.', 'Offline',
+    { type: 'sheet', sheet: 'offline', target: 'offline-audio' },
+    ['audio offline', 'unduh audio', 'download audio', 'simpan audio', 'murottal offline', 'kualitas audio', 'opus'], 'audioOffline'),
+  f('offline-tafsir', 'Tafsir offline', 'Simpan tafsir Kemenag RI agar bisa dibaca tanpa internet.', 'Offline',
+    { type: 'sheet', sheet: 'offline', target: 'offline-tafsir' },
+    ['tafsir', 'tafsir offline', 'offline', 'unduh', 'unduh tafsir', 'simpan', 'simpan tafsir', 'penjelasan', 'kemenag', 'hapus tafsir']),
+  f('paper-theme', 'Warna kertas', 'Pilih warna latar halaman mushaf.', 'Tampilan', settings('paper'),
+    ['kertas', 'warna', 'warna kertas', 'tema', 'latar', 'background', 'krem', 'gading', 'antik', 'gelap', 'terang', 'paper', 'color']),
+  f('ui-theme', 'Gaya antarmuka', 'Ganti tema warna dan huruf tampilan aplikasi.', 'Tampilan', settings('ui-theme'),
+    ['tema', 'gaya', 'antarmuka', 'tampilan', 'warna', 'theme', 'segar', 'ceria', 'samudra', 'klasik', 'gelap', 'font', 'huruf']),
+  f('layout', 'Tata letak halaman', 'Satu halaman, dua halaman berdampingan, atau otomatis.', 'Tampilan', settings('layout'),
+    ['tata letak', 'layout', 'dua halaman', '2 halaman', 'satu halaman', '1 halaman', 'spread', 'berdampingan', 'lanskap', 'mendatar', 'otomatis', 'tampilan halaman']),
+  f('contrast', 'Kontras tinggi', 'Perjelas garis dan teks antarmuka.', 'Tampilan', settings('contrast'),
+    ['kontras', 'contrast', 'high contrast', 'jelas', 'aksesibilitas', 'accessibility', 'pudar', 'terlihat']),
+  f('motion', 'Kurangi gerakan', 'Matikan animasi dan transisi.', 'Tampilan', settings('motion'),
+    ['gerakan', 'animasi', 'animation', 'motion', 'reduce motion', 'transisi', 'pusing']),
+  f('controls', 'Selalu tampilkan kontrol', 'Bilah atas dan bawah tidak menghilang sendiri.', 'Tampilan', settings('controls'),
+    ['kontrol', 'tombol', 'bilah', 'toolbar', 'controls', 'sembunyi', 'menghilang', 'selalu tampil', 'chrome']),
+  f('wake', 'Layar tetap menyala', 'Cegah layar padam saat membaca.', 'Tampilan', settings('wake'),
+    ['layar menyala', 'layar tetap menyala', 'sleep', 'wake', 'wake lock', 'awake', 'tidur', 'padam', 'mati sendiri', 'screen on', 'timeout layar'], 'wakeLock'),
+  f('translation-mode', 'Mode terjemahan', 'Beralih antara halaman mushaf dan teks terjemahan Indonesia.', 'Baca', { type: 'toggle-translation' },
+    ['terjemahan', 'terjemah', 'arti', 'translation', 'bahasa indonesia', 'teks', 'baca arti', 'kemenag', 'mode teks']),
+  f('latin', 'Tampilkan latin', 'Tampilkan transliterasi latin di mode terjemahan.', 'Baca', { type: 'toggle-latin' },
+    ['latin', 'transliterasi', 'transliteration', 'baca latin', 'tulisan latin', 'romanisasi']),
+  f('font-larger', 'Perbesar teks terjemahan', 'Naikkan ukuran huruf mode terjemahan.', 'Baca', { type: 'font', dir: 1 },
+    ['ukuran', 'ukuran huruf', 'ukuran teks', 'besar', 'perbesar', 'font size', 'zoom', 'huruf', 'teks besar', 'tulisan kecil']),
+  f('font-smaller', 'Perkecil teks terjemahan', 'Turunkan ukuran huruf mode terjemahan.', 'Baca', { type: 'font', dir: -1 },
+    ['ukuran', 'ukuran huruf', 'ukuran teks', 'kecil', 'perkecil', 'font size', 'zoom out', 'huruf', 'teks kecil']),
+  f('browse-surah', 'Daftar surah', 'Pilih surah dari daftar isi.', 'Baca', { type: 'sheet', sheet: 'browse', browseTab: 'surah' },
+    ['daftar isi', 'daftar surah', 'surah', 'surat', 'indeks', 'index', 'navigasi']),
+  f('browse-juz', 'Daftar juz', 'Lompat ke awal juz 1 sampai 30.', 'Baca', { type: 'sheet', sheet: 'browse', browseTab: 'juz' },
+    ['juz', 'daftar juz', 'para', 'sepertiga', 'khatam']),
+  f('browse-page', 'Pilih halaman', 'Lompat ke halaman 1 sampai 604.', 'Baca', { type: 'sheet', sheet: 'browse', browseTab: 'page' },
+    ['halaman', 'pilih halaman', 'nomor halaman', 'page', 'lompat', 'go to page']),
+  f('audio-mode', 'Mode putar audio', 'Putar satu ayat, halaman, atau berulang.', 'Audio', settings('audio'),
+    ['audio', 'murottal', 'suara', 'putar', 'bacaan', 'qari', 'pembaca', 'mode putar', 'ulang', 'repeat', 'mp3', 'sound', 'dengar']),
+  f('audio-follow', 'Ikuti bacaan', 'Balik halaman otomatis mengikuti audio.', 'Audio', settings('audio-follow'),
+    ['ikuti bacaan', 'follow', 'balik halaman otomatis', 'auto page', 'otomatis', 'audio', 'murottal', 'sorot ayat']),
+  f('bookmarks', 'Penanda', 'Daftar ayat dan halaman yang ditandai, plus posisi terakhir.', 'Data', { type: 'sheet', sheet: 'bookmarks' },
+    ['penanda', 'bookmark', 'tandai', 'favorit', 'posisi terakhir', 'terakhir dibaca', 'lanjut baca', 'catatan']),
+  f('bookmarks-manage', 'Kelola penanda', 'Folder, catatan, dan khatam untuk penanda.', 'Data', { type: 'url', url: '/penanda' },
+    ['kelola penanda', 'folder', 'khatam', 'koleksi', 'catatan', 'note', 'urutkan', 'hapus penanda', 'manage bookmarks']),
+  f('export', 'Ekspor data', 'Simpan penanda dan pengaturan ke berkas JSON.', 'Data', settings('export'),
+    ['ekspor', 'export', 'backup', 'cadangan', 'cadangkan', 'simpan data', 'json', 'unduh penanda']),
+  f('import', 'Impor data', 'Pulihkan penanda dan pengaturan dari berkas JSON.', 'Data', settings('import'),
+    ['impor', 'import', 'restore', 'pulihkan', 'pemulihan', 'muat data', 'json', 'pindah perangkat']),
+  f('account', 'Akun & sinkronisasi', 'Masuk untuk menyinkronkan penanda antar perangkat.', 'Akun', { type: 'sheet', sheet: 'account' },
+    ['masuk', 'login', 'log in', 'akun', 'account', 'sinkron', 'sinkronisasi', 'sync', 'google', 'keluar', 'logout', 'cloud', 'antar perangkat'], 'sync'),
+  f('feedback', 'Kirim masukan', 'Beri saran atau laporkan masalah.', 'Bantuan', { type: 'sheet', sheet: 'feedback' },
+    ['masukan', 'feedback', 'saran', 'laporkan', 'laporan', 'lapor', 'bug', 'error', 'masalah', 'kritik', 'hubungi', 'kontak']),
+  f('update', 'Periksa pembaruan', 'Cek dan pasang versi aplikasi terbaru.', 'Aplikasi',
+    { type: 'sheet', sheet: 'about', target: 'about-update' },
+    ['versi', 'pembaruan', 'update', 'upgrade', 'perbarui', 'terbaru', 'version', 'build', 'refresh', 'muat ulang']),
+  f('tour', 'Panduan gestur', 'Cara memakai ketukan, geser, zoom, dan pintasan.', 'Bantuan', { type: 'tour' },
+    ['panduan', 'gestur', 'gesture', 'tutorial', 'bantuan', 'help', 'cara pakai', 'petunjuk', 'zoom', 'cubit', 'geser', 'ketuk', 'pintasan', 'shortcut', 'keyboard']),
+  f('about', 'Tentang & lisensi', 'Edisi konten, lisensi, dan kode sumber terbuka.', 'Bantuan', { type: 'sheet', sheet: 'about' },
+    ['tentang', 'about', 'lisensi', 'license', 'kredit', 'sumber', 'open source', 'github', 'atribusi', 'edisi']),
+  f('privacy', 'Privasi', 'Data apa yang disimpan dan dikirim.', 'Bantuan',
+    { type: 'sheet', sheet: 'about', target: 'about-privacy' },
+    ['privasi', 'privacy', 'data pribadi', 'kebijakan', 'keamanan', 'pelacakan', 'tracking', 'iklan']),
+];
+
+/** Shown for an empty query. */
+export const POPULAR_FEATURE_IDS: readonly string[] = [
+  'install',
+  'offline-pages',
+  'translation-mode',
+  'paper-theme',
+  'wake',
+  'tour',
+];
+
+export function availableFeatures(env: FeatureEnv): FeatureEntry[] {
+  return FEATURES.filter((x) => !x.needs || env[x.needs]);
+}
+
+export function popularFeatures(env: FeatureEnv): FeatureEntry[] {
+  const avail = new Map(availableFeatures(env).map((x) => [x.id, x]));
+  return POPULAR_FEATURE_IDS.map((id) => avail.get(id)).filter((x): x is FeatureEntry => !!x);
+}
+
+const FULL_INDEX: IndexedEntry<FeatureEntry>[] = indexEntries(FEATURES);
+
+export function searchFeatures(raw: string, env: FeatureEnv, max = 8): FeatureEntry[] {
+  const idx = FULL_INDEX.filter((i) => !i.entry.needs || env[i.entry.needs]);
+  return searchEntries(raw, idx, max);
+}

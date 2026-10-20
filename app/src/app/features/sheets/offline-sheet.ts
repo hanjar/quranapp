@@ -1,6 +1,7 @@
 import { NgTemplateOutlet } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { AudioOfflineApi, AudioScope, AudioVariant } from '../../core/audio/audio-offline.api';
+import { TafsirService, TafsirSizeInfo } from '../../core/content/tafsir.service';
 import { ContentApi, OfflineApi } from '../../core/contracts';
 import {
   VARIANT_INFO,
@@ -12,6 +13,7 @@ import {
 } from '../shell/audio-offline-helpers';
 import { formatMb } from '../shell/format';
 import { looksMetered } from '../shell/install-prompt';
+import { useSearchFocusTarget } from './focus-target';
 import { SHEET_STYLES } from './sheet-styles';
 
 /** Body of the "Offline dan unduhan" sheet. Uses OfflineApi only. */
@@ -160,7 +162,7 @@ import { SHEET_STYLES } from './sheet-styles';
       </div>
     </section>
 
-    <section aria-label="Aksi unduhan">
+    <section aria-label="Aksi unduhan" data-search-id="offline-pages">
       @if (confirmClear()) {
         <div class="panel warn" role="alertdialog" aria-label="Hapus unduhan">
           <strong>Hapus semua halaman yang diunduh?</strong>
@@ -229,7 +231,7 @@ import { SHEET_STYLES } from './sheet-styles';
     </section>
 
     @if (audio.supported().length > 0 && audio.manifest()) {
-      <section aria-labelledby="au-h">
+      <section aria-labelledby="au-h" data-search-id="offline-audio">
         <h3 id="au-h">Audio offline (Mishary Rasyid Alafasy)</h3>
         <p class="muted">
           Dengarkan bacaan tanpa internet. Ukuran perkiraan; mengunduh butuh koneksi internet.
@@ -436,6 +438,82 @@ import { SHEET_STYLES } from './sheet-styles';
       </ng-template>
     }
 
+    <section aria-labelledby="tf-h" data-search-id="offline-tafsir">
+      <h3 id="tf-h">Tafsir offline (Kemenag RI)</h3>
+      <p class="muted">
+        Tafsir per ayat tidak ikut diunduh otomatis. Simpan semuanya agar bisa dibaca tanpa
+        internet
+        @if (tafsirInfo()?.totalBytes) {
+          (≈ {{ mb(tafsirInfo()?.totalBytes ?? 0) }})
+        }.
+      </p>
+      @if (tafsirBusy(); as p) {
+        <div class="panel">
+          <div
+            class="bar"
+            role="progressbar"
+            aria-label="Unduhan tafsir"
+            aria-valuemin="0"
+            aria-valuemax="114"
+            [attr.aria-valuenow]="p.done"
+          >
+            <span [style.width.%]="(p.done / 114) * 100"></span>
+          </div>
+          <p role="status">Mengunduh tafsir: {{ p.done }} dari 114 surah</p>
+        </div>
+      } @else if (tafsirDone()) {
+        <p role="status"><strong>Tafsir tersimpan di perangkat ✓</strong> ({{ mb(tafsirInfo()?.cachedBytes ?? 0) }})</p>
+      } @else if (tafsirInfo(); as ti) {
+        @if (ti.cachedSurahs > 0) {
+          <p class="muted">{{ ti.cachedSurahs }} dari {{ ti.totalSurahs }} surah tersimpan.</p>
+        }
+      }
+      @if (tafsirError()) {
+        <div class="mf-note" role="alert">{{ tafsirError() }}</div>
+      }
+      @if (confirmTafsirClear()) {
+        <div class="panel warn" role="alertdialog" aria-label="Hapus tafsir offline">
+          <strong>Hapus tafsir offline?</strong>
+          <p>Tafsir tetap bisa dibaca saat tersambung internet. Penanda tidak terpengaruh.</p>
+          <div class="actions">
+            <button type="button" class="mf-btn mf-btn--outline" (click)="confirmTafsirClear.set(false)">
+              Batal
+            </button>
+            <button type="button" class="mf-btn mf-btn--danger" (click)="clearTafsir()">
+              Hapus tafsir offline
+            </button>
+          </div>
+        </div>
+      } @else {
+        <div class="actions">
+          @if (tafsirBusy()) {
+            <button type="button" class="mf-btn mf-btn--outline" (click)="cancelTafsir()">
+              Batalkan
+            </button>
+          } @else {
+            @if (!tafsirDone()) {
+              <button
+                type="button"
+                class="mf-btn mf-btn--primary"
+                [disabled]="!s().online"
+                (click)="downloadTafsir()"
+              >
+                {{ tafsirError() ? 'Coba lagi' : 'Unduh tafsir' }}
+              </button>
+            }
+            @if ((tafsirInfo()?.cachedSurahs ?? 0) > 0) {
+              <button type="button" class="mf-btn mf-btn--ghost" (click)="confirmTafsirClear.set(true)">
+                Hapus tafsir offline
+              </button>
+            }
+          }
+        </div>
+        @if (!s().online && !tafsirDone()) {
+          <p class="muted">Sambungkan ke internet untuk mengunduh.</p>
+        }
+      }
+    </section>
+
     <section aria-label="Catatan penyimpanan">
       @if (s().persisted === true) {
         <p class="muted">
@@ -543,7 +621,54 @@ export class OfflineSheet {
     return st.totalPages > 0 && st.cachedPages >= st.totalPages;
   });
 
+  private readonly tafsir = inject(TafsirService);
+  protected readonly tafsirInfo = signal<TafsirSizeInfo | null>(null);
+  protected readonly tafsirBusy = signal<{ done: number } | null>(null);
+  protected readonly tafsirError = signal('');
+  protected readonly confirmTafsirClear = signal(false);
+  protected readonly tafsirDone = computed(() => {
+    const i = this.tafsirInfo();
+    return !!i && i.cachedSurahs === i.totalSurahs;
+  });
+  private tafsirAbort: AbortController | null = null;
+
+  protected async refreshTafsir(): Promise<void> {
+    this.tafsirInfo.set(await this.tafsir.sizeInfo());
+  }
+
+  protected async downloadTafsir(): Promise<void> {
+    if (this.tafsirBusy()) return;
+    const ctrl = new AbortController();
+    this.tafsirAbort = ctrl;
+    this.tafsirError.set('');
+    this.tafsirBusy.set({ done: this.tafsirInfo()?.cachedSurahs ?? 0 });
+    try {
+      const r = await this.tafsir.downloadAll((done) => this.tafsirBusy.set({ done }), ctrl.signal);
+      if (r.failed > 0 && !ctrl.signal.aborted) {
+        this.tafsirError.set(`${r.failed} surah gagal diunduh. Periksa koneksi lalu coba lagi.`);
+      }
+    } catch {
+      this.tafsirError.set('Tafsir gagal diunduh. Periksa koneksi atau ruang penyimpanan, lalu coba lagi.');
+    } finally {
+      this.tafsirAbort = null;
+      this.tafsirBusy.set(null);
+      await this.refreshTafsir();
+    }
+  }
+
+  protected cancelTafsir(): void {
+    this.tafsirAbort?.abort();
+  }
+
+  protected async clearTafsir(): Promise<void> {
+    await this.tafsir.removeAll();
+    this.confirmTafsirClear.set(false);
+    await this.refreshTafsir();
+  }
+
   constructor() {
+    useSearchFocusTarget();
+    void this.refreshTafsir();
     void this.offline.refresh();
     void this.audio.load();
     void this.content.load();

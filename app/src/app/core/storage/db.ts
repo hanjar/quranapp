@@ -1,5 +1,14 @@
 import Dexie, { Table } from 'dexie';
-import { Bookmark, BookmarkFolder, OutboxOperation, Preferences, ReadingPosition, SyncState } from '../models';
+import {
+  Bookmark,
+  BookmarkFolder,
+  KhatamRound,
+  OutboxOperation,
+  Preferences,
+  ReadDay,
+  ReadingPosition,
+  SyncState,
+} from '../models';
 
 /** Key-value rows for small singletons (deviceId, history). */
 export interface MetaRow {
@@ -26,6 +35,8 @@ export class MushafDb extends Dexie {
   folders!: Table<BookmarkFolder, string>;
   positions!: Table<ReadingPosition, string>;
   prefs!: Table<PrefsRow, string>;
+  readDays!: Table<ReadDay, string>;
+  rounds!: Table<KhatamRound, string>;
   outbox!: Table<OutboxOperation, string>;
   sync!: Table<SyncState, string>;
   meta!: Table<MetaRow, string>;
@@ -55,6 +66,11 @@ export class MushafDb extends Dexie {
             if (b.note === undefined) b.note = null;
           }),
       );
+    // v3: automatic reading progress (day log + khatam rounds).
+    this.version(3).stores({
+      readDays: 'day, updatedAt',
+      rounds: 'id, n, startedAt',
+    });
   }
 }
 

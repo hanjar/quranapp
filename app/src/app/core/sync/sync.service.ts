@@ -107,11 +107,17 @@ export class SyncService extends SyncApi {
     if (opts.clearLocal) {
       await this.db.transaction(
         'rw',
-        this.db.bookmarks,
-        this.db.folders,
-        this.db.positions,
-        this.db.prefs,
+        [
+          this.db.bookmarks,
+          this.db.folders,
+          this.db.positions,
+          this.db.prefs,
+          this.db.readDays,
+          this.db.rounds,
+        ],
         async () => {
+          await this.db.readDays.clear();
+          await this.db.rounds.clear();
           await this.db.bookmarks.clear();
           await this.db.folders.clear();
           await this.db.positions.clear();
@@ -245,6 +251,8 @@ export class SyncService extends SyncApi {
         this.db.folders,
         this.db.positions,
         this.db.prefs,
+        this.db.readDays,
+        this.db.rounds,
       ],
       async () => {
         if (st.accountId) await this.db.outbox.where('accountId').equals(st.accountId).delete();
@@ -255,6 +263,8 @@ export class SyncService extends SyncApi {
         await this.db.folders.toCollection().modify({ rev: null });
         await this.db.positions.toCollection().modify({ rev: null });
         await this.db.prefs.toCollection().modify({ rev: null });
+        await this.db.readDays.toCollection().modify({ rev: null });
+        await this.db.rounds.toCollection().modify({ rev: null });
         await this.db.meta.bulkDelete([META_ACCOUNT, META_CONFLICT]);
         await this.db.sync.put({ ...DEFAULT_STATE });
       },

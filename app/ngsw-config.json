@@ -46,6 +46,16 @@
       }
     },
     {
+      "name": "content-tafsir",
+      "installMode": "lazy",
+      "updateMode": "lazy",
+      "resources": {
+        "files": [
+          "/content/*/tafsir/*.json"
+        ]
+      }
+    },
+    {
       "name": "icons",
       "installMode": "lazy",
       "updateMode": "prefetch",

@@ -45,3 +45,11 @@ Conflict only on the cold-start/first-link pull when the remote differs by page,
 - `folder` changes: upsert by id honouring `rev`, tombstones. Bookmark changes/payloads carry `folderId`/`note` (missing -> null).
 - Pulled folder whose name equals (case-insensitive) a different active *unsynced* local folder: server folder wins, local bookmarks are re-pointed to it (pending bookmark upserts patched; synced ones get a new upsert op), local twin is tombstoned and its ops dropped. Same merge on a `duplicate` result.
 - `rejected` with `folder_name_taken`: op dropped, not recorded as an error. Reset reconciliation and first-link merge include folders (folder ops are enqueued before bookmark ops).
+
+## Reading progress (phase 3)
+Entities `readday` (entityId = day) and `khatam` (entityId = round id) flow through the same outbox/apply code.
+`applyReadDay` always **unions** the pull into the local day (never replaces), tombstones with `data.clearedAt`
+remove only older reads (and refresh any pending upsert payload). `applyRound` is rev-guarded LWW; a same-`n`
+round created on two devices merges into the server round (earlier `startedAt`, finish mark kept, upsert re-queued).
+Clear history is one outbox op `readday/all` delete (`ProgressService.clearHistory`). `signOut({clearLocal})`,
+`disableSync`, first-link snapshot and `reconcileReset` cover both tables. See `docs/progress.md`.

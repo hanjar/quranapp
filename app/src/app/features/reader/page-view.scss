@@ -66,6 +66,49 @@
   fill: var(--mf-ayah-ornament);
 }
 
+/* Decorative surah-header cartouche (own artwork, drawn behind the text). */
+.art ::ng-deep .mf-surah-header {
+  pointer-events: none;
+  .mf-sh-fill {
+    fill: var(--mf-ayah-ornament);
+    fill-opacity: 0.1;
+    stroke: none;
+  }
+  .mf-sh-outer,
+  .mf-sh-inner,
+  .mf-sh-line {
+    fill: none;
+    stroke: var(--mf-ayah-ornament);
+    stroke-linejoin: round;
+  }
+  .mf-sh-outer {
+    stroke: var(--mf-frame-ink);
+    stroke-width: 1.5;
+  }
+  .mf-sh-inner {
+    stroke-width: 0.7;
+  }
+  .mf-sh-line {
+    stroke-width: 0.6;
+  }
+  .mf-sh-dot {
+    fill: var(--mf-ayah-ornament);
+  }
+}
+:host-context(html[data-contrast='high']) .art ::ng-deep .mf-surah-header {
+  .mf-sh-fill {
+    fill-opacity: 0;
+  }
+  .mf-sh-outer,
+  .mf-sh-inner,
+  .mf-sh-line {
+    stroke: #231f20;
+  }
+  .mf-sh-dot {
+    fill: #231f20;
+  }
+}
+
 /* Verse polygons live inside the dynamically inserted svg. */
 .art ::ng-deep .ayahPolygon {
   pointer-events: all;

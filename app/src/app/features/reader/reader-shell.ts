@@ -459,11 +459,22 @@ export class ReaderShell {
   // Keyboard
   // =========================================================================
   protected onKey(e: KeyboardEvent): void {
-    if (e.defaultPrevented || e.ctrlKey || e.metaKey || e.altKey) return;
+    if (e.defaultPrevented) return;
     const t = e.target as HTMLElement | null;
     const tag = t?.tagName?.toLowerCase();
     const typing =
       tag === 'input' || tag === 'textarea' || tag === 'select' || !!t?.isContentEditable;
+
+    // Universal search: "/" or Ctrl/Cmd+K (not while typing, not over another sheet).
+    const searchKey =
+      (e.key === '/' && !e.ctrlKey && !e.metaKey && !e.altKey) ||
+      ((e.ctrlKey || e.metaKey) && !e.altKey && e.key.toLowerCase() === 'k');
+    if (searchKey && !typing && !this.ui.tourOpen() && this.ui.sheet() === null) {
+      e.preventDefault();
+      this.ui.openSheet('search');
+      return;
+    }
+    if (e.ctrlKey || e.metaKey || e.altKey) return;
 
     if (e.key === 'Escape') {
       if (typing) return;

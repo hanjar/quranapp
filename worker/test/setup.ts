@@ -12,6 +12,8 @@ beforeEach(async () => {
     'op_log',
     'feedback',
     'folders',
+    'reading_days',
+    'khatam_rounds',
     'bookmarks',
     'reading_progress',
     'preferences',

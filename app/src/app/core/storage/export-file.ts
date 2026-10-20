@@ -1,6 +1,7 @@
 import {
   BOOKMARK_NOTE_MAX,
   Bookmark,
+  clampDailyTarget,
   FOLDER_NAME_MAX,
   bookmarkKey,
   DEFAULT_EDITION,
@@ -138,6 +139,14 @@ export function validatePreferences(raw: unknown): Preferences {
       typeof raw['onboardingDone'] === 'boolean'
         ? raw['onboardingDone']
         : DEFAULT_PREFERENCES.onboardingDone,
+    dailyTarget:
+      typeof raw['dailyTarget'] === 'number'
+        ? clampDailyTarget(raw['dailyTarget'])
+        : DEFAULT_PREFERENCES.dailyTarget,
+    trackProgress:
+      typeof raw['trackProgress'] === 'boolean'
+        ? raw['trackProgress']
+        : DEFAULT_PREFERENCES.trackProgress,
     updatedAt: isTime(raw['updatedAt']) ? raw['updatedAt'] : 0,
     rev: null,
   };

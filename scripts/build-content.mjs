@@ -7,6 +7,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { JUZ_STARTS, deriveJuz, derivePages, deriveSurahs, pageAyahs, checkIntegrity } from './lib/derive.mjs';
 import { LATIN_SOURCE, buildLatinMap } from './lib/latin.mjs';
+import { TAFSIR_SOURCE, buildTafsirMaps } from './lib/tafsir.mjs';
 import { TRANSLATION_SOURCE, buildTranslationMap, findFootnoteMarkers } from './lib/translation.mjs';
 import { validateSvg } from './lib/svg-validate.mjs';
 
@@ -18,7 +19,7 @@ const pad = (n) => String(n).padStart(3, '0');
 const sha256 = (buf) => createHash('sha256').update(buf).digest('hex');
 
 function parseArgs(argv) {
-  const o = { commit: null, pages: [1, 604], concurrency: 8, skipLatin: false, skipTranslation: false, latinRefresh: false };
+  const o = { commit: null, pages: [1, 604], concurrency: 8, skipLatin: false, skipTranslation: false, skipTafsir: false, latinRefresh: false };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (a === '--commit') o.commit = argv[++i];
@@ -28,6 +29,7 @@ function parseArgs(argv) {
       o.pages = [Number(m[1]), Number(m[2] ?? m[1])];
     } else if (a === '--skip-latin') o.skipLatin = true;
     else if (a === '--skip-translation') o.skipTranslation = true;
+    else if (a === '--skip-tafsir') o.skipTafsir = true;
     else if (a === '--latin-refresh') o.latinRefresh = true;
     else if (a === '--concurrency') o.concurrency = Number(argv[++i]);
     else throw new Error(`unknown argument: ${a}`);
@@ -128,6 +130,32 @@ async function fetchEquran(refresh) {
   return payloads;
 }
 
+/** Fetch per-surah tafsir payloads from EQuran.id; cached in .content-cache/tafsir/<date>/ (concurrency 3). */
+async function fetchTafsir(refresh) {
+  const dir = path.join(ROOT, '.content-cache', 'tafsir', new Date().toISOString().slice(0, 10));
+  const nums = Array.from({ length: 114 }, (_, i) => i + 1);
+  return pool(nums, 3, async (n) => {
+    const file = path.join(dir, `${pad(n)}.json`);
+    if (!refresh) {
+      try {
+        return JSON.parse(await readFile(file, 'utf8'));
+      } catch {
+        /* not cached */
+      }
+    }
+    const url = `https://equran.id/api/v2/tafsir/${n}`;
+    const text = await withRetry(async () => {
+      const r = await fetch(url, { headers: { Accept: 'application/json' } });
+      if (!r.ok) throw new Error(`HTTP ${r.status} for ${url}`);
+      return r.text();
+    }, `tafsir surah ${n}`);
+    const json = JSON.parse(text);
+    await mkdir(dir, { recursive: true });
+    await writeFile(file, text);
+    return json;
+  });
+}
+
 async function main() {
   const opts = parseArgs(process.argv.slice(2));
   const [from, to] = opts.pages;
@@ -201,6 +229,12 @@ async function main() {
     }
   }
 
+  let tafsir = null;
+  if (!opts.skipTafsir) {
+    console.log('Fetching EQuran.id tafsir ...');
+    tafsir = buildTafsirMaps(await fetchTafsir(opts.latinRefresh), surahs);
+  }
+
   // Write to a fresh temp dir then swap in, so a failed build never leaves a mixed folder.
   const tmpOut = `${OUT}.tmp`;
   await rm(tmpOut, { recursive: true, force: true });
@@ -233,6 +267,25 @@ async function main() {
     const t = { format: 'mushaf-translation', version: 1, lang: 'id', source: { ...TRANSLATION_SOURCE, fetchedAt: new Date().toISOString() }, ayahs: translation };
     await emit('translation-id.json', Buffer.from(JSON.stringify(t) + '\n', 'utf8'));
   }
+  let tafsirTotal = 0;
+  let tafsirLargest = { bytes: 0, surah: 0 };
+  if (tafsir) {
+    await mkdir(path.join(tmpOut, 'tafsir'), { recursive: true });
+    const fetchedAt = new Date().toISOString();
+    const sizes = {};
+    for (let i = 0; i < 114; i++) {
+      const n = i + 1;
+      const buf = Buffer.from(
+        JSON.stringify({ format: 'mushaf-tafsir', version: 1, source: { ...TAFSIR_SOURCE, fetchedAt }, surah: n, ayahs: tafsir[i] }) + '\n',
+        'utf8',
+      );
+      await emit(`tafsir/${n}.json`, buf);
+      sizes[n] = buf.length;
+      tafsirTotal += buf.length;
+      if (buf.length > tafsirLargest.bytes) tafsirLargest = { bytes: buf.length, surah: n };
+    }
+    await emit('tafsir/index.json', json({ format: 'mushaf-tafsir-index', version: 1, source: { ...TAFSIR_SOURCE, fetchedAt }, sizes, totalBytes: tafsirTotal }));
+  }
   const totalBytes = Object.values(files).reduce((n, f) => n + f.bytes, 0);
   const manifest = { editionId: 'hafs-kfqc', contentVersion, files, totalBytes, ...(partial ? { partial: true, pages: [from, to] } : {}) };
   await writeFile(path.join(tmpOut, 'manifest.json'), json(manifest));
@@ -246,6 +299,7 @@ async function main() {
   console.log(`  surahs       ${surahs.length}   juz ${juz.length}`);
   console.log(`  latin        ${latin ? Object.keys(latin).length + ' ayahs' : 'skipped'}`);
   console.log(`  translation  ${translation ? Object.keys(translation).length + ' ayahs, footnote-marker entries: ' + footnotes.length : 'skipped'}`);
+  console.log(`  tafsir       ${tafsir ? `114 files, ${tafsirTotal} bytes (${mb(tafsirTotal)} MB), largest surah ${tafsirLargest.surah} = ${tafsirLargest.bytes} bytes` : 'skipped'}`);
   console.log(`  files        ${Object.keys(files).length}`);
   console.log(`  total bytes  ${totalBytes} (${mb(totalBytes)} MB)`);
   console.log(`  largest page ${pad(largest.page)} = ${largest.bytes} bytes (${(largest.bytes / 1024).toFixed(0)} KB)`);

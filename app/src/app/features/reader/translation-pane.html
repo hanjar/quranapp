@@ -107,6 +107,35 @@
             <span class="tr">{{ textOf(a).tr ?? (status() === 'ready' ? '—' : '') }}</span>
           </span>
         </div>
+        <div class="tafsir">
+          <button
+            type="button"
+            class="tafsir__toggle"
+            [attr.aria-expanded]="isTafsirOpen(a)"
+            [attr.aria-controls]="'tafsir-' + key(a)"
+            [attr.aria-label]="'Tafsir ayat ' + a.surah + ':' + a.ayah"
+            (click)="toggleTafsir(a)"
+          >
+            {{ isTafsirOpen(a) ? 'Tutup tafsir' : 'Tafsir' }}
+          </button>
+          @if (isTafsirOpen(a)) {
+            <div class="tafsir__body" [id]="'tafsir-' + key(a)" aria-live="polite">
+              @if (tafsirParagraphs(); as paras) {
+                @for (p of paras; track $index) {
+                  <p>{{ p }}</p>
+                }
+                <p class="tafsir__credit">Tafsir Kemenag RI · via EQuran.id</p>
+              } @else if (tafsirText() === undefined) {
+                <p class="tafsir__state" role="status">Memuat tafsir…</p>
+              } @else {
+                <p class="tafsir__state">
+                  Tafsir belum dapat dimuat (perlu koneksi untuk memuat pertama kali).
+                  <button type="button" class="link" (click)="toggleTafsir(a, true)">Coba lagi</button>
+                </p>
+              }
+            </div>
+          }
+        </div>
       </li>
     }
   </ol>
