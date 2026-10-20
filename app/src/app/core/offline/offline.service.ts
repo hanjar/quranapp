@@ -1,4 +1,4 @@
-import { Injectable, inject, signal } from '@angular/core';
+import { DestroyRef, Injectable, inject, signal } from '@angular/core';
 import { DownloadState, OfflineApi, OfflineStatus } from '../contracts';
 import { ContentManifest, PAGE_COUNT, PageLoadError } from '../models';
 import { MUSHAF_DB } from '../storage/db-token';
@@ -43,8 +43,10 @@ export class OfflineService extends OfflineApi {
   constructor() {
     super();
     if (typeof window !== 'undefined') {
-      window.addEventListener('online', () => this.patch({ online: true }));
-      window.addEventListener('offline', () => this.patch({ online: false }));
+      const listeners = new AbortController();
+      inject(DestroyRef).onDestroy(() => listeners.abort());
+      window.addEventListener('online', () => this.patch({ online: true }), { signal: listeners.signal });
+      window.addEventListener('offline', () => this.patch({ online: false }), { signal: listeners.signal });
     }
   }
 

@@ -1,4 +1,4 @@
-import { Injectable, computed, inject, signal } from '@angular/core';
+import { DestroyRef, Injectable, computed, inject, signal } from '@angular/core';
 import { APP_CONFIG } from '../config';
 import { ImportResult, UserDataApi } from '../contracts';
 import {
@@ -72,6 +72,9 @@ function readText(file: Blob): Promise<string> {
 @Injectable({ providedIn: 'root' })
 export class UserDataService extends UserDataApi {
   private readonly db = inject(MUSHAF_DB);
+  /** Aborts document/window listeners when the injector is destroyed (tests, HMR). */
+  private readonly listeners = new AbortController();
+  private readonly destroyRef = inject(DestroyRef);
 
   private readonly _ready = signal(false);
   private readonly _deviceId = signal('');
@@ -124,10 +127,16 @@ export class UserDataService extends UserDataApi {
       if (!this._deviceId()) this._deviceId.set(uuid());
     }
     if (typeof document !== 'undefined') {
-      document.addEventListener('visibilitychange', () => {
-        if (document.visibilityState === 'hidden') this.flushQuietly();
-      });
-      window.addEventListener('pagehide', () => this.flushQuietly());
+      const signal = this.listeners.signal;
+      this.destroyRef.onDestroy(() => this.listeners.abort());
+      document.addEventListener(
+        'visibilitychange',
+        () => {
+          if (document.visibilityState === 'hidden') this.flushQuietly();
+        },
+        { signal },
+      );
+      window.addEventListener('pagehide', () => this.flushQuietly(), { signal });
     }
     this._ready.set(true);
   }

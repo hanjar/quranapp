@@ -1,4 +1,4 @@
-import { Injectable, inject, signal } from '@angular/core';
+import { DestroyRef, Injectable, inject, signal } from '@angular/core';
 import { liveQuery } from 'dexie';
 import { PositionConflict, SyncApi, UserDataApi } from '../contracts';
 import { APP_CONFIG } from '../config';
@@ -40,6 +40,9 @@ export class SyncService extends SyncApi {
   private readonly client = inject(SyncApiClient);
   private readonly userData = inject(UserDataApi);
   private readonly readerUi = inject(ReaderUiService);
+  /** Aborts window/document listeners when the injector is destroyed (tests, HMR). */
+  private readonly listeners = new AbortController();
+  private readonly destroyRef = inject(DestroyRef);
 
   readonly available: boolean = APP_CONFIG.syncEnabled;
   private readonly _status = signal<SyncStatus>('off');
@@ -471,19 +474,32 @@ export class SyncService extends SyncApi {
   // -- triggers --------------------------------------------------------------
 
   private registerTriggers(): void {
+    const signal = this.listeners.signal;
+    this.destroyRef.onDestroy(() => {
+      this.listeners.abort();
+      this.clearTimers();
+    });
     if (typeof window !== 'undefined') {
-      window.addEventListener('online', () => void this.onTrigger(true));
-      window.addEventListener('offline', () => {
-        if (this._status() !== 'off') this.setStatus('offline');
-      });
+      window.addEventListener('online', () => this.trigger(), { signal });
+      window.addEventListener(
+        'offline',
+        () => {
+          if (this._status() !== 'off') this.setStatus('offline');
+        },
+        { signal },
+      );
     }
     if (typeof document !== 'undefined') {
-      document.addEventListener('visibilitychange', () => {
-        if (document.visibilityState === 'visible') void this.onTrigger(true);
-      });
+      document.addEventListener(
+        'visibilitychange',
+        () => {
+          if (document.visibilityState === 'visible') this.trigger();
+        },
+        { signal },
+      );
     }
     // Debounced sync after local outbox changes.
-    liveQuery(async () => {
+    const sub = liveQuery(async () => {
       const st = await this.db.sync.get('state');
       if (!st?.enabled || !st.accountId) return [] as number[];
       const ops = await this.db.outbox.where('accountId').equals(st.accountId).toArray();
@@ -498,6 +514,12 @@ export class SyncService extends SyncApi {
       },
       error: () => undefined,
     });
+    this.destroyRef.onDestroy(() => sub.unsubscribe());
+  }
+
+  /** Event-driven sync; failures surface through status, never as unhandled rejections. */
+  private trigger(): void {
+    this.onTrigger(true).catch(() => undefined);
   }
 
   private async onTrigger(verify: boolean): Promise<void> {
