@@ -212,12 +212,28 @@ export const DEFAULT_PREFERENCES: Preferences = {
 // Reading progress (automatic, local-first, synced). See docs/progress.md.
 // ---------------------------------------------------------------------------
 
-/** `[firstAt, lastAt]` epoch ms of reading one page on one local day. */
-export type PageReadSpan = [number, number];
+/**
+ * `[firstAt, lastAt, removedAt?]` epoch ms of reading one page on one local day. The page counts on
+ * that day only while `lastAt > removedAt` (removedAt absent = never removed), so a later real read
+ * re-adds it. Old 2-element entries stay valid.
+ */
+export type PageReadSpan = [number, number, number?];
+
+/** True while the page counts on its day (not removed, or read again after the removal). */
+export function spanActive(span: PageReadSpan): boolean {
+  return span[2] === undefined || span[1] > span[2];
+}
+
+/** Page numbers that count on a day, ascending. */
+export function activePageNumbers(pages: Record<string, PageReadSpan>): number[] {
+  const out: number[] = [];
+  for (const [k, v] of Object.entries(pages)) if (spanActive(v)) out.push(Number(k));
+  return out.sort((a, b) => a - b);
+}
 
 /**
- * One local calendar day of reading. Grow-only: two copies merge by union, per page
- * min(firstAt) / max(lastAt) (see mergeReadPages). Keys of `pages` are page numbers as strings.
+ * One local calendar day of reading. Two copies merge per page: min(firstAt), max(lastAt),
+ * max(removedAt) (see mergeReadPages), so removals sync and a later read re-adds the page. Keys of `pages` are page numbers as strings.
  */
 export interface ReadDay {
   day: string; // 'YYYY-MM-DD' (device-local calendar day)
@@ -342,18 +358,29 @@ export function isValidPage(p: unknown): p is number {
   return Number.isInteger(p) && (p as number) >= 1 && (p as number) <= PAGE_COUNT;
 }
 
-/** Union-merges two page maps: per page min(firstAt), max(lastAt). Pure; inputs untouched. */
+/** Merges two page maps: per page min(firstAt), max(lastAt), max(removedAt). Pure; inputs untouched. */
 export function mergeReadPages(
   a: Record<string, PageReadSpan>,
   b: Record<string, PageReadSpan>,
 ): Record<string, PageReadSpan> {
   const out: Record<string, PageReadSpan> = {};
-  for (const [k, v] of Object.entries(a)) out[k] = [v[0], v[1]];
+  for (const [k, v] of Object.entries(a)) out[k] = copySpan(v);
   for (const [k, v] of Object.entries(b)) {
     const cur = out[k];
-    out[k] = cur ? [Math.min(cur[0], v[0]), Math.max(cur[1], v[1])] : [v[0], v[1]];
+    out[k] = cur ? mergeSpans(cur, v) : copySpan(v);
   }
   return out;
+}
+
+function copySpan(v: PageReadSpan): PageReadSpan {
+  return v[2] === undefined ? [v[0], v[1]] : [v[0], v[1], v[2]];
+}
+
+export function mergeSpans(a: PageReadSpan, b: PageReadSpan): PageReadSpan {
+  const first = Math.min(a[0], b[0]);
+  const last = Math.max(a[1], b[1]);
+  if (a[2] === undefined && b[2] === undefined) return [first, last];
+  return [first, last, Math.max(a[2] ?? 0, b[2] ?? 0)];
 }
 
 export function uuid(): string {

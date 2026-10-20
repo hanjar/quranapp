@@ -187,9 +187,11 @@ Create the labels `feedback`, `feedback:saran`, `feedback:bug`, `feedback:konten
 
 Two more sync entities, both behind the same `/sync` + `/sync/batch` contract:
 
-- `readday` (entityId = local calendar day `YYYY-MM-DD`; payload `{day, pages:{"<1-604>":[firstAt,lastAt]}, updatedAt}`).
-  **Union merge, not last-writer-wins**: per page min(firstAt)/max(lastAt) against the stored row, so two devices
-  reading the same day both count. No `baseRev`, never `conflict`. A merge that changes nothing writes nothing and
+- `readday` (entityId = local calendar day `YYYY-MM-DD`; payload `{day, pages:{"<1-604>":[firstAt,lastAt,removedAt?]}, updatedAt}`).
+  **Per-component merge, not last-writer-wins**: per page min(firstAt)/max(lastAt)/max(removedAt) against the stored
+  row, so two devices reading the same day both count. A page counts while `lastAt > removedAt` (client-side rule), so
+  "remove from day" is just an upload with `removedAt` and a later read re-adds it. Entries are 2 or 3 numbers
+  (`removedAt` a non-negative integer timestamp, else `rejected`); the pages column is JSON, so no migration. No `baseRev`, never `conflict`. A merge that changes nothing writes nothing and
   keeps the revision (no echo loops). Pull change data = merged `{day, pages, updatedAt}`.
 - `khatam` (entityId = round uuid; payload `{n, startedAt, finishedAt|null, updatedAt}`): LWW with `baseRev`
   (stale = `conflict`), `n` unique among live rounds (`duplicate` + `current` otherwise), delete = tombstone.

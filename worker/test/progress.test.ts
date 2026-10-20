@@ -13,7 +13,7 @@ async function pull(cookie: string, qs = '') {
   return (await json(await call('GET', `/sync${qs}`, { cookie }))).data;
 }
 
-type Pages = Record<string, [number, number]>;
+type Pages = Record<string, [number, number] | [number, number, number]>;
 const dayOp = (day: string, pages: Pages, over: Record<string, unknown> = {}) => ({
   opId: uid(),
   entity: 'readday',
@@ -102,6 +102,35 @@ describe('readday: union merge', () => {
     await batch(a, [dayOp('2026-10-20', { '5': [T, T + 1] })]);
     expect((await pull(b)).changes).toEqual([]);
     expect((await json(await call('GET', '/export', { cookie: b }))).data.readingDays).toEqual([]);
+  });
+});
+
+describe('readday: page removal (removedAt)', () => {
+  it('syncs a removal, keeps old 2-element entries, merges per-component max and lets a later read re-add', async () => {
+    const cookie = await login('rm@x.co');
+    await batch(cookie, [dayOp('2026-10-21', { '519': [T + 100, T + 100], '520': [T + 100, T + 100] })]);
+    // device B removes 519 (removedAt after lastAt)
+    const rm = (await batch(cookie, [dayOp('2026-10-21', { '519': [T + 100, T + 100, T + 500] })]))[0];
+    expect(rm).toMatchObject({ status: 'applied', rev: 2 });
+    let s = await pull(cookie);
+    expect(s.changes[0].data.pages).toEqual({ '519': [T + 100, T + 100, T + 500], '520': [T + 100, T + 100] });
+    // a stale device re-uploading the old 2-element entry cannot undo the removal (no-op, no rev bump)
+    const stale = (await batch(cookie, [dayOp('2026-10-21', { '519': [T + 100, T + 100] })]))[0];
+    expect(stale).toMatchObject({ status: 'applied', rev: 2 });
+    // a real read after the removal re-adds it (lastAt > removedAt), removedAt is kept
+    const again = (await batch(cookie, [dayOp('2026-10-21', { '519': [T + 600, T + 700] })]))[0];
+    expect(again).toMatchObject({ status: 'applied', rev: 3 });
+    s = await pull(cookie, '?cursor=2');
+    expect(s.changes[0].data.pages['519']).toEqual([T + 100, T + 700, T + 500]);
+  });
+
+  it('validates removedAt', async () => {
+    const cookie = await login('rm2@x.co');
+    for (const bad of [[T, T, -1], [T, T, 1.5], [T, T, 'x'], [T, T, T, T]]) {
+      const r = (await batch(cookie, [dayOp('2026-10-21', { '5': bad as any })]))[0];
+      expect(r.status).toBe('rejected');
+    }
+    expect((await batch(cookie, [dayOp('2026-10-21', { '5': [T, T, T + 1] })]))[0].status).toBe('applied');
   });
 });
 

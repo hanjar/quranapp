@@ -1,4 +1,4 @@
-import { KhatamRound, PAGE_COUNT, PageReadSpan, ReadDay } from '../models';
+import { KhatamRound, PAGE_COUNT, PageReadSpan, ReadDay, spanActive } from '../models';
 
 /** A page counts as read after this much continuous foreground time on it (leaving earlier counts nothing). */
 export const READ_DWELL_MS = 30_000;
@@ -58,6 +58,36 @@ export function daysBetween(a: string, b: string): number {
   return Math.round((Date.UTC(yb, mb - 1, db) - Date.UTC(ya, ma - 1, da)) / 86_400_000);
 }
 
+/** How many days back a day can be picked for a manual mark. */
+export const MARK_BACK_DAYS = 30;
+
+const DAY_RE = /^(\d{4})-(\d{2})-(\d{2})$/;
+
+/** True for a real calendar day 'YYYY-MM-DD'. */
+export function isDayString(v: unknown): v is string {
+  if (typeof v !== 'string') return false;
+  const m = DAY_RE.exec(v);
+  if (!m) return false;
+  const [y, mo, d] = [Number(m[1]), Number(m[2]), Number(m[3])];
+  const dt = new Date(y, mo - 1, d, 12);
+  return dt.getFullYear() === y && dt.getMonth() === mo - 1 && dt.getDate() === d;
+}
+
+/** 12:00 local time of `day`: the timestamp given to pages marked on a chosen day. */
+export function dayNoon(day: string): number {
+  const [y, m, d] = day.split('-').map(Number) as [number, number, number];
+  return new Date(y, m - 1, d, 12).getTime();
+}
+
+/** Why `day` cannot receive a manual mark (null = allowed): any local day from 30 days ago to today. */
+export function markDayError(day: unknown, nowMs: number): string | null {
+  if (!isDayString(day)) return 'Tanggal tidak valid.';
+  const today = localDay(nowMs);
+  if (day > today) return 'Tanggal tidak boleh di masa depan.';
+  if (day < addDays(today, -MARK_BACK_DAYS)) return `Tanggal maksimal ${MARK_BACK_DAYS} hari ke belakang.`;
+  return null;
+}
+
 /** The open round: the unfinished round with the highest number. */
 export function pickCurrentRound(rounds: readonly KhatamRound[]): KhatamRound | null {
   let best: KhatamRound | null = null;
@@ -73,7 +103,7 @@ export function readInRound(days: readonly ReadDay[], round: KhatamRound | null)
   if (!round) return out;
   for (const d of days) {
     for (const [k, span] of Object.entries(d.pages)) {
-      if (span[1] >= round.startedAt) out.add(Number(k));
+      if (spanActive(span) && span[1] >= round.startedAt) out.add(Number(k));
     }
   }
   return out;
@@ -115,6 +145,7 @@ export function recentPages(days: readonly ReadDay[], n: number): RecentPage[] {
   const best = new Map<number, RecentPage>();
   for (const d of days) {
     for (const [k, span] of Object.entries(d.pages)) {
+      if (!spanActive(span)) continue;
       const page = Number(k);
       const cur = best.get(page);
       if (!cur || span[1] > cur.lastAt) best.set(page, { page, lastAt: span[1], day: d.day });
@@ -125,9 +156,29 @@ export function recentPages(days: readonly ReadDay[], n: number): RecentPage[] {
     .slice(0, Math.max(0, n));
 }
 
+/** Pages that count on one day (removed pages excluded). */
+export function dayCount(d: ReadDay): number {
+  let n = 0;
+  for (const v of Object.values(d.pages)) if (spanActive(v)) n++;
+  return n;
+}
+
+/** Compact page ranges, e.g. [519..536, 540] -> "519–536, 540". */
+export function pageRangesText(pages: readonly number[]): string {
+  const sorted = [...new Set(pages)].sort((a, b) => a - b);
+  const parts: string[] = [];
+  for (let i = 0; i < sorted.length; ) {
+    let j = i;
+    while (j + 1 < sorted.length && sorted[j + 1] === sorted[j]! + 1) j++;
+    parts.push(j > i ? `${sorted[i]}–${sorted[j]}` : String(sorted[i]));
+    i = j + 1;
+  }
+  return parts.join(', ');
+}
+
 /** Pages read per day for the `count` days ending `today` (oldest first, zeros included). */
 export function lastDays(days: readonly ReadDay[], today: string, count = 7): DayCount[] {
-  const byDay = new Map(days.map((d) => [d.day, Object.keys(d.pages).length]));
+  const byDay = new Map(days.map((d) => [d.day, dayCount(d)]));
   const out: DayCount[] = [];
   for (let i = count - 1; i >= 0; i--) {
     const day = addDays(today, -i);
@@ -163,5 +214,8 @@ export function mergeSpan(
   first: number,
   last: number,
 ): PageReadSpan {
-  return cur ? [Math.min(cur[0], first), Math.max(cur[1], last)] : [first, last];
+  if (!cur) return [first, last];
+  const f = Math.min(cur[0], first);
+  const l = Math.max(cur[1], last);
+  return cur[2] === undefined ? [f, l] : [f, l, cur[2]];
 }

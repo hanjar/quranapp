@@ -1,10 +1,25 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { ContentApi, SyncApi } from '../../core/contracts';
 import { ReaderUiService } from '../../core/reader-ui.service';
-import { PAGE_COUNT } from '../../core/models';
-import { averagePerDay, juzRange, localDay } from '../../core/progress/progress-logic';
+import { PAGE_COUNT, activePageNumbers } from '../../core/models';
+import {
+  MARK_BACK_DAYS,
+  addDays,
+  averagePerDay,
+  juzRange,
+  localDay,
+  markDayError,
+  pageRangesText,
+} from '../../core/progress/progress-logic';
 import { ProgressService } from '../../core/progress/progress.service';
-import { barHeight, etaText, formatDecimal, weekSummary, weekdayShort } from './progress-format';
+import {
+  barHeight,
+  etaText,
+  formatDayLong,
+  formatDecimal,
+  weekSummary,
+  weekdayShort,
+} from './progress-format';
 import { SheetHistory } from './sheet-history';
 import { SHEET_STYLES } from './sheet-styles';
 
@@ -145,12 +160,22 @@ const MAX_TARGET = 40;
         position: relative;
       }
       .col {
+        font: inherit;
+        color: inherit;
+        background: transparent;
+        border: none;
+        border-radius: 8px;
+        padding: 0;
+        cursor: pointer;
         display: flex;
         flex-direction: column;
         align-items: center;
         gap: 6px;
         height: 100%;
         justify-content: flex-end;
+      }
+      .col.sel {
+        background: color-mix(in srgb, var(--ui-primary) 10%, transparent);
       }
       .col .n {
         height: 16px;
@@ -307,6 +332,22 @@ const MAX_TARGET = 40;
         font-size: 14px;
         line-height: 1.45;
       }
+      .daypanel {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        padding: 14px;
+        border-radius: var(--mf-radius-lg);
+        border: 1px solid var(--ui-line);
+      }
+      .daypanel .pages {
+        font-size: 15px;
+        font-weight: 500;
+        font-variant-numeric: tabular-nums;
+      }
+      .range input[type='date'] {
+        width: auto;
+      }
       .done-msg {
         display: flex;
         flex-direction: column;
@@ -382,20 +423,32 @@ const MAX_TARGET = 40;
         </div>
       </div>
 
-      <div class="week" aria-hidden="true">
+      <div
+        class="week"
+        role="group"
+        aria-label="Halaman dibaca 7 hari terakhir. Ketuk satu hari untuk melihat atau mengoreksinya."
+      >
         @for (d of week(); track d.day) {
-          <div class="col">
-            <span class="n">{{ d.count }}</span>
-            <div
+          <button
+            type="button"
+            class="col"
+            [class.sel]="panelDay() === d.day"
+            [attr.aria-pressed]="panelDay() === d.day"
+            [attr.aria-label]="d.aria"
+            (click)="openDay(d.day)"
+          >
+            <span class="n" aria-hidden="true">{{ d.count }}</span>
+            <span
               class="bar-v"
+              aria-hidden="true"
               [class.hit]="d.hit"
               [class.zero]="d.count === 0"
               [style.height.px]="d.height"
-            ></div>
-            <span class="d" [class.today]="d.today">{{ d.label }}</span>
-          </div>
+            ></span>
+            <span class="d" aria-hidden="true" [class.today]="d.today">{{ d.label }}</span>
+          </button>
         }
-        <div class="target-line" [style.bottom.px]="targetLine()"></div>
+        <div class="target-line" aria-hidden="true" [style.bottom.px]="targetLine()"></div>
       </div>
       <table class="mf-visually-hidden">
         <caption>
@@ -422,6 +475,94 @@ const MAX_TARGET = 40;
         <span><span class="sw"></span>Target tercapai</span>
         <span><span class="sw-line"></span>Target</span>
       </div>
+      @if (panel(); as pd) {
+        <div class="daypanel" role="region" [attr.aria-label]="'Koreksi ' + pd.title">
+          <div class="head">
+            <span class="t">{{ pd.title }}</span>
+            <button type="button" class="mf-btn mf-btn--outline" (click)="closeDay()">Tutup</button>
+          </div>
+          @if (pd.count) {
+            <p class="eta">
+              Halaman dibaca: <span class="pages">{{ pd.text }}</span> ({{ pd.count }} halaman)
+            </p>
+          } @else {
+            <p class="eta">Belum ada halaman tercatat pada {{ pd.today ? 'hari ini' : 'tanggal ini' }}.</p>
+          }
+          <div class="actions">
+            <button
+              type="button"
+              class="mf-btn mf-btn--outline"
+              [disabled]="!pd.count"
+              [attr.aria-expanded]="act() === 'remove'"
+              (click)="openAct('remove')"
+            >
+              Hapus dari {{ pd.today ? 'hari ini' : 'tanggal ini' }}…
+            </button>
+            <button
+              type="button"
+              class="mf-btn mf-btn--outline"
+              [disabled]="!pd.count"
+              [attr.aria-expanded]="act() === 'move'"
+              (click)="openAct('move')"
+            >
+              Pindahkan ke tanggal…
+            </button>
+          </div>
+          @if (act(); as a) {
+            <form class="form" (submit)="onPanelSubmit($event)">
+              @if (a === 'move') {
+                <div class="range">
+                  <label for="pg-move-date">Pindahkan ke tanggal</label>
+                  <input
+                    id="pg-move-date"
+                    class="mf-input"
+                    type="date"
+                    [attr.min]="minDate"
+                    [attr.max]="maxDate"
+                    [value]="moveDate()"
+                    (input)="moveDate.set($any($event.target).value)"
+                  />
+                </div>
+              }
+              <div class="range">
+                <label for="pg-p-from">Dari hal.</label>
+                <input
+                  id="pg-p-from"
+                  class="mf-input"
+                  type="number"
+                  inputmode="numeric"
+                  min="1"
+                  max="604"
+                  [value]="pFrom()"
+                  (input)="pFrom.set($any($event.target).value)"
+                />
+                <label for="pg-p-to">sampai</label>
+                <input
+                  id="pg-p-to"
+                  class="mf-input"
+                  type="number"
+                  inputmode="numeric"
+                  min="1"
+                  max="604"
+                  [value]="pTo()"
+                  (input)="pTo.set($any($event.target).value)"
+                />
+              </div>
+              @if (panelError(); as e) {
+                <div class="err" role="alert">{{ e }}</div>
+              }
+              <div class="actions">
+                <button type="submit" class="mf-btn mf-btn--primary" [disabled]="!!panelError()">
+                  {{ a === 'move' ? 'Pindahkan' : 'Hapus' }}
+                </button>
+                <button type="button" class="mf-btn mf-btn--outline" (click)="act.set(null)">
+                  Batal
+                </button>
+              </div>
+            </form>
+          }
+        </div>
+      }
     </section>
 
     <section class="block" aria-labelledby="pg-mark" data-search-id="progress-mark">
@@ -487,10 +628,45 @@ const MAX_TARGET = 40;
                 [checked]="when() === 'today'"
                 (change)="pickWhen('today')"
               />
+              <span>Hari ini<small>Dihitung di grafik hari ini dan target.</small></span>
+            </label>
+            <label class="opt">
+              <input
+                type="radio"
+                name="pg-when"
+                [checked]="when() === 'yesterday'"
+                (change)="pickWhen('yesterday')"
+              />
+              <span>Kemarin<small>Dihitung di grafik kemarin.</small></span>
+            </label>
+            <label class="opt">
+              <input
+                type="radio"
+                name="pg-when"
+                [checked]="when() === 'date'"
+                (change)="pickWhen('date')"
+              />
               <span
-                >Dibaca hari ini<small>Dihitung di grafik harian dan target hari ini.</small></span
+                >Pilih tanggal<small>Sampai {{ backDays }} hari ke belakang, dihitung di grafik hari itu.</small></span
               >
             </label>
+            @if (when() === 'date') {
+              <div class="range">
+                <label for="pg-date">Tanggal baca</label>
+                <input
+                  id="pg-date"
+                  class="mf-input"
+                  type="date"
+                  [attr.min]="minDate"
+                  [attr.max]="maxDate"
+                  [value]="markDate()"
+                  (input)="markDate.set($any($event.target).value)"
+                />
+              </div>
+              @if (dateError(); as e) {
+                <div class="err" role="alert">{{ e }}</div>
+              }
+            }
             <label class="opt">
               <input
                 type="radio"
@@ -499,14 +675,18 @@ const MAX_TARGET = 40;
                 (change)="pickWhen('before')"
               />
               <span
-                >Dibaca sebelumnya<small
+                >Sebelumnya (tidak masuk grafik)<small
                   >Hanya menambah khatam, tidak masuk grafik harian.</small
                 ></span
               >
             </label>
           </fieldset>
           <div class="actions">
-            <button type="submit" class="mf-btn mf-btn--primary" [disabled]="!range().ok">
+            <button
+              type="submit"
+              class="mf-btn mf-btn--primary"
+              [disabled]="!range().ok || !!dateError()"
+            >
               Tandai sudah dibaca
             </button>
             <button
@@ -571,7 +751,48 @@ export class ProgressSheet {
   protected readonly formOpen = signal(false);
   protected readonly from = signal('');
   protected readonly to = signal('');
-  protected readonly when = signal<'today' | 'before'>('today');
+  protected readonly when = signal<'today' | 'yesterday' | 'date' | 'before'>('today');
+  protected readonly markDate = signal(addDays(localDay(Date.now()), -2));
+  protected readonly minDate = addDays(localDay(Date.now()), -MARK_BACK_DAYS);
+  protected readonly maxDate = localDay(Date.now());
+  protected readonly backDays = MARK_BACK_DAYS;
+  protected readonly dateError = computed(() =>
+    this.when() === 'date' ? markDayError(this.markDate(), Date.now()) : null,
+  );
+
+  // Day panel (tap a bar): correct or move one day's pages.
+  protected readonly panelDay = signal<string | null>(null);
+  protected readonly act = signal<'remove' | 'move' | null>(null);
+  protected readonly pFrom = signal('');
+  protected readonly pTo = signal('');
+  protected readonly moveDate = signal('');
+  protected readonly panel = computed(() => {
+    const day = this.panelDay();
+    if (!day) return null;
+    const row = this.progress.days().find((d) => d.day === day);
+    const pages = activePageNumbers(row?.pages ?? {});
+    const today = day === localDay(Date.now());
+    return {
+      day,
+      today,
+      title: (today ? 'Hari ini · ' : '') + formatDayLong(day),
+      pages,
+      count: pages.length,
+      text: pageRangesText(pages),
+    };
+  });
+  protected readonly panelError = computed(() => {
+    const raw = this.pFrom();
+    const r = parseRange(raw, this.pTo());
+    if (!r.ok) return raw === '' && this.pTo() === '' ? 'Isi nomor halaman awal.' : r.error;
+    if (this.act() === 'move') {
+      const day = this.panelDay();
+      const d = this.moveDate();
+      if (d === day) return 'Pilih tanggal yang berbeda.';
+      return markDayError(d, Date.now());
+    }
+    return null;
+  });
   private whenTouched = false;
 
   protected readonly suggestion = computed(() => {
@@ -589,17 +810,7 @@ export class ProgressSheet {
   });
 
   /** Parsed range; `error` is shown only once the user typed something. */
-  protected readonly range = computed(() => {
-    const raw = this.from();
-    const f = Number(raw);
-    const t = Number(this.to() === '' ? raw : this.to());
-    const valid = (n: number) => Number.isInteger(n) && n >= 1 && n <= PAGE_COUNT;
-    let error: string | null = null;
-    if (raw === '') error = 'Isi nomor halaman awal.';
-    else if (!valid(f) || !valid(t)) error = `Nomor halaman harus 1 sampai ${PAGE_COUNT}.`;
-    else if (f > t) error = 'Halaman awal tidak boleh lebih besar dari halaman akhir.';
-    return { ok: error === null, from: f, to: t, error };
-  });
+  protected readonly range = computed(() => parseRange(this.from(), this.to()));
   protected readonly rangeError = computed(() =>
     this.from() !== '' || this.to() !== '' ? this.range().error : null,
   );
@@ -642,6 +853,14 @@ export class ProgressSheet {
       today: i === week.length - 1,
       hit: d.count >= t,
       height: barHeight(d.count, max),
+      aria:
+        (i === week.length - 1 ? 'Hari ini, ' : '') +
+        formatDayLong(d.day) +
+        ', ' +
+        d.count +
+        ' halaman' +
+        (d.count >= t ? ', target tercapai' : '') +
+        '. Ketuk untuk koreksi.',
     }));
   });
 
@@ -682,7 +901,7 @@ export class ProgressSheet {
     this.autoWhen();
   }
 
-  protected pickWhen(w: 'today' | 'before'): void {
+  protected pickWhen(w: 'today' | 'yesterday' | 'date' | 'before'): void {
     this.whenTouched = true;
     this.when.set(w);
   }
@@ -709,21 +928,105 @@ export class ProgressSheet {
 
   private async confirmMark(): Promise<void> {
     const r = this.range();
-    if (!r.ok) return;
-    const res = await this.progress.markRead({ from: r.from, to: r.to }, { when: this.when() });
+    if (!r.ok || this.dateError()) return;
+    const w = this.when();
+    const today = localDay(Date.now());
+    const day = w === 'yesterday' ? addDays(today, -1) : w === 'date' ? this.markDate() : null;
+    const res = await this.progress.markRead(
+      { from: r.from, to: r.to },
+      w === 'before' ? { when: 'before' } : day ? { when: 'day', day } : { when: 'today' },
+    );
+    if (res.error) {
+      this.ui.showToast({ message: res.error });
+      return;
+    }
     if (res.added === 0) {
       this.ui.showToast({ message: 'Semua halaman itu sudah tercatat dibaca.' });
       return;
     }
+    const where = w === 'before' ? '' : ' untuk ' + (day && day !== today ? formatDayLong(day) : 'hari ini');
+    this.toastUndo(res.added + ' halaman ditandai' + where, res.undo, 'Tanda ini tidak dapat diurungkan lagi.');
+  }
+
+  private toastUndo(message: string, undo: () => Promise<boolean>, failMessage: string): void {
     this.ui.showToast({
-      message: `${res.added} halaman ditandai`,
+      message,
       actionLabel: 'Urungkan',
       action: () =>
-        void res.undo().then((ok) => {
-          if (!ok) this.ui.showToast({ message: 'Tanda ini tidak dapat diurungkan lagi.' });
+        void undo().then((ok) => {
+          if (!ok) this.ui.showToast({ message: failMessage });
         }),
       duration: 8000,
     });
+  }
+
+  // ---- day panel ----
+
+  protected openDay(day: string): void {
+    this.panelDay.update((cur) => (cur === day ? null : day));
+    this.act.set(null);
+  }
+
+  protected closeDay(): void {
+    this.panelDay.set(null);
+    this.act.set(null);
+  }
+
+  protected openAct(a: 'remove' | 'move'): void {
+    const p = this.panel();
+    if (!p || !p.count) return;
+    if (this.act() === a) {
+      this.act.set(null);
+      return;
+    }
+    this.pFrom.set(String(p.pages[0]));
+    this.pTo.set(String(p.pages[p.pages.length - 1]));
+    if (a === 'move') this.moveDate.set(addDays(p.day, -1));
+    this.act.set(a);
+  }
+
+  protected onPanelSubmit(ev: Event): void {
+    ev.preventDefault();
+    void this.submitPanel();
+  }
+
+  private async submitPanel(): Promise<void> {
+    const p = this.panel();
+    const a = this.act();
+    const r = parseRange(this.pFrom(), this.pTo());
+    if (!p || !a || !r.ok || this.panelError()) return;
+    const range = { from: r.from, to: r.to };
+    const label = p.today ? 'hari ini' : formatDayLong(p.day);
+    if (a === 'remove') {
+      const res = await this.progress.unmarkDay(p.day, range);
+      if (!res.removed) {
+        this.ui.showToast({ message: 'Tidak ada halaman di rentang itu pada hari ini.' });
+        return;
+      }
+      this.act.set(null);
+      this.toastUndo(
+        res.removed + ' halaman dihapus dari ' + label,
+        res.undo,
+        'Penghapusan ini tidak dapat diurungkan lagi.',
+      );
+      return;
+    }
+    const to = this.moveDate();
+    const res = await this.progress.moveDay(p.day, to, range);
+    if (res.error) {
+      this.ui.showToast({ message: res.error });
+      return;
+    }
+    if (!res.moved) {
+      this.ui.showToast({ message: 'Tidak ada halaman di rentang itu pada hari ini.' });
+      return;
+    }
+    this.act.set(null);
+    this.toastUndo(
+      res.moved + ' halaman dipindahkan ke ' + (to === localDay(Date.now()) ? 'hari ini' : formatDayLong(to)),
+      res.undo,
+      'Pemindahan ini tidak dapat diurungkan lagi.',
+    );
   }
 
   protected async unmark(): Promise<void> {
@@ -750,4 +1053,20 @@ export class ProgressSheet {
   protected async startNext(): Promise<void> {
     await this.progress.startNextRound();
   }
+}
+
+type RangeResult =
+  | { ok: true; from: number; to: number; error: null }
+  | { ok: false; from: number; to: number; error: string };
+
+/** Parses two page inputs; `to` defaults to `from`. */
+function parseRange(rawFrom: string, rawTo: string): RangeResult {
+  const f = Number(rawFrom);
+  const t = Number(rawTo === '' ? rawFrom : rawTo);
+  const valid = (n: number) => Number.isInteger(n) && n >= 1 && n <= PAGE_COUNT;
+  let error: string | null = null;
+  if (rawFrom === '') error = 'Isi nomor halaman awal.';
+  else if (!valid(f) || !valid(t)) error = `Nomor halaman harus 1 sampai ${PAGE_COUNT}.`;
+  else if (f > t) error = 'Halaman awal tidak boleh lebih besar dari halaman akhir.';
+  return error === null ? { ok: true, from: f, to: t, error } : { ok: false, from: f, to: t, error };
 }

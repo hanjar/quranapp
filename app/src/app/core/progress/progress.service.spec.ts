@@ -5,7 +5,7 @@ import { MushafDb } from '../storage/db';
 import { MUSHAF_DB } from '../storage/db-token';
 import { installFakeIndexedDb } from '../storage/testing';
 import { UserDataService } from '../storage/user-data.service';
-import { localDay } from './progress-logic';
+import { addDays, dayNoon, localDay } from './progress-logic';
 import { ProgressService } from './progress.service';
 
 installFakeIndexedDb();
@@ -356,6 +356,154 @@ describe('ProgressService', () => {
       const r = await svc.markRead([519], { when: 'today' });
       await db.outbox.clear();
       expect(await r.undo()).toBe(false);
+    });
+
+    describe('choose the day / correct a day', () => {
+      const today = () => localDay(Date.now());
+      const yesterday = () => addDays(today(), -1);
+
+      it("'day' stamps the chosen day at 12:00 and counts for that bar, last7 and the round", async () => {
+        await svc.recordView(1, 30_000, Date.now() - 5 * 86_400_000); // round 1 started 5 days ago
+        const y = yesterday();
+        const r = await svc.markRead({ from: 519, to: 521 }, { when: 'day', day: y });
+        expect(r.error).toBeUndefined();
+        expect(r.pages).toEqual([519, 520, 521]);
+        await settle();
+        expect((await db.readDays.get(y))?.pages['519']).toEqual([dayNoon(y), dayNoon(y)]);
+        expect(svc.last7()[5]).toEqual({ day: y, count: 3 });
+        expect(svc.todayCount()).toBe(0);
+        expect(svc.readInRound().has(520)).toBe(true);
+        // pages already counted that day are skipped
+        expect((await svc.markRead([519, 522], { when: 'day', day: y })).pages).toEqual([522]);
+      });
+
+      it("'day' with today's date behaves like 'today' (timestamp = now)", async () => {
+        const r = await svc.markRead([7], { when: 'day', day: today() });
+        expect(r.added).toBe(1);
+        const span = (await db.readDays.get(today()))?.pages['7'];
+        expect(Math.abs(span![0] - Date.now())).toBeLessThan(5000);
+      });
+
+      it('rejects the future, more than 30 days back and malformed days without writing', async () => {
+        for (const day of [addDays(today(), 1), addDays(today(), -31), '2026-02-30', 'kemarin', undefined]) {
+          const r = await svc.markRead([5], { when: 'day', day: day as string });
+          expect(r.added).toBe(0);
+          expect(r.error).toBeTruthy();
+        }
+        expect(await db.readDays.count()).toBe(0);
+        expect(await db.rounds.count()).toBe(0);
+        expect((await svc.markRead([5], { when: 'day', day: addDays(today(), -30) })).added).toBe(1);
+      });
+
+      it('moves round 1 start back for an earlier day, refuses it for a later round', async () => {
+        await svc.markRead([1], { when: 'today' });
+        const d = addDays(today(), -3);
+        const r = await svc.markRead([2], { when: 'day', day: d });
+        expect(r.added).toBe(1);
+        await settle();
+        expect(svc.currentRound()?.startedAt).toBe(dayNoon(d));
+        expect(svc.readInRound().has(2)).toBe(true);
+
+        await svc.startNextRound();
+        const bad = await svc.markRead([3], { when: 'day', day: d });
+        expect(bad.added).toBe(0);
+        expect(bad.error).toContain('khatam ke-2');
+        expect((await db.readDays.get(d))?.pages['3']).toBeUndefined();
+      });
+
+      it('a first mark on an earlier day creates round 1 starting then', async () => {
+        const d = addDays(today(), -2);
+        await svc.markRead([4], { when: 'day', day: d });
+        await settle();
+        expect(svc.currentRound()?.startedAt).toBe(dayNoon(d));
+        expect(svc.readInRound().has(4)).toBe(true);
+      });
+
+      it('unmarkDay removes pages from one day only, keeps the entry and updates stats', async () => {
+        const y = yesterday();
+        await svc.markRead({ from: 519, to: 536 }, { when: 'today' });
+        await svc.markRead([519], { when: 'day', day: y });
+        await settle();
+        const r = await svc.unmarkDay(today(), { from: 519, to: 530 });
+        expect(r.removed).toBe(12);
+        await settle();
+        expect(svc.todayCount()).toBe(6);
+        expect(svc.last7()[5]!.count).toBe(1);
+        expect(svc.readInRound().has(519)).toBe(true); // still read yesterday
+        expect(svc.readInRound().has(520)).toBe(false);
+        const span = (await db.readDays.get(today()))!.pages['520']!;
+        expect(span).toHaveLength(3);
+        expect(span[2]).toBeGreaterThanOrEqual(span[1]);
+        expect((await svc.unmarkDay(today(), [520])).removed).toBe(0); // already removed
+        expect(svc.recent(50).some((p) => p.page === 520)).toBe(false);
+      });
+
+      it('unmarkDay undo restores, and a later read or mark re-adds a removed page', async () => {
+        await svc.markRead([10, 11], { when: 'today' });
+        const r = await svc.unmarkDay(today(), [10, 11]);
+        await settle();
+        expect(svc.todayCount()).toBe(0);
+        expect(await r.undo()).toBe(true);
+        await settle();
+        expect(svc.todayCount()).toBe(2);
+        await svc.unmarkDay(today(), [10]);
+        await svc.recordView(10, 30_000, Date.now() + 1000);
+        await settle();
+        expect(svc.todayCount()).toBe(2);
+        await svc.unmarkDay(today(), [11]);
+        expect((await svc.markRead([11], { when: 'today' })).pages).toEqual([11]);
+        await settle();
+        expect(svc.todayCount()).toBe(2);
+      });
+
+      it('remarking a removed page on a past day re-adds it even though noon < removedAt', async () => {
+        const y = yesterday();
+        await svc.markRead([30], { when: 'day', day: y });
+        await svc.unmarkDay(y, [30]);
+        await settle();
+        expect(svc.last7()[5]!.count).toBe(0);
+        expect((await svc.markRead([30], { when: 'day', day: y })).pages).toEqual([30]);
+        await settle();
+        expect(svc.last7()[5]!.count).toBe(1);
+      });
+
+      it('moveDay: owner case, pages marked today go to yesterday and stats follow', async () => {
+        await svc.markRead({ from: 519, to: 536 }, { when: 'today' });
+        const tue = yesterday();
+        const r = await svc.moveDay(today(), tue, { from: 519, to: 536 });
+        expect(r.error).toBeUndefined();
+        expect(r.moved).toBe(18);
+        await settle();
+        expect(svc.todayCount()).toBe(0);
+        expect(svc.last7()[5]!.count).toBe(18);
+        expect(svc.readInRound().size).toBe(18);
+        expect(await r.undo()).toBe(true);
+        await settle();
+        expect(svc.todayCount()).toBe(18);
+        expect(svc.last7()[5]!.count).toBe(0);
+      });
+
+      it('moveDay refuses same day / bad target and leaves the source intact', async () => {
+        await svc.markRead([40, 41], { when: 'today' });
+        expect((await svc.moveDay(today(), today(), [40])).error).toBeTruthy();
+        expect((await svc.moveDay(today(), addDays(today(), 1), [40])).error).toBeTruthy();
+        expect((await svc.moveDay(today(), addDays(today(), -40), [40])).error).toBeTruthy();
+        expect((await svc.moveDay(today(), yesterday(), [99])).moved).toBe(0); // not on that day
+        await settle();
+        expect(svc.todayCount()).toBe(2);
+      });
+
+      it('queues the day with removedAt and the moved-back round when synced', async () => {
+        await enableSync();
+        await svc.markRead([1], { when: 'today' });
+        await db.outbox.clear();
+        await svc.moveDay(today(), addDays(today(), -2), [1]);
+        const ops = await db.outbox.toArray();
+        expect(ops.filter((o) => o.entity === 'readday')).toHaveLength(2); // one per day (coalesced)
+        expect(ops.some((o) => o.entity === 'khatam')).toBe(true);
+        const src = ops.find((o) => o.entity === 'readday' && o.entityId === today())!;
+        expect((src.payload as any).pages['1']).toHaveLength(3);
+      });
     });
 
     it('queues one coalesced readmark op when synced, with the whole map', async () => {

@@ -342,10 +342,11 @@ export function parseWirePages(raw: unknown): Record<string, PageReadSpan> {
   if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) return out;
   for (const [k, v] of Object.entries(raw as Record<string, unknown>)) {
     const page = Number(k);
-    if (!isValidPage(page) || String(page) !== k || !Array.isArray(v) || v.length !== 2) continue;
-    const [a, b] = v as unknown[];
+    if (!isValidPage(page) || String(page) !== k || !Array.isArray(v) || (v.length !== 2 && v.length !== 3)) continue;
+    const [a, b, r] = v as unknown[];
     if (typeof a !== 'number' || typeof b !== 'number' || !Number.isFinite(a) || !Number.isFinite(b)) continue;
-    out[k] = [Math.min(a, b), Math.max(a, b)];
+    if (v.length === 3 && (typeof r !== 'number' || !Number.isFinite(r) || r < 0)) continue;
+    out[k] = v.length === 3 ? [Math.min(a, b), Math.max(a, b), r as number] : [Math.min(a, b), Math.max(a, b)];
   }
   return out;
 }

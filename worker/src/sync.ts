@@ -3,6 +3,7 @@ import {
   type FolderData,
   type Entity,
   type ParsedOp,
+  type DayPageSpan,
   type PageSpan,
   type PositionData,
   type PrefsData,
@@ -87,7 +88,7 @@ interface PrefsRow {
 
 interface DayRow {
   day: string;
-  pages: string; // JSON {"<page>": [firstAt, lastAt]}
+  pages: string; // JSON {"<page>": [firstAt, lastAt, removedAt?]}
   updated_at: number;
   deleted_at: number | null;
   cleared_at: number | null;
@@ -173,7 +174,7 @@ export function readDayChange(r: DayRow): Change {
     // A tombstone carries the clear watermark so clients drop only reads made before it.
     data: deleted
       ? { clearedAt: r.cleared_at ?? r.deleted_at }
-      : { day: r.day, pages: JSON.parse(r.pages) as Record<string, PageSpan>, updatedAt: r.updated_at },
+      : { day: r.day, pages: JSON.parse(r.pages) as Record<string, DayPageSpan>, updatedAt: r.updated_at },
   };
 }
 
@@ -793,15 +794,28 @@ function deleteFolder(
 // Reading progress
 // --------------------------------------------------------------------------------------------
 
-type Pages = Record<string, PageSpan>;
+type Pages = Record<string, DayPageSpan>;
 
-/** Union merge: per page min(firstAt), max(lastAt). */
+const copySpan = (v: DayPageSpan): DayPageSpan => (v.length === 3 ? [v[0], v[1], v[2]] : [v[0], v[1]]);
+
+/**
+ * Merge: per page min(firstAt), max(lastAt), max(removedAt). A page counts on its day while
+ * lastAt > removedAt, so removals sync and a later read re-adds the page. 2-element entries
+ * (old clients, never removed) stay 2-element.
+ */
 export function mergePages(a: Pages, b: Pages): Pages {
   const out: Pages = {};
-  for (const [k, v] of Object.entries(a)) out[k] = [v[0], v[1]];
+  for (const [k, v] of Object.entries(a)) out[k] = copySpan(v);
   for (const [k, v] of Object.entries(b)) {
     const cur = out[k];
-    out[k] = cur ? [Math.min(cur[0], v[0]), Math.max(cur[1], v[1])] : [v[0], v[1]];
+    if (!cur) {
+      out[k] = copySpan(v);
+      continue;
+    }
+    const first = Math.min(cur[0], v[0]);
+    const last = Math.max(cur[1], v[1]);
+    out[k] =
+      cur.length === 2 && v.length === 2 ? [first, last] : [first, last, Math.max(cur[2] ?? 0, v[2] ?? 0)];
   }
   return out;
 }

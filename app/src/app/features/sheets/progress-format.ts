@@ -3,6 +3,7 @@ import { daysBetween, localDay } from '../../core/progress/progress-logic';
 const DATE_FMT = new Intl.DateTimeFormat('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
 const SHORT_FMT = new Intl.DateTimeFormat('id-ID', { day: 'numeric', month: 'short', year: 'numeric' });
 const WEEKDAY_FMT = new Intl.DateTimeFormat('id-ID', { weekday: 'short' });
+const DAY_LONG_FMT = new Intl.DateTimeFormat('id-ID', { weekday: 'long', day: 'numeric', month: 'short' });
 const NUM_FMT = new Intl.NumberFormat('id-ID', { maximumFractionDigits: 1 });
 
 /** Local noon of a 'YYYY-MM-DD' day (avoids DST edges). */
@@ -19,6 +20,11 @@ export function formatLongDate(d: Date): string {
 /** "Sen", "Sel", ... for a 'YYYY-MM-DD' day. */
 export function weekdayShort(day: string): string {
   return WEEKDAY_FMT.format(dayToDate(day)).replace('.', '');
+}
+
+/** "Rabu, 21 Okt" for a 'YYYY-MM-DD' day. */
+export function formatDayLong(day: string): string {
+  return DAY_LONG_FMT.format(dayToDate(day)).replace('.', '');
 }
 
 /** "12,5" (id-ID decimal comma, at most one decimal). */

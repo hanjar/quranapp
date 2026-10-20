@@ -72,9 +72,12 @@ export interface PrefsData {
 /** `[firstAt, lastAt]` epoch ms. */
 export type PageSpan = [number, number];
 
+/** Reading-day page entry: `[firstAt, lastAt, removedAt?]`; counts while lastAt > removedAt. */
+export type DayPageSpan = [number, number] | [number, number, number];
+
 export interface ReadDayData {
   day: string;
-  pages: Record<string, PageSpan>;
+  pages: Record<string, DayPageSpan>;
   updatedAt: number;
 }
 
@@ -258,16 +261,24 @@ export function parseReadDay(raw: unknown): Result<ReadDayData> {
   if (!isRecord(pagesRaw)) return fail('pages must be an object');
   const keys = Object.keys(pagesRaw);
   if (keys.length === 0 || keys.length > 604) return fail('pages must hold 1-604 entries');
-  const pages: Record<string, PageSpan> = {};
+  const pages: Record<string, DayPageSpan> = {};
   for (const k of keys) {
     const page = Number(k);
     if (!Number.isInteger(page) || page < 1 || page > 604 || String(page) !== k) return fail('page must be 1-604');
     const span = pagesRaw[k];
-    if (!Array.isArray(span) || span.length !== 2) return fail('page span must be [firstAt, lastAt]');
+    if (!Array.isArray(span) || (span.length !== 2 && span.length !== 3)) {
+      return fail('page span must be [firstAt, lastAt] or [firstAt, lastAt, removedAt]');
+    }
     const a = timestamp(span[0]);
     const b = timestamp(span[1]);
     if (a === null || b === null || a > b) return fail('invalid page span');
-    pages[k] = [a, b];
+    if (span.length === 3) {
+      const r = timestamp(span[2]);
+      if (r === null) return fail('invalid removedAt');
+      pages[k] = [a, b, r];
+    } else {
+      pages[k] = [a, b];
+    }
   }
   const updatedAt = timestamp(raw['updatedAt']);
   if (updatedAt === null) return fail('invalid updatedAt');

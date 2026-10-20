@@ -1,5 +1,5 @@
 import { installFakeIndexedDb } from '../storage/testing';
-import { KhatamRound, ReadDay } from '../models';
+import { KhatamRound, ReadDay, spanActive } from '../models';
 import { MushafDb } from '../storage/db';
 import { applyChanges, handleResults, reconcileReset } from './apply';
 import { enqueueLocalSnapshot, makeOp, readDayPayload, roundPayload } from './outbox';
@@ -92,6 +92,30 @@ describe('sync apply: reading progress', () => {
       const row = await db.readDays.get('2026-10-20');
       expect(row?.pages).toEqual({ '5': [10, 60], '6': [30, 40], '9': [1, 2] });
       expect(row?.rev).toBe(4);
+    });
+
+    it('merges removedAt per component, accepts 2- and 3-element entries, drops bad third values', async () => {
+      await db.readDays.put(day('2026-10-20', { '5': [10, 20], '6': [10, 20, 50] }, { rev: 1 }));
+      await applyChanges(
+        db,
+        ACC,
+        [dayChange('2026-10-20', 4, { '5': [10, 20, 30], '6': [5, 60], '7': [1, 2, -1], '8': [1, 2, 3, 4] })],
+        opts(),
+      );
+      const row = await db.readDays.get('2026-10-20');
+      expect(row?.pages).toEqual({ '5': [10, 20, 30], '6': [5, 60, 50] });
+    });
+
+    it('a removal from another device survives, a later read re-adds the page', async () => {
+      await db.readDays.put(day('2026-10-20', { '5': [10, 20] }, { rev: 1 }));
+      await applyChanges(db, ACC, [dayChange('2026-10-20', 2, { '5': [10, 20, 40] })], opts());
+      const removed = (await db.readDays.get('2026-10-20'))!.pages['5']!;
+      expect(removed).toEqual([10, 20, 40]);
+      expect(spanActive(removed)).toBe(false);
+      await applyChanges(db, ACC, [dayChange('2026-10-20', 3, { '5': [10, 90] })], opts());
+      const back = (await db.readDays.get('2026-10-20'))!.pages['5']!;
+      expect(back).toEqual([10, 90, 40]);
+      expect(spanActive(back)).toBe(true);
     });
 
     it('is order independent (commutative)', async () => {

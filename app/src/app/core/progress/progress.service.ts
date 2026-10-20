@@ -5,12 +5,15 @@ import {
   Bookmark,
   KhatamRound,
   PAGE_COUNT,
+  PageReadSpan,
   ReadDay,
   ReadMarks,
   clampDailyTarget,
   isValidPage,
   mergeReadMarks,
   mergeReadPages,
+  activePageNumbers,
+  spanActive,
   uuid,
 } from '../models';
 import { MushafDb } from '../storage/db';
@@ -24,6 +27,10 @@ import {
   READ_DWELL_MS,
   RecentPage,
   averagePerDay,
+  dayCount,
+  dayNoon,
+  isDayString,
+  markDayError,
   etaDate,
   firstUnreadPage,
   juzProgress,
@@ -42,7 +49,24 @@ export interface MarkResult {
   added: number;
   pages: number[];
   undo: () => Promise<boolean>;
+  /** Indonesian reason when the mark was refused (bad day, before the round started). */
+  error?: string;
 }
+
+export interface UnmarkDayResult {
+  removed: number;
+  pages: number[];
+  undo: () => Promise<boolean>;
+}
+
+export interface MoveResult {
+  moved: number;
+  pages: number[];
+  undo: () => Promise<boolean>;
+  error?: string;
+}
+
+class MarkError extends Error {}
 
 /** Window in which the undo returned by clearHistory() / markRead() is honoured. */
 export const CLEAR_UNDO_WINDOW_MS = 8000;
@@ -71,7 +95,7 @@ export class ProgressService {
 
   /** True after the first read from IndexedDB. */
   readonly ready = this._ready.asReadonly();
-  /** Reading days, oldest first. Each page maps to `[firstAt, lastAt]`. */
+  /** Reading days, oldest first. Each page maps to `[firstAt, lastAt, removedAt?]`. */
   readonly days = this._days.asReadonly();
   /** All khatam rounds, ascending by number. */
   readonly rounds = this._rounds.asReadonly();
@@ -98,7 +122,7 @@ export class ProgressService {
   readonly todayCount = computed(() => {
     const today = localDay(this._now());
     const row = this._days().find((d) => d.day === today);
-    return row ? Object.keys(row.pages).length : 0;
+    return row ? dayCount(row) : 0;
   });
   /** Pages per day for the last 7 days, oldest first, today last, zeros included. */
   readonly last7 = computed<DayCount[]>(() => lastDays(this._days(), localDay(this._now()), 7));
@@ -324,35 +348,56 @@ export class ProgressService {
   /**
    * Marks pages as read for the open round (creating a round if none exists).
    *  - `when: 'today'`: pages read today. They go into today's reading day like normal views, so they
-   *    count for todayCount / last7 / eta pace AND the round. Pages already in today's day are skipped.
+   *    count for todayCount / last7 / eta pace AND the round. Pages already counted that day are skipped.
+   *  - `when: 'day'` + `day: 'YYYY-MM-DD'`: same, for a chosen local day from 30 days ago to today
+   *    (timestamp = that day 12:00; today = now). A day before the open round's start moves round 1's
+   *    start back; for a later round it is refused (`error` set, nothing written).
    *  - `when: 'before'` (default): earlier reading. Counts for the round only (readInRound, percent,
    *    juzProgress, firstUnread, roundComplete), never for daily stats. Pages already read or marked
    *    in the round are skipped.
    * Works regardless of the "Catat progres" setting (explicit user action). Resolves with the pages
    * newly added and an `undo` (valid CLEAR_UNDO_WINDOW_MS): for 'before' it removes the marks; for
-   * 'today' it removes those pages again but returns false once the day's op was already sent.
+   * day marks it removes those pages again but returns false once the day's op was already sent
+   * (use unmarkDay() then).
    */
   markRead(
     pages: readonly number[] | { from: number; to: number },
-    opts: { when?: 'today' | 'before' } = {},
+    opts: { when?: 'today' | 'day' | 'before'; day?: string } = {},
   ): Promise<MarkResult> {
     const list = expandPages(pages);
     const when = opts.when ?? 'before';
     const none: MarkResult = { added: 0, pages: [], undo: () => Promise.resolve(false) };
     if (!list.length) return Promise.resolve(none);
+    if (when === 'day') {
+      const err = markDayError(opts.day, Date.now());
+      if (err) return Promise.resolve({ ...none, error: err });
+    }
     return this.serial(async () => {
       const now = Date.now();
-      const day = localDay(now);
+      const day = when === 'day' ? (opts.day as string) : localDay(now);
+      const stamp = day === localDay(now) ? now : dayNoon(day);
       const added = await this.db.transaction('rw', this.tables, async () => {
         const account = await activeSyncAccount(this.db);
         const rounds = await this.db.rounds.toArray();
         let round = pickCurrentRound(rounds);
         let createdRound: KhatamRound | null = null;
+        if (round && when !== 'before' && stamp < round.startedAt) {
+          if (round.n !== 1) {
+            throw new MarkError(
+              `Tanggal itu sebelum khatam ke-${round.n} dimulai (${localDay(round.startedAt)}). Pilih tanggal yang lebih baru.`,
+            );
+          }
+          round = { ...round, startedAt: stamp, updatedAt: now };
+          await this.db.rounds.put(round);
+          if (account) {
+            await enqueueOutbox(this.db, account, 'khatam', round.id, 'upsert', roundPayload(round), round.rev);
+          }
+        }
         if (!round) {
           round = createdRound = {
             id: uuid(),
             n: rounds.reduce((m, r) => Math.max(m, r.n), 0) + 1,
-            startedAt: now,
+            startedAt: when === 'before' ? now : Math.min(now, stamp),
             finishedAt: null,
             updatedAt: now,
             rev: null,
@@ -363,12 +408,22 @@ export class ProgressService {
           }
         }
         const done: number[] = [];
-        if (when === 'today') {
+        const prev: Record<string, PageReadSpan | undefined> = {};
+        const stamped: Record<string, PageReadSpan> = {};
+        if (when !== 'before') {
           const cur = await this.db.readDays.get(day);
           const mine = { ...(cur?.pages ?? {}) };
           for (const p of list) {
-            if (mine[String(p)]) continue;
-            mine[String(p)] = [now, now];
+            const k = String(p);
+            const old = mine[k];
+            if (old && spanActive(old)) continue;
+            // A removed page is re-added with lastAt just past its removal so it counts again.
+            const span: PageReadSpan = old
+              ? [Math.min(old[0], stamp), Math.max(stamp, (old[2] ?? 0) + 1), old[2] as number]
+              : [stamp, stamp];
+            prev[k] = old;
+            stamped[k] = span;
+            mine[k] = span;
             done.push(p);
           }
           if (done.length) {
@@ -390,7 +445,7 @@ export class ProgressService {
           }
           if (done.length) await this.putMarks(cur, marks, now, account);
         }
-        return { pages: done, createdRound };
+        return { pages: done, createdRound, prev, stamped };
       });
       const undo = async (): Promise<boolean> => {
         if (!added.pages.length) return false;
@@ -411,8 +466,13 @@ export class ProgressService {
             if (!cur) return false;
             const pagesLeft = { ...cur.pages };
             for (const p of added.pages) {
-              const span = pagesLeft[String(p)];
-              if (span && span[0] === now && span[1] === now) delete pagesLeft[String(p)];
+              const k = String(p);
+              const span = pagesLeft[k];
+              const mine = added.stamped[k];
+              if (!span || !mine || span.join() !== mine.join()) continue;
+              const before = added.prev[k];
+              if (before) pagesLeft[k] = before;
+              else delete pagesLeft[k];
             }
             const outboxDay = this.db.outbox
               .where('accountId')
@@ -448,7 +508,108 @@ export class ProgressService {
         }).catch(() => false);
       };
       return { added: added.pages.length, pages: added.pages, undo } satisfies MarkResult;
+    }).catch((e: unknown) => (e instanceof MarkError ? { ...none, error: e.message } : none));
+  }
+
+  /**
+   * Corrects a day: removes `pages` from the log of `day` (any past or present day). Stored as a
+   * removal timestamp on the page entry, so it syncs and survives merging with other devices; a later
+   * real read of the page re-adds it. Resolves with the pages actually removed (those that counted on
+   * that day) and an `undo` valid for CLEAR_UNDO_WINDOW_MS.
+   */
+  unmarkDay(
+    day: string,
+    pages: readonly number[] | { from: number; to: number },
+  ): Promise<UnmarkDayResult> {
+    const list = expandPages(pages);
+    const none: UnmarkDayResult = { removed: 0, pages: [], undo: () => Promise.resolve(false) };
+    if (!list.length || !isDayString(day)) return Promise.resolve(none);
+    return this.serial(async () => {
+      const now = Date.now();
+      const removedAt: Record<string, number> = {};
+      const gone = await this.db.transaction('rw', this.tables, async () => {
+        const account = await activeSyncAccount(this.db);
+        const cur = await this.db.readDays.get(day);
+        if (!cur) return [] as number[];
+        const mine = { ...cur.pages };
+        const out: number[] = [];
+        for (const p of list) {
+          const k = String(p);
+          const span = mine[k];
+          if (!span || !spanActive(span)) continue;
+          const at = Math.max(now, span[1]);
+          mine[k] = [span[0], span[1], at];
+          removedAt[k] = at;
+          out.push(p);
+        }
+        if (out.length) {
+          const row: ReadDay = { day, pages: mine, updatedAt: now, rev: cur.rev };
+          await this.db.readDays.put(row);
+          if (account) {
+            await enqueueOutbox(this.db, account, 'readday', day, 'upsert', readDayPayload(row), row.rev);
+          }
+        }
+        return out;
+      });
+      const undo = (): Promise<boolean> =>
+        this.serial(async () => {
+          if (!gone.length || Date.now() - now > CLEAR_UNDO_WINDOW_MS) return false;
+          return this.db.transaction('rw', this.tables, async () => {
+            const account = await activeSyncAccount(this.db);
+            const cur = await this.db.readDays.get(day);
+            if (!cur) return false;
+            const mine = { ...cur.pages };
+            let n = 0;
+            for (const p of gone) {
+              const k = String(p);
+              const span = mine[k];
+              const r = removedAt[k];
+              if (!span || r === undefined || span[2] !== r) continue; // changed since
+              mine[k] = [span[0], Math.max(span[1], r + 1), r];
+              n++;
+            }
+            if (!n) return false;
+            const row: ReadDay = { day, pages: mine, updatedAt: Date.now(), rev: cur.rev };
+            await this.db.readDays.put(row);
+            if (account) {
+              await enqueueOutbox(this.db, account, 'readday', day, 'upsert', readDayPayload(row), row.rev);
+            }
+            return true;
+          });
+        }).catch(() => false);
+      return { removed: gone.length, pages: gone, undo } satisfies UnmarkDayResult;
     }).catch(() => none);
+  }
+
+  /**
+   * Moves pages from day `from` to day `to` (mark on B, then remove from A). Only pages that count
+   * on `from` move. `to` follows the markRead day rules (30 days back, not in the future, round
+   * start). Nothing is removed from `from` when the mark on `to` is refused (`error` set).
+   */
+  async moveDay(
+    from: string,
+    to: string,
+    pages: readonly number[] | { from: number; to: number },
+  ): Promise<MoveResult> {
+    const none: MoveResult = { moved: 0, pages: [], undo: () => Promise.resolve(false) };
+    if (!isDayString(from) || !isDayString(to)) return { ...none, error: 'Tanggal tidak valid.' };
+    if (from === to) return { ...none, error: 'Pilih tanggal yang berbeda.' };
+    const row = await this.db.readDays.get(from);
+    const here = new Set(activePageNumbers(row?.pages ?? {}));
+    const list = expandPages(pages).filter((p) => here.has(p));
+    if (!list.length) return none;
+    const marked = await this.markRead(list, { when: 'day', day: to });
+    if (marked.error) return { ...none, error: marked.error };
+    const removed = await this.unmarkDay(from, list);
+    return {
+      moved: removed.removed,
+      pages: removed.pages,
+      undo: async () => {
+        const a = (await marked.undo()) || (await this.unmarkDay(to, marked.pages)).removed > 0;
+        const b = await removed.undo();
+        return a || b;
+      },
+    };
   }
 
   /** Removes manual marks (not tracked reads). Resolves with the number of marks removed. */

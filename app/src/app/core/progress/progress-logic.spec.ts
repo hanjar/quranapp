@@ -5,6 +5,9 @@ import {
   averagePerDay,
   daysBetween,
   etaDate,
+  isDayString,
+  markDayError,
+  pageRangesText,
   firstUnreadPage,
   juzProgress,
   juzRange,
@@ -112,5 +115,35 @@ describe('progress logic', () => {
     const d = etaDate(100, 5, now) as Date;
     expect(localDay(d.getTime())).toBe('2026-11-09'); // 20 days later
     expect(localDay((etaDate(11, 5, now) as Date).getTime())).toBe('2026-10-23'); // ceil(2.2)=3
+  });
+});
+
+describe('removed pages and day helpers', () => {
+  it('ignore removed pages in round, recent and per-day counts', () => {
+    const d: ReadDay = {
+      day: '2026-10-20',
+      pages: { '5': [100, 200], '6': [100, 200, 300], '7': [100, 400, 300] },
+      updatedAt: 1,
+      rev: null,
+    };
+    const round: KhatamRound = { id: 'r', n: 1, startedAt: 0, finishedAt: null, updatedAt: 0, rev: null };
+    expect([...readInRound([d], round)].sort()).toEqual([5, 7]);
+    expect(recentPages([d], 10).map((r) => r.page).sort()).toEqual([5, 7]);
+    expect(lastDays([d], '2026-10-20', 1)[0]!.count).toBe(2);
+  });
+
+  it('pageRangesText compacts ranges', () => {
+    expect(pageRangesText([540, 519, 520, 521, 536, 535])).toBe('519–521, 535–536, 540');
+    expect(pageRangesText([])).toBe('');
+  });
+
+  it('markDayError allows today back to 30 days, nothing else', () => {
+    const now = new Date(2026, 9, 21, 9).getTime();
+    expect(markDayError('2026-10-21', now)).toBeNull();
+    expect(markDayError('2026-09-21', now)).toBeNull();
+    expect(markDayError('2026-09-20', now)).toBeTruthy();
+    expect(markDayError('2026-10-22', now)).toBeTruthy();
+    expect(markDayError('2026-13-01', now)).toBeTruthy();
+    expect(isDayString('2026-02-29')).toBe(false);
   });
 });
