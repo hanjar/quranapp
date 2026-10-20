@@ -15,11 +15,14 @@ import {
   createJwksCache,
   verifyGoogleIdToken,
 } from './google';
+import { FEEDBACK_MAX_BODY, FEEDBACK_PER_DAY, FEEDBACK_PER_HOUR, buildIssue, parseFeedback } from './feedback';
 import {
   OAUTH_STATE_TTL_MS,
   SESSION_TOUCH_MS,
   SESSION_TTL_MS,
   rateLimit,
+  windowCount,
+  windowHit,
 } from './housekeeping';
 import {
   DEFAULT_PAGE_LIMIT,
@@ -308,6 +311,74 @@ export function createApp(overrides: Partial<Deps> = {}): Hono<AppBindings> {
     if (!Array.isArray(ops)) throw new ApiError(400, 'validation_error', '"ops" must be an array.');
     if (ops.length > MAX_OPS) throw new ApiError(400, 'too_many_ops', `At most ${MAX_OPS} operations per batch.`);
     return ok(c, await applyBatch(c.env.DB, auth.userId, ops as unknown[], deps.now()));
+  });
+
+  // ---- feedback -> GitHub issue (anonymous allowed) ----
+  app.post('/feedback', async (c) => {
+    const body = await readJsonBody(c, FEEDBACK_MAX_BODY);
+    // Honeypot: bots fill hidden fields. Pretend success, create nothing, count nothing.
+    if (isRecord(body) && body['website'] !== undefined && body['website'] !== null && body['website'] !== '') {
+      return ok(c, { issueNumber: 0, issueUrl: `https://github.com/${c.env.GITHUB_REPO ?? ''}/issues` });
+    }
+    const parsed = parseFeedback(body);
+    if (!parsed.ok) throw new ApiError(400, 'invalid_input', parsed.error);
+
+    const token = c.env.GITHUB_TOKEN;
+    const repo = c.env.GITHUB_REPO;
+    if (!token || !repo || !/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(repo)) {
+      throw new ApiError(503, 'feedback_unavailable', 'Layanan masukan belum tersedia.');
+    }
+
+    const now = deps.now();
+    const ip = c.req.header('CF-Connecting-IP') ?? 'unknown';
+    const HOUR = 60 * 60 * 1000;
+    const DAY = 24 * HOUR;
+    const hour = await windowCount(c.env.DB, `fb:h:${ip}`, HOUR, now);
+    const day = await windowCount(c.env.DB, `fb:d:${ip}`, DAY, now);
+    if (hour.count >= FEEDBACK_PER_HOUR || day.count >= FEEDBACK_PER_DAY) {
+      const retry = hour.count >= FEEDBACK_PER_HOUR ? hour.retryAfter : day.retryAfter;
+      throw new ApiError(429, 'rate_limited', 'Terlalu banyak kiriman, coba lagi nanti.', {
+        'Retry-After': String(retry),
+      });
+    }
+    await windowHit(c.env.DB, `fb:h:${ip}`, HOUR, now);
+    await windowHit(c.env.DB, `fb:d:${ip}`, DAY, now);
+
+    const issue = buildIssue(parsed.value);
+    let created: { number: number; url: string } | null = null;
+    try {
+      const res = await deps.fetch(`https://api.github.com/repos/${repo}/issues`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Accept: 'application/vnd.github+json',
+          'X-GitHub-Api-Version': '2022-11-28',
+          'User-Agent': 'mushaf-digital-feedback',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(issue),
+      });
+      if (res.status === 201) {
+        const j: unknown = await res.json();
+        if (isRecord(j) && typeof j['number'] === 'number' && typeof j['html_url'] === 'string') {
+          created = { number: j['number'], url: j['html_url'] };
+        }
+      } else {
+        console.error('github_status', res.status);
+      }
+    } catch {
+      console.error('github_unreachable');
+    }
+    if (!created) throw new ApiError(502, 'github_error', 'Layanan masukan sedang tidak tersedia.');
+
+    const day0 = new Date(now).toISOString().slice(0, 10);
+    const ipHash = (await sha256Hex(`${ip}|${day0}`)).slice(0, 32);
+    await c.env.DB.prepare(
+      'INSERT INTO feedback (id, created_at, category, issue_number, ip_hash) VALUES (?1, ?2, ?3, ?4, ?5)',
+    )
+      .bind(crypto.randomUUID(), now, parsed.value.category, created.number, ipHash)
+      .run();
+    return ok(c, { issueNumber: created.number, issueUrl: created.url });
   });
 
   // ---- export / delete ----

@@ -6,4 +6,8 @@ export interface Env {
   DEV_AUTH?: string;
   GOOGLE_CLIENT_ID?: string;
   GOOGLE_CLIENT_SECRET?: string;
+  /** "owner/repo" receiving feedback issues. */
+  GITHUB_REPO?: string;
+  /** Secret: fine-grained PAT with Issues read/write on GITHUB_REPO only. */
+  GITHUB_TOKEN?: string;
 }

@@ -146,3 +146,39 @@ package uses the latter (same API: `cloudflareTest`, `readD1Migrations`, `applyD
 - Bookmarks gain `folderId` (string <= 64 or null; may point to an unknown folder) and `note` (<= 500 chars or
   null). Missing fields from older clients are stored as null.
 - `GET /export` (`folders`) and `reset:true` snapshots include folders. Apply with `npm run migrate:remote`.
+
+## Feedback -> GitHub Issues (`POST /api/v1/feedback`, migration `0003_feedback.sql`)
+
+Anonymous (no login). Same CSRF/Origin rules as other POSTs; JSON body <= 16 KB.
+Request: `{category: saran|bug|konten|lainnya, message (10-2000 chars after trim), context: null | {appVersion<=20,
+build<=20, page 1-604|null, path<=100, userAgent<=200, paperTheme<=20, uiTheme<=20, layout<=20, online, standalone},
+website: ""}`. `website` is a honeypot: if non-empty the Worker answers 200 and does nothing (not counted).
+
+Success `{issueNumber, issueUrl}`. Errors: 400 `invalid_input`, 413, 429 `rate_limited` (+`Retry-After`),
+503 `feedback_unavailable` (no `GITHUB_TOKEN`/`GITHUB_REPO`), 502 `github_error` (GitHub failed or unreachable).
+
+- The Worker creates the issue via the GitHub REST API: title `[Saran|Bug|Koreksi konten|Lainnya] <first ~60 chars>`,
+  labels `feedback` and `feedback:<category>`, body = quoted message + "Konteks" table + footer.
+  The repository is public, so issues are public. User text is neutralised: `@` gets a zero-width space (no pings),
+  `#123` likewise (no cross-references), `& < >` are escaped, control characters stripped, 4+ blank lines collapsed.
+  The body never contains IP, cookies, session or account data.
+- Rate limit per IP: 5 per hour and 20 per day, counted only for accepted (valid, non-honeypot) submissions.
+- Audit table `feedback(id, created_at, category, issue_number, ip_hash)`: `ip_hash` = first 32 hex of
+  sha256(`ip|UTC-date`), no message text; purged after 90 days by the daily cron.
+- The token and message text are never logged.
+
+Create the token (GitHub -> Settings -> Developer settings -> Fine-grained personal access tokens):
+resource owner = the repo owner, **Only select repositories** = `hanjar/quranapp`, repository permission
+**Issues: Read and write** (nothing else; Metadata read-only is added automatically), set an expiry and note it.
+Then:
+
+```bash
+cd worker
+npx wrangler secret put GITHUB_TOKEN     # paste the token
+# GITHUB_REPO is a plain var in wrangler.toml ("hanjar/quranapp")
+npm run migrate:remote                   # applies 0003_feedback.sql
+npm run deploy
+```
+
+Create the labels `feedback`, `feedback:saran`, `feedback:bug`, `feedback:konten`, `feedback:lainnya` in the repo
+(GitHub also auto-creates missing labels when the token may do so; otherwise issues are created without them).

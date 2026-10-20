@@ -187,6 +187,9 @@ const SYNC_LABEL: Record<string, string> = {
         aria-label="Pilih berkas impor"
         (change)="importFile($event)"
       />
+      <button type="button" class="row" (click)="ui.openSheet('feedback')">
+        <span>Kirim masukan</span><span class="end chev" aria-hidden="true">›</span>
+      </button>
       <button type="button" class="row" (click)="ui.openSheet('about')">
         <span>Tentang &amp; lisensi</span
         ><span class="end">{{ buildLabel }} <span class="chev" aria-hidden="true">›</span></span>

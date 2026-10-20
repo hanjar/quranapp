@@ -10,6 +10,7 @@ routes = [{ pattern = "quran.hanjar.net/api/*", zone_name = "hanjar.net" }]
 [vars]
 APP_ORIGIN = "https://quran.hanjar.net"
 DEV_AUTH = "0"
+GITHUB_REPO = "hanjar/quranapp"
 
 [[d1_databases]]
 binding = "DB"

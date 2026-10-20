@@ -15,6 +15,8 @@ export default defineConfig(async () => {
             DEV_AUTH: '1',
             GOOGLE_CLIENT_ID: 'test-client-id',
             GOOGLE_CLIENT_SECRET: 'test-client-secret',
+            GITHUB_REPO: 'owner/repo',
+            GITHUB_TOKEN: 'ghp_testtoken',
           },
         },
       }),

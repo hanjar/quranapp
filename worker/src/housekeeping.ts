@@ -26,6 +26,27 @@ export async function rateLimit(db: D1Database, key: string, limit: number, now:
   return { allowed: count <= limit, retryAfter: Math.max(1, Math.ceil((windowStart + RATE_WINDOW_MS - now) / 1000)) };
 }
 
+/** Read-only count of the current window of a custom-length fixed window. */
+export async function windowCount(db: D1Database, key: string, windowMs: number, now: number): Promise<RateResult & { count: number }> {
+  const windowStart = Math.floor(now / windowMs) * windowMs;
+  const row = await db
+    .prepare('SELECT count FROM rate_limits WHERE key = ?1 AND window_start = ?2')
+    .bind(key, windowStart)
+    .first<{ count: number }>();
+  return { count: row?.count ?? 0, allowed: true, retryAfter: Math.max(1, Math.ceil((windowStart + windowMs - now) / 1000)) };
+}
+
+export async function windowHit(db: D1Database, key: string, windowMs: number, now: number): Promise<void> {
+  const windowStart = Math.floor(now / windowMs) * windowMs;
+  await db
+    .prepare(
+      `INSERT INTO rate_limits (key, window_start, count) VALUES (?1, ?2, 1)
+       ON CONFLICT (key, window_start) DO UPDATE SET count = count + 1`,
+    )
+    .bind(key, windowStart)
+    .run();
+}
+
 /**
  * Daily cleanup. Tombstones older than 180 days are purged, and the per-user
  * `tombstone_horizon` is raised to the highest purged rev so cursors older than that get reset:true.
@@ -58,6 +79,9 @@ export async function runCleanup(db: D1Database, now: number): Promise<void> {
     db.prepare('DELETE FROM sessions WHERE expires_at < ?1').bind(now),
     db.prepare('DELETE FROM oauth_states WHERE expires_at < ?1').bind(now),
     db.prepare('DELETE FROM op_log WHERE created_at < ?1').bind(now - OP_LOG_RETENTION_MS),
-    db.prepare('DELETE FROM rate_limits WHERE window_start < ?1').bind(now - 60 * 60 * 1000),
+    db
+      .prepare("DELETE FROM rate_limits WHERE (key NOT LIKE 'fb:d:%' AND window_start < ?1) OR window_start < ?2")
+      .bind(now - 60 * 60 * 1000, now - 26 * 60 * 60 * 1000),
+    db.prepare('DELETE FROM feedback WHERE created_at < ?1').bind(now - OP_LOG_RETENTION_MS),
   ]);
 }

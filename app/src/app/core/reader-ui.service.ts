@@ -3,7 +3,7 @@ import { Router } from '@angular/router';
 import { AyahRef, PAGE_COUNT } from './models';
 
 export type SheetName =
-  'verse' | 'browse' | 'bookmarks' | 'search' | 'settings' | 'offline' | 'account' | 'about';
+  'verse' | 'browse' | 'bookmarks' | 'search' | 'settings' | 'offline' | 'account' | 'about' | 'feedback';
 
 export type BrowseTab = 'surah' | 'juz' | 'page';
 

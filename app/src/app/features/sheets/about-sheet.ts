@@ -110,6 +110,14 @@ import { SHEET_STYLES } from './sheet-styles';
       </p>
     </section>
 
+    <section aria-label="Masukan">
+      <h3>Masukan</h3>
+      <p>Punya saran atau menemukan masalah? Kami senang mendengarnya.</p>
+      <button type="button" class="mf-btn mf-btn--outline" (click)="ui.openSheet('feedback')">
+        Kirim masukan
+      </button>
+    </section>
+
     <section aria-label="Privasi">
       <h3>Privasi</h3>
       <p>
@@ -123,7 +131,7 @@ import { SHEET_STYLES } from './sheet-styles';
 export class AboutSheet {
   private readonly content = inject(ContentApi);
   private readonly sw = inject(SwUpdate);
-  private readonly ui = inject(ReaderUiService);
+  protected readonly ui = inject(ReaderUiService);
   protected readonly build = BUILD_INFO;
   protected readonly builtAt = BUILD_INFO.builtAt
     ? formatDateTime(Date.parse(BUILD_INFO.builtAt))

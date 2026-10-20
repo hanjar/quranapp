@@ -8,6 +8,8 @@ declare global {
       DEV_AUTH?: string;
       GOOGLE_CLIENT_ID?: string;
       GOOGLE_CLIENT_SECRET?: string;
+      GITHUB_REPO?: string;
+      GITHUB_TOKEN?: string;
       TEST_MIGRATIONS: D1Migration[];
     }
   }
