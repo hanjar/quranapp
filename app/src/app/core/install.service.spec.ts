@@ -1,5 +1,5 @@
 import { TestBed } from '@angular/core/testing';
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 import { InstallService } from './install.service';
 
 function fakePrompt(outcome: 'accepted' | 'dismissed') {
@@ -41,5 +41,41 @@ describe('InstallService', () => {
     const svc = TestBed.inject(InstallService);
     window.dispatchEvent(new Event('appinstalled'));
     expect(svc.state()).toBe('installed');
+  });
+});
+
+describe('InstallService modal', () => {
+  beforeEach(() => {
+    localStorage.clear();
+    sessionStorage.clear();
+  });
+
+  it('auto-offers at most once per session', () => {
+    const svc = TestBed.inject(InstallService);
+    svc.offerOnce();
+    expect(svc.modalOpen()).toBe(true);
+    svc.closeModal();
+    svc.offerOnce();
+    expect(svc.modalOpen()).toBe(false);
+  });
+
+  it('never auto-offers after "Jangan tampilkan lagi", but the menu still opens it', () => {
+    const svc = TestBed.inject(InstallService);
+    svc.openModal();
+    svc.closeModal({ dontShowAgain: true });
+    expect(localStorage.getItem('mf-install-dismissed')).toBe('1');
+    sessionStorage.clear(); // new session
+    svc.offerOnce();
+    expect(svc.modalOpen()).toBe(false);
+    svc.openModal();
+    expect(svc.modalOpen()).toBe(true);
+  });
+
+  it('does not open when already installed', () => {
+    const svc = TestBed.inject(InstallService);
+    window.dispatchEvent(new Event('appinstalled'));
+    svc.openModal();
+    svc.offerOnce();
+    expect(svc.modalOpen()).toBe(false);
   });
 });

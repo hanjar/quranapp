@@ -47,7 +47,8 @@ export class TranslationService {
       .then(async (r) => {
         if (!r.ok) throw new Error(String(r.status));
         const f = (await r.json()) as TranslationFile;
-        if (f.format !== 'mushaf-translation' || typeof f.ayahs !== 'object') throw new Error('format');
+        if (f.format !== 'mushaf-translation' || typeof f.ayahs !== 'object')
+          throw new Error('format');
         this.source.set(f.source);
         return f;
       })

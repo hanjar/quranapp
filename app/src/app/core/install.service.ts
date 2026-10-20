@@ -23,6 +23,39 @@ export class InstallService {
   private readonly doc = inject(DOCUMENT);
   private deferred: BeforeInstallPromptEvent | null = null;
   readonly state = signal<InstallState>(this.initialState());
+  /** The "Pasang Mushaf Digital" modal (features/shell/install-prompt.ts). */
+  readonly modalOpen = signal(false);
+  /** User ticked "Jangan tampilkan lagi": never auto-offer again (the Settings row still works). */
+  readonly dismissedForever = signal(readFlag(DISMISS_KEY));
+
+  /** Opens the modal on request (Settings row) — ignores the "don't show again" flag. */
+  openModal(): void {
+    if (this.state() !== 'installed') this.modalOpen.set(true);
+  }
+
+  /** Automatic offer: at most once per session, never after "Jangan tampilkan lagi". */
+  offerOnce(): void {
+    if (this.state() === 'installed' || this.dismissedForever() || readFlag(SESSION_KEY, true))
+      return;
+    writeFlag(SESSION_KEY, true, true);
+    this.modalOpen.set(true);
+  }
+
+  closeModal(opts: { dontShowAgain?: boolean } = {}): void {
+    this.modalOpen.set(false);
+    if (opts.dontShowAgain) {
+      this.dismissedForever.set(true);
+      writeFlag(DISMISS_KEY, true);
+    } else if (this.dismissedForever()) {
+      this.resetDismissal(); // the box was unticked: offers may show again
+    }
+  }
+
+  /** Re-enables the automatic offer (e.g. a "show again" option). */
+  resetDismissal(): void {
+    this.dismissedForever.set(false);
+    writeFlag(DISMISS_KEY, false);
+  }
 
   constructor() {
     const win = this.doc.defaultView;
@@ -78,5 +111,27 @@ export class InstallService {
       /iPad|iPhone|iPod/.test(nav.userAgent) ||
       (/Macintosh/.test(nav.userAgent) && nav.maxTouchPoints > 1)
     );
+  }
+}
+
+const DISMISS_KEY = 'mf-install-dismissed';
+const SESSION_KEY = 'mf-install-offered';
+
+/** Storage can be unavailable (private mode, blocked site data): fail closed, never throw. */
+function readFlag(key: string, session = false): boolean {
+  try {
+    return (session ? sessionStorage : localStorage).getItem(key) === '1';
+  } catch {
+    return false;
+  }
+}
+
+function writeFlag(key: string, on: boolean, session = false): void {
+  try {
+    const s = session ? sessionStorage : localStorage;
+    if (on) s.setItem(key, '1');
+    else s.removeItem(key);
+  } catch {
+    // preference lasts for this page load only
   }
 }

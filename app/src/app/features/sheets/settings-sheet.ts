@@ -32,38 +32,6 @@ const SYNC_LABEL: Record<string, string> = {
   changeDetection: ChangeDetectionStrategy.OnPush,
   styles: SHEET_STYLES,
   template: `
-    @if (install.state() !== 'installed') {
-      <section class="offline-cta" aria-labelledby="st-install">
-        <h3 id="st-install">Pasang ke perangkat</h3>
-        <p class="muted">
-          Buka Mushaf Digital langsung dari layar utama, layar penuh, tanpa bilah alamat.
-        </p>
-        @switch (install.state()) {
-          @case ('available') {
-            <button type="button" class="mf-btn mf-btn--primary" (click)="installApp()">
-              Pasang aplikasi
-            </button>
-          }
-          @case ('ios') {
-            <ol class="muted steps">
-              <li>Ketuk tombol <strong>Bagikan</strong> (kotak dengan panah ke atas) di Safari.</li>
-              <li>Pilih <strong>Tambahkan ke Layar Utama</strong>.</li>
-              <li>Ketuk <strong>Tambah</strong>.</li>
-            </ol>
-          }
-          @default {
-            <ol class="muted steps">
-              <li>Buka menu peramban (<strong>⋮</strong> di Chrome).</li>
-              <li>
-                Pilih <strong>Instal aplikasi</strong> atau
-                <strong>Tambahkan ke layar utama</strong>.
-              </li>
-            </ol>
-          }
-        }
-      </section>
-    }
-
     @if (offlineCta(); as cta) {
       <section class="offline-cta" aria-labelledby="st-offline-cta">
         <h3 id="st-offline-cta">Baca tanpa internet</h3>
@@ -220,6 +188,11 @@ const SYNC_LABEL: Record<string, string> = {
         aria-label="Pilih berkas impor"
         (change)="importFile($event)"
       />
+      @if (install.state() !== 'installed') {
+        <button type="button" class="row" (click)="ui.closeSheet(); install.openModal()">
+          <span>Pasang ke perangkat</span><span class="end chev" aria-hidden="true">›</span>
+        </button>
+      }
       <button type="button" class="row" (click)="ui.openSheet('feedback')">
         <span>Kirim masukan</span><span class="end chev" aria-hidden="true">›</span>
       </button>
@@ -267,11 +240,6 @@ export class SettingsSheet {
           : `Unduh semua halaman (≈ ${formatMb(s.totalBytes)})`,
     };
   });
-
-  protected async installApp(): Promise<void> {
-    const ok = await this.install.promptInstall();
-    if (ok) this.ui.showToast({ message: 'Mushaf Digital terpasang di perangkat ini' });
-  }
 
   /** Starts (or resumes) the full download and shows its progress. */
   protected downloadAll(): void {
