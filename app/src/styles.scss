@@ -108,6 +108,18 @@ html[data-paper='antique'] {
   --mf-ayah-ornament: #8a6622;
 }
 
+/* Krem Nyaman: dark (not black) ink on warm, lower-luminance paper, ~12.5:1 — see docs/DECISIONS.md D27 */
+html[data-paper='comfort'] {
+  --mf-paper: #f3ead3;
+  --mf-surround: #e4d9bc;
+  --mf-surface-paper: #f8f1df;
+  --mf-text-ink: #2b2622;
+  --mf-frame-ink: #7a5a12;
+  --mf-frame-ink-inner: #a9852f;
+  --mf-ayah-ornament: #8a6a1f;
+  --mf-line-rule: rgb(169 133 47 / 0.35);
+}
+
 /* Krem Madinah: cream paper with the red + gold frame of printed Madinah mushafs. */
 html[data-paper='cream'] {
   --mf-paper: #fffdf6;

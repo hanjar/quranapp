@@ -189,6 +189,16 @@ const SYNC_LABEL: Record<string, string> = {
           </button>
         }
       </div>
+      @if (prefs().paperTheme === 'comfort') {
+        <p class="muted">
+          <strong>Krem Nyaman:</strong> kertas krem hangat dengan tinta gelap (kontras ±12:1), bukan hitam
+          pekat di atas putih terang, sehingga silau berkurang. Penelitian cukup konsisten bahwa teks gelap di
+          latar terang lebih mudah dibaca, terutama di ruangan terang. Belum ada bukti kuat bahwa warna krem
+          atau filter cahaya biru mengurangi kelelahan mata, dan tiap orang bisa berbeda. Yang paling membantu:
+          kecerahan layar disamakan dengan cahaya ruangan, dan istirahatkan mata setiap 20 menit (lihat jauh 20
+          detik). Di ruangan gelap, pakai Mode malam.
+        </p>
+      }
       @if (prefs().customThemes.length) {
         <h4 class="subh" id="st-custom">Tema saya</h4>
         <div class="grid3" [class.is-inactive]="theme.nightActive()">

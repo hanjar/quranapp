@@ -67,7 +67,9 @@ export class ThemeEditor {
   })();
 
   /** The colours "Kembalikan" returns to: the saved theme being edited, or Krem Madinah. */
-  private readonly initial: ThemeColors = this.editing ? pickColors(this.editing) : BASE_THEME_COLORS;
+  private readonly initial: ThemeColors = this.editing
+    ? pickColors(this.editing)
+    : BASE_THEME_COLORS;
 
   protected readonly name = signal(
     this.editing?.name ?? defaultThemeName(this.data.prefs().customThemes),
@@ -139,7 +141,9 @@ export class ThemeEditor {
   protected async save(): Promise<void> {
     const colors = this.colors();
     if (this.full()) {
-      this.nameError.set(`Maksimal ${CUSTOM_THEME_LIMIT} tema. Hapus salah satu dulu di Pengaturan.`);
+      this.nameError.set(
+        `Maksimal ${CUSTOM_THEME_LIMIT} tema. Hapus salah satu dulu di Pengaturan.`,
+      );
       return;
     }
     const err = validateThemeDraft(this.name(), colors);

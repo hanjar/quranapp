@@ -172,12 +172,53 @@ describe('sync apply', () => {
     });
 
     it('applies synced custom themes; an older client omitting them keeps the local list', async () => {
-      const mine = { id: 't1', name: 'Tema saya 1', paper: '#fffdf6', surround: '#f1e9d2', frameInk: '#ae3033', frameInkInner: '#d7c388', ayahOrnament: '#a07a2c', textInk: '#231f20' };
-      await db.prefs.put({ ...DEFAULT_PREFERENCES, key: 'prefs', customThemes: [mine], paperTheme: 'custom:t1', rev: 1 });
-      const change = (data: Record<string, unknown>, rev: number): Change => ({ entity: 'prefs', id: 'prefs', rev, deleted: false, data });
+      const mine = {
+        id: 't1',
+        name: 'Tema saya 1',
+        paper: '#fffdf6',
+        surround: '#f1e9d2',
+        frameInk: '#ae3033',
+        frameInkInner: '#d7c388',
+        ayahOrnament: '#a07a2c',
+        textInk: '#231f20',
+      };
+      await db.prefs.put({
+        ...DEFAULT_PREFERENCES,
+        key: 'prefs',
+        customThemes: [mine],
+        paperTheme: 'custom:t1',
+        rev: 1,
+      });
+      const change = (data: Record<string, unknown>, rev: number): Change => ({
+        entity: 'prefs',
+        id: 'prefs',
+        rev,
+        deleted: false,
+        data,
+      });
       await applyChanges(db, ACC, [change({ updatedAt: 5 }, 2)], opts());
-      expect(await db.prefs.get('prefs')).toMatchObject({ customThemes: [mine], paperTheme: 'custom:t1' });
-      await applyChanges(db, ACC, [change({ paperTheme: 'custom:t2', customThemes: [{ ...mine, id: 't2' }, { ...mine, id: 'x', paper: 'bad' }], updatedAt: 6 }, 3)], opts());
+      expect(await db.prefs.get('prefs')).toMatchObject({
+        customThemes: [mine],
+        paperTheme: 'custom:t1',
+      });
+      await applyChanges(
+        db,
+        ACC,
+        [
+          change(
+            {
+              paperTheme: 'custom:t2',
+              customThemes: [
+                { ...mine, id: 't2' },
+                { ...mine, id: 'x', paper: 'bad' },
+              ],
+              updatedAt: 6,
+            },
+            3,
+          ),
+        ],
+        opts(),
+      );
       const p = await db.prefs.get('prefs');
       expect(p?.paperTheme).toBe('custom:t2');
       expect(p?.customThemes.map((t) => t.id)).toEqual(['t2']);
@@ -186,22 +227,65 @@ describe('sync apply', () => {
     });
 
     it('applies the synced device settings; omitted or invalid fields keep the local value', async () => {
-      await db.prefs.put({ ...DEFAULT_PREFERENCES, key: 'prefs', lineRules: true, audioMode: 'page', rev: 1 });
-      const change = (data: Record<string, unknown>, rev: number): Change => ({ entity: 'prefs', id: 'prefs', rev, deleted: false, data });
+      await db.prefs.put({
+        ...DEFAULT_PREFERENCES,
+        key: 'prefs',
+        lineRules: true,
+        audioMode: 'page',
+        rev: 1,
+      });
+      const change = (data: Record<string, unknown>, rev: number): Change => ({
+        entity: 'prefs',
+        id: 'prefs',
+        rev,
+        deleted: false,
+        data,
+      });
       // an older client omits the new fields: nothing is reset
       await applyChanges(db, ACC, [change({ paperTheme: 'photo', updatedAt: 5 }, 2)], opts());
-      expect(await db.prefs.get('prefs')).toMatchObject({ lineRules: true, audioMode: 'page', showLatin: false });
+      expect(await db.prefs.get('prefs')).toMatchObject({
+        lineRules: true,
+        audioMode: 'page',
+        showLatin: false,
+      });
       await applyChanges(
         db,
         ACC,
-        [change({ lineRules: false, showLatin: true, translationScale: 1.5, audioMode: 'ayah', audioFollow: false, pageRenderer: 'qcf-tajweed', updatedAt: 6 }, 3)],
+        [
+          change(
+            {
+              lineRules: false,
+              showLatin: true,
+              translationScale: 1.5,
+              audioMode: 'ayah',
+              audioFollow: false,
+              pageRenderer: 'qcf-tajweed',
+              updatedAt: 6,
+            },
+            3,
+          ),
+        ],
         opts(),
       );
       expect(await db.prefs.get('prefs')).toMatchObject({
-        lineRules: false, showLatin: true, translationScale: 1.45, audioMode: 'ayah', audioFollow: false, pageRenderer: 'qcf-tajweed',
+        lineRules: false,
+        showLatin: true,
+        translationScale: 1.45,
+        audioMode: 'ayah',
+        audioFollow: false,
+        pageRenderer: 'qcf-tajweed',
       });
-      await applyChanges(db, ACC, [change({ audioMode: 'nope', pageRenderer: 'nope', showLatin: 'x', updatedAt: 7 }, 4)], opts());
-      expect(await db.prefs.get('prefs')).toMatchObject({ audioMode: 'ayah', pageRenderer: 'qcf-tajweed', showLatin: true });
+      await applyChanges(
+        db,
+        ACC,
+        [change({ audioMode: 'nope', pageRenderer: 'nope', showLatin: 'x', updatedAt: 7 }, 4)],
+        opts(),
+      );
+      expect(await db.prefs.get('prefs')).toMatchObject({
+        audioMode: 'ayah',
+        pageRenderer: 'qcf-tajweed',
+        showLatin: true,
+      });
     });
 
     it('keeps a pending local prefs edit and bumps its baseRev', async () => {
@@ -459,10 +543,20 @@ describe('sync apply', () => {
 
   describe('folders', () => {
     const fo = (id: string, name: string, over: Partial<BookmarkFolder> = {}): BookmarkFolder => ({
-      id, name, createdAt: 1, updatedAt: 1, deletedAt: null, rev: null, ...over,
+      id,
+      name,
+      createdAt: 1,
+      updatedAt: 1,
+      deletedAt: null,
+      rev: null,
+      ...over,
     });
     const foChange = (id: string, rev: number, name: string, deleted = false): Change => ({
-      entity: 'folder', id, rev, deleted, data: deleted ? null : { name, createdAt: 1, updatedAt: 2 },
+      entity: 'folder',
+      id,
+      rev,
+      deleted,
+      data: deleted ? null : { name, createdAt: 1, updatedAt: 2 },
     });
 
     it('upserts folders honoring rev and applies tombstones', async () => {
@@ -476,7 +570,15 @@ describe('sync apply', () => {
     });
 
     it('bookmark changes carry folderId/note; missing => null', async () => {
-      await applyChanges(db, ACC, [bmChange('a', 1, {}, { folderId: 'f1', note: 'catatan' }), bmChange('b', 2, {}, { key: 'k2', page: 2 })], opts());
+      await applyChanges(
+        db,
+        ACC,
+        [
+          bmChange('a', 1, {}, { folderId: 'f1', note: 'catatan' }),
+          bmChange('b', 2, {}, { key: 'k2', page: 2 }),
+        ],
+        opts(),
+      );
       expect(await db.bookmarks.get('a')).toMatchObject({ folderId: 'f1', note: 'catatan' });
       expect(await db.bookmarks.get('b')).toMatchObject({ folderId: null, note: null });
     });
@@ -509,12 +611,18 @@ describe('sync apply', () => {
       const oc = makeOp(ACC, 'folder', 'c', 'upsert', {}, 1);
       const od = makeOp(ACC, 'folder', 'a', 'upsert', {}, null);
       await db.outbox.bulkAdd([oa, ob, oc, od]);
-      const out = await handleResults(db, ACC, [oa, ob, oc, od], [
-        { opId: oa.opId, status: 'applied', rev: 3 },
-        { opId: ob.opId, status: 'duplicate', current: foChange('sb', 4, 'b') },
-        { opId: oc.opId, status: 'conflict', current: foChange('c', 8, 'C2') },
-        { opId: od.opId, status: 'rejected', error: 'folder_name_taken' },
-      ], opts());
+      const out = await handleResults(
+        db,
+        ACC,
+        [oa, ob, oc, od],
+        [
+          { opId: oa.opId, status: 'applied', rev: 3 },
+          { opId: ob.opId, status: 'duplicate', current: foChange('sb', 4, 'b') },
+          { opId: oc.opId, status: 'conflict', current: foChange('c', 8, 'C2') },
+          { opId: od.opId, status: 'rejected', error: 'folder_name_taken' },
+        ],
+        opts(),
+      );
       expect((await db.folders.get('a'))?.rev).toBe(3);
       expect((await db.folders.get('b'))?.deletedAt).not.toBeNull();
       expect(await db.folders.get('sb')).toMatchObject({ rev: 4 });
@@ -536,7 +644,7 @@ describe('sync apply', () => {
       await db.folders.bulkPut([fo('f', 'F'), fo('t', 'T', { deletedAt: 5 })]);
       await db.bookmarks.put(bm('a', { folderId: 'f' }));
       await enqueueLocalSnapshot(db, ACC);
-      const ops = (await db.outbox.orderBy('createdAt').toArray());
+      const ops = await db.outbox.orderBy('createdAt').toArray();
       expect(ops.map((o) => o.entity)).toEqual(['folder', 'bookmark']);
       expect(ops[1]?.payload).toMatchObject({ folderId: 'f', note: null });
     });

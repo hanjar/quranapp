@@ -36,8 +36,10 @@ describe('hex helpers', () => {
   });
 
   it('every swatch and starter is a valid hex', () => {
-    for (const k of THEME_COLOR_KEYS) for (const s of COLOR_SWATCHES[k]) expect(normalizeHex(s.hex)).toBe(s.hex);
-    for (const s of THEME_STARTERS) for (const k of THEME_COLOR_KEYS) expect(normalizeHex(s.colors[k])).toBe(s.colors[k]);
+    for (const k of THEME_COLOR_KEYS)
+      for (const s of COLOR_SWATCHES[k]) expect(normalizeHex(s.hex)).toBe(s.hex);
+    for (const s of THEME_STARTERS)
+      for (const k of THEME_COLOR_KEYS) expect(normalizeHex(s.colors[k])).toBe(s.colors[k]);
   });
 });
 
@@ -49,7 +51,11 @@ describe('contrast', () => {
   });
 
   it('flags text below 4.5 and ornament/frames below 3, without blocking', () => {
-    const checks = contrastChecks({ ...BASE_THEME_COLORS, textInk: '#bbbbbb', ayahOrnament: '#fff8e0' });
+    const checks = contrastChecks({
+      ...BASE_THEME_COLORS,
+      textInk: '#bbbbbb',
+      ayahOrnament: '#fff8e0',
+    });
     const by = Object.fromEntries(checks.map((c) => [c.key, c]));
     expect(by['text']!.ok).toBe(false);
     expect(by['text']!.min).toBe(4.5);
@@ -107,9 +113,18 @@ describe('paper ids', () => {
 
   it('resolves a missing custom theme to Krem Madinah', () => {
     const t = theme('a');
-    expect(resolvePaper({ paperTheme: 'custom:a', customThemes: [t] })).toEqual({ builtin: 'cream', custom: t });
-    expect(resolvePaper({ paperTheme: 'custom:gone', customThemes: [t] })).toEqual({ builtin: 'cream', custom: null });
-    expect(resolvePaper({ paperTheme: 'photo', customThemes: [t] })).toEqual({ builtin: 'photo', custom: null });
+    expect(resolvePaper({ paperTheme: 'custom:a', customThemes: [t] })).toEqual({
+      builtin: 'cream',
+      custom: t,
+    });
+    expect(resolvePaper({ paperTheme: 'custom:gone', customThemes: [t] })).toEqual({
+      builtin: 'cream',
+      custom: null,
+    });
+    expect(resolvePaper({ paperTheme: 'photo', customThemes: [t] })).toEqual({
+      builtin: 'photo',
+      custom: null,
+    });
   });
 });
 
@@ -147,6 +162,8 @@ describe('draft', () => {
 
   it('suggests the first unused default name', () => {
     expect(defaultThemeName([])).toBe('Tema saya 1');
-    expect(defaultThemeName([theme('a', { name: 'Tema saya 1' }), theme('b', { name: 'tema saya 2' })])).toBe('Tema saya 3');
+    expect(
+      defaultThemeName([theme('a', { name: 'Tema saya 1' }), theme('b', { name: 'tema saya 2' })]),
+    ).toBe('Tema saya 3');
   });
 });
