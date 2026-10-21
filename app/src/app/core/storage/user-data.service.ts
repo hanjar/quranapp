@@ -23,6 +23,7 @@ import { MUSHAF_DB } from './db-token';
 import { PrefsRow } from './db';
 import { MAX_IMPORT_BYTES, parseExportText } from './export-file';
 import { activeSyncAccount, enqueueOutbox } from './outbox';
+import { recordStorageError } from './storage-diagnostics';
 
 const POSITION_THROTTLE_MS = 2000;
 const UNDO_WINDOW_MS = 6000;
@@ -33,7 +34,11 @@ export const DB_BLOCKED_MESSAGE = 'Tutup tab Mushaf Digital lain lalu muat ulang
 export const DB_OUTDATED_MESSAGE = 'Versi baru siap di tab lain. Muat ulang halaman ini.';
 
 export class StorageUnavailableError extends Error {
-  constructor(message: string) {
+  constructor(
+    message: string,
+    /** blocked: another tab holds the open up; outdated: a newer schema is open elsewhere. */
+    readonly kind: 'blocked' | 'outdated' = 'blocked',
+  ) {
     super(message);
     this.name = 'StorageUnavailableError';
   }
@@ -133,7 +138,7 @@ export class UserDataService extends UserDataApi {
   /** Resolves once IndexedDB is open; rejects (never hangs) when another tab holds it up. */
   private async ensureOpen(): Promise<void> {
     if (this.db.isOpen()) return;
-    if (this.db.outdated) throw new StorageUnavailableError(DB_OUTDATED_MESSAGE);
+    if (this.db.outdated) throw new StorageUnavailableError(DB_OUTDATED_MESSAGE, 'outdated');
     let timer: ReturnType<typeof setTimeout> | undefined;
     try {
       await Promise.race([
@@ -178,8 +183,14 @@ export class UserDataService extends UserDataApi {
   }
 
   /** Serializes all writes so read-modify-write sequences never interleave. */
-  private serial<T>(fn: () => Promise<T>): Promise<T> {
-    const run = this.chain.then(() => this.ensureOpen()).then(fn);
+  private serial<T>(fn: () => Promise<T>, op = 'write'): Promise<T> {
+    const run = this.chain
+      .then(() => this.ensureOpen())
+      .then(fn)
+      .catch((e: unknown) => {
+        recordStorageError(op, e);
+        throw e;
+      });
     this.chain = run.catch(() => undefined);
     return run;
   }
@@ -390,7 +401,10 @@ export class UserDataService extends UserDataApi {
   ): Promise<'added' | 'removed'> {
     return this.serial(async () => {
       const key = bookmarkKey(DEFAULT_EDITION, kind, t);
-      const result = await this.db.transaction('rw', this.tables, async () => {
+      // Narrow scope: only the tables a toggle touches, so it never queues behind a
+      // transaction on prefs/positions/read days.
+      const scope = [this.db.bookmarks, this.db.outbox, this.db.sync];
+      const result = await this.db.transaction('rw', scope, async () => {
         const account = await activeSyncAccount(this.db);
         const active = await this.db.bookmarks
           .where('key')
@@ -445,7 +459,7 @@ export class UserDataService extends UserDataApi {
       });
       await this.refreshBookmarks();
       return result;
-    });
+    }, 'toggle-bookmark');
   }
 
   removeBookmark(id: string): Promise<() => Promise<void>> {

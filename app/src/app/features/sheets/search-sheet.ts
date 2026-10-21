@@ -288,7 +288,11 @@ export class SearchSheet {
     } else {
       const refs = this.refResults().map((r, i) => this.refItem(r, i));
       if (refs.length) {
-        groups.push({ key: 'ref', heading: isReferenceQuery(q) ? 'Rujukan' : 'Surah', items: refs });
+        groups.push({
+          key: 'ref',
+          heading: isReferenceQuery(q) ? 'Rujukan' : 'Surah',
+          items: refs,
+        });
       }
       const feats = searchFeatures(q, this.env(), 6).map((x) => this.featureItem(x));
       if (feats.length) groups.push({ key: 'feat', heading: 'Fitur', items: feats });
@@ -408,7 +412,12 @@ export class SearchSheet {
     if (page !== null) this.history.navigateTo(page, { highlight: { surah, ayah } });
   }
 
-  private openBookmark(page: number, kind: string, surah: number | null, ayah: number | null): void {
+  private openBookmark(
+    page: number,
+    kind: string,
+    surah: number | null,
+    ayah: number | null,
+  ): void {
     const highlight = kind === 'verse' && surah && ayah ? { surah, ayah } : null;
     this.history.navigateTo(page, { highlight });
   }
@@ -444,7 +453,9 @@ export class SearchSheet {
         this.ui.closeSheet();
         this.ui.showToast({
           message:
-            this.rv.mode() === 'translation' ? 'Mode terjemahan aktif' : 'Kembali ke halaman mushaf',
+            this.rv.mode() === 'translation'
+              ? 'Mode terjemahan aktif'
+              : 'Kembali ke halaman mushaf',
           duration: 3000,
         });
         break;

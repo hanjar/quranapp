@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { InstallService } from '../../core/install.service';
 import { OfflineApi, SyncApi } from '../../core/contracts';
 import { ReaderUiService, SheetName } from '../../core/reader-ui.service';
@@ -64,6 +64,22 @@ import { offlineNeedsAttention, syncNeedsAttention } from '../reader/attention';
     }
     .label {
       max-width: 100%;
+    }
+    .tile:disabled {
+      opacity: 0.7;
+    }
+    .spin {
+      animation: mf-spin 0.9s linear infinite;
+    }
+    @keyframes mf-spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .spin {
+        animation: none;
+      }
     }
     .dot {
       position: absolute;
@@ -206,6 +222,37 @@ import { offlineNeedsAttention, syncNeedsAttention } from '../reader/attention';
           </button>
         </li>
       }
+      @if (sync.account()) {
+        <li>
+          <button
+            type="button"
+            class="tile"
+            data-tile="sync-now"
+            data-search-id="menu-sync"
+            [disabled]="syncing()"
+            [attr.aria-busy]="syncing()"
+            (click)="syncNow()"
+          >
+            <svg
+              class="sync-icon"
+              [class.spin]="syncing()"
+              width="26"
+              height="26"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.6"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <path d="M20 12a8 8 0 0 1-14 5.3M4 12a8 8 0 0 1 14-5.3" />
+              <path d="M18 3v4h-4M6 21v-4h4" />
+            </svg>
+            <span class="label">{{ syncing() ? 'Menyinkronkan…' : 'Sinkronkan' }}</span>
+          </button>
+        </li>
+      }
       <li>
         <button type="button" class="tile" data-tile="fullscreen" (click)="fullscreen()">
           <svg
@@ -318,6 +365,25 @@ export class MenuSheet {
     const base = a ? `Akun ${a.name ?? a.email ?? ''}`.trim() : 'Masuk';
     return this.syncAttention() ? `${base}, sinkronisasi perlu diperiksa` : base;
   });
+
+  protected readonly syncing = signal(false);
+
+  protected async syncNow(): Promise<void> {
+    if (this.syncing()) return;
+    this.syncing.set(true);
+    try {
+      await this.sync.syncNow();
+      const st = this.sync.status();
+      this.ui.showToast({
+        message: st === 'error' || st === 'offline' || st === 'unauthorized' ? 'Sinkronisasi belum berhasil. Coba lagi nanti.' : 'Tersinkron',
+      });
+    } catch (e) {
+      const msg = e instanceof Error && e.message ? e.message : 'Sinkronisasi gagal.';
+      this.ui.showToast({ message: msg });
+    } finally {
+      this.syncing.set(false);
+    }
+  }
 
   /** Swaps this sheet for another one (same mechanism as the search sheet). */
   protected open(sheet: SheetName): void {

@@ -7,6 +7,7 @@ import {
   mapError,
   messageLength,
   submitFeedback,
+  withDiagnostics,
   validateMessage,
 } from './feedback-api';
 
@@ -133,5 +134,39 @@ describe('submitFeedback', () => {
     await expect(
       submitFeedback(req, { fetchFn: fetchFn as unknown as typeof fetch, online: true }),
     ).rejects.toMatchObject({ kind: 'offline' });
+  });
+});
+
+describe('feedback diagnostics', () => {
+  const NL = String.fromCharCode(10);
+  const context = {
+    appVersion: '1',
+    build: 'x',
+    page: 1,
+    path: '/',
+    userAgent: 'ua',
+    paperTheme: 'a',
+    uiTheme: 'b',
+    layout: 'c',
+    online: true,
+    standalone: false,
+  };
+
+  it('appends storage errors only when context is sent', () => {
+    const req = buildRequest('bug', 'Penanda gagal disimpan di tablet', context, 'T [toggle] Error: boom');
+    expect(req.message).toContain('Galat penyimpanan terbaru');
+    expect(req.message).toContain('[toggle] Error: boom');
+    expect(buildRequest('bug', 'Penanda gagal disimpan di tablet', null, 'T [x] E: y').message).toBe(
+      'Penanda gagal disimpan di tablet',
+    );
+  });
+
+  it('never exceeds the limit and keeps the newest lines', () => {
+    const lines = Array.from({ length: 20 }, (_, i) => `L${i} ` + 'x'.repeat(150)).join(NL);
+    const out = withDiagnostics('a'.repeat(1500), lines);
+    expect(out.length).toBeLessThanOrEqual(2000);
+    expect(out).toContain('L19 ');
+    expect(out).not.toContain('L0 ');
+    expect(withDiagnostics('a'.repeat(1990), lines)).toBe('a'.repeat(1990));
   });
 });

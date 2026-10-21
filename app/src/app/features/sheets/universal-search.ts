@@ -20,8 +20,27 @@ export function tokenize(s: string): string[] {
 }
 
 const STOP_WORDS = new Set([
-  'cara', 'untuk', 'di', 'ke', 'yang', 'dan', 'atau', 'the', 'how', 'to', 'a', 'ini', 'dong',
-  'mau', 'ingin', 'saya', 'bisa', 'gimana', 'bagaimana', 'menu', 'fitur',
+  'cara',
+  'untuk',
+  'di',
+  'ke',
+  'yang',
+  'dan',
+  'atau',
+  'the',
+  'how',
+  'to',
+  'a',
+  'ini',
+  'dong',
+  'mau',
+  'ingin',
+  'saya',
+  'bisa',
+  'gimana',
+  'bagaimana',
+  'menu',
+  'fitur',
 ]);
 
 /** Query words with filler removed (kept as-is when nothing else is left). */
@@ -127,7 +146,11 @@ export function searchEntries<T extends Searchable>(
   index.forEach((it, order) => {
     const base = scoreFields(q, it.fields);
     if (base === null) return;
-    const bonus = it.phrases.some((p) => p === phrase) ? 4 : it.phrases.some((p) => p.startsWith(phrase)) ? 2 : 0;
+    const bonus = it.phrases.some((p) => p === phrase)
+      ? 4
+      : it.phrases.some((p) => p.startsWith(phrase))
+        ? 2
+        : 0;
     scored.push({ entry: it.entry, score: base + bonus, order });
   });
   return scored
@@ -297,7 +320,11 @@ export function makeSnippet(text: string, tokens: readonly string[]): Segment[] 
   return segs;
 }
 
-export function searchTranslation(raw: string, index: TranslationIndex, max = 20): TranslationHit[] {
+export function searchTranslation(
+  raw: string,
+  index: TranslationIndex,
+  max = 20,
+): TranslationHit[] {
   if (!canSearchTranslation(raw)) return [];
   const phrase = normalizeText(raw).replace(/\s+/g, ' ').trim();
   const words = tokenize(raw);

@@ -79,7 +79,7 @@ describe('feature registry', () => {
     expect(ids('audio offline', NONE)).not.toContain('offline-audio');
     expect(ids('login', NONE)).not.toContain('account');
     expect(ids('layar menyala', NONE)).not.toContain('wake');
-    expect(availableFeatures(NONE).length).toBe(FEATURES.length - 4);
+    expect(availableFeatures(NONE).length).toBe(FEATURES.length - 5);
   });
 
   it('ranks title matches first and returns nothing for gibberish', () => {

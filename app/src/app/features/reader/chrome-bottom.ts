@@ -1,4 +1,4 @@
-import { LOCAL_WRITE_TIMEOUT_MS, withTimeout } from '../../core/async';
+import { BookmarkToggleService } from '../../core/bookmark-toggle.service';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -9,7 +9,7 @@ import {
   output,
 } from '@angular/core';
 import { AudioService } from '../../core/audio/audio.service';
-import { ContentApi, UserDataApi } from '../../core/contracts';
+import { ContentApi } from '../../core/contracts';
 import { ReaderUiService } from '../../core/reader-ui.service';
 
 /** Press-and-hold on the bookmark button opens the bookmarks list after this long. */
@@ -251,7 +251,7 @@ export const BOOKMARK_LONG_PRESS_MS = 500;
 })
 export class ChromeBottom implements OnDestroy {
   protected readonly ui = inject(ReaderUiService);
-  private readonly userData = inject(UserDataApi);
+  private readonly bookmarkToggle = inject(BookmarkToggleService);
   private readonly content = inject(ContentApi);
   protected readonly audio = inject(AudioService);
 
@@ -267,8 +267,7 @@ export class ChromeBottom implements OnDestroy {
   protected readonly page = this.ui.currentPage;
 
   protected readonly pageBookmarked = computed(() => {
-    const p = this.ui.currentPage();
-    return this.userData.bookmarks().some((b) => b.kind === 'page' && b.page === p);
+    return this.bookmarkToggle.isPageBookmarked(this.ui.currentPage());
   });
 
   protected readonly pillText = computed(() => {
@@ -345,31 +344,7 @@ export class ChromeBottom implements OnDestroy {
     this.pressEnd();
   }
 
-  protected async toggleBookmark(): Promise<void> {
-    const page = this.ui.currentPage();
-    let result: 'added' | 'removed';
-    try {
-      result = await withTimeout(this.userData.togglePageBookmark(page), LOCAL_WRITE_TIMEOUT_MS);
-    } catch (e) {
-      console.error('[bookmark] page toggle failed', e);
-      this.ui.showToast({
-        message: 'Penanda gagal disimpan. Tutup tab lain aplikasi ini lalu muat ulang.',
-        duration: 8000,
-      });
-      return;
-    }
-    if (result === 'added') {
-      this.ui.showToast({
-        message: `Halaman ${page} ditandai`,
-        actionLabel: 'Urungkan',
-        action: () => void this.userData.togglePageBookmark(page),
-      });
-    } else {
-      this.ui.showToast({
-        message: 'Penanda halaman dihapus',
-        actionLabel: 'Urungkan',
-        action: () => void this.userData.togglePageBookmark(page),
-      });
-    }
+  protected toggleBookmark(): Promise<void> {
+    return this.bookmarkToggle.togglePage(this.ui.currentPage());
   }
 }

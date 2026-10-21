@@ -111,12 +111,42 @@ export function contextRows(c: FeedbackContext): { label: string; value: string 
   ];
 }
 
+const NL = String.fromCharCode(10);
+
+/**
+ * Appends recent storage errors to the message body (newest kept first when space is
+ * short) without exceeding MESSAGE_MAX. Returns the message unchanged when it does not fit.
+ */
+export function withDiagnostics(message: string, diagnostics: string): string {
+  const base = message.trim();
+  if (!diagnostics) return base;
+  const head = `${base}${NL}${NL}---${NL}Galat penyimpanan terbaru:${NL}`;
+  const room = MESSAGE_MAX - head.length;
+  if (room < 60) return base;
+  const lines = diagnostics.split(NL);
+  const kept: string[] = [];
+  let used = 0;
+  for (let i = lines.length - 1; i >= 0; i--) {
+    const line = trunc(lines[i], room);
+    if (used + line.length + 1 > room) break;
+    kept.unshift(line);
+    used += line.length + 1;
+  }
+  return kept.length ? head + kept.join(NL) : base;
+}
+
 export function buildRequest(
   category: FeedbackCategory,
   message: string,
   context: FeedbackContext | null,
+  diagnostics = '',
 ): FeedbackRequest {
-  return { category, message: message.trim(), context, website: '' };
+  return {
+    category,
+    message: context ? withDiagnostics(message, diagnostics) : message.trim(),
+    context,
+    website: '',
+  };
 }
 
 /** Maps an HTTP status + envelope error code to a typed error with Indonesian copy. */

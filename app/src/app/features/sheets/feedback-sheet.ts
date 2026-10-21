@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@a
 import { BUILD_INFO } from '../../core/build-info';
 import { UserDataApi } from '../../core/contracts';
 import { ReaderUiService } from '../../core/reader-ui.service';
+import { formatStorageErrors, recentStorageErrors } from '../../core/storage/storage-diagnostics';
 import {
   FEEDBACK_CATEGORIES,
   FeedbackCategory,
@@ -250,7 +251,11 @@ export class FeedbackSheet {
       standalone: matchMedia('(display-mode: standalone)').matches,
     });
   });
-  protected readonly rows = computed(() => contextRows(this.context()));
+  protected readonly rows = computed(() => {
+    const rows = contextRows(this.context());
+    const n = recentStorageErrors().length;
+    return n ? [...rows, { label: 'Galat penyimpanan', value: `${n} catatan terbaru` }] : rows;
+  });
 
   protected onInput(v: string): void {
     this.message.set(v);
@@ -264,7 +269,12 @@ export class FeedbackSheet {
     this.sending.set(true);
     try {
       const r = await submitFeedback(
-        buildRequest(this.category(), this.message(), this.withContext() ? this.context() : null),
+        buildRequest(
+          this.category(),
+          this.message(),
+          this.withContext() ? this.context() : null,
+          formatStorageErrors(),
+        ),
       );
       writeDraft('');
       this.message.set('');

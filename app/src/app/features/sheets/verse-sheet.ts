@@ -1,4 +1,4 @@
-import { LOCAL_WRITE_TIMEOUT_MS, withTimeout } from '../../core/async';
+import { BookmarkToggleService } from '../../core/bookmark-toggle.service';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -364,6 +364,7 @@ export class VerseSheet {
   protected readonly history = inject(SheetHistory);
   private readonly content = inject(ContentApi);
   private readonly userData = inject(UserDataApi);
+  private readonly bookmarkToggle = inject(BookmarkToggleService);
   private readonly latin = inject(LatinService);
   private readonly arabic = inject(ArabicTextService);
   private readonly audio = inject(AudioService);
@@ -533,32 +534,15 @@ export class VerseSheet {
     return {
       title: `${surah.nameLatin} · Ayat ${v.ayah}`,
       sub: `Surah ${surah.number} · Hal. ${v.page} · Juz ${this.content.juzAt(v.page).number}`,
-      bookmarked: this.userData.isVerseBookmarked({ surah: v.surah, ayah: v.ayah }),
+      bookmarked: this.bookmarkToggle.isVerseBookmarked({ surah: v.surah, ayah: v.ayah }),
       reference: verseReference(surah, v.ayah, v.page),
     };
   });
 
-  protected async toggleBookmark(): Promise<void> {
+  protected toggleBookmark(): Promise<void> {
     const v = this.ui.selectedVerse();
-    if (!v) return;
-    const ref = { surah: v.surah, ayah: v.ayah };
-    try {
-      const result = await withTimeout(
-        this.userData.toggleVerseBookmark(ref, v.page),
-        LOCAL_WRITE_TIMEOUT_MS,
-      );
-      this.ui.showToast({
-        message: result === 'added' ? 'Ayat ditandai' : 'Penanda dihapus',
-        actionLabel: 'Urungkan',
-        action: () => void this.userData.toggleVerseBookmark(ref, v.page),
-      });
-    } catch (e) {
-      console.error('[bookmark] verse toggle failed', e);
-      this.ui.showToast({
-        message: 'Penanda gagal disimpan. Tutup tab lain aplikasi ini lalu muat ulang.',
-        duration: 8000,
-      });
-    }
+    if (!v) return Promise.resolve();
+    return this.bookmarkToggle.toggleVerse({ surah: v.surah, ayah: v.ayah }, v.page);
   }
 
   /**

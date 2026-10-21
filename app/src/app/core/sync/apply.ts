@@ -529,17 +529,39 @@ async function makeCtx(db: MushafDb, accountId: string, opts: ApplyOptions): Pro
 
 // -- exported entry points --------------------------------------------------
 
-export function applyChanges(
+/** Changes applied per IndexedDB transaction: keeps rw locks short so local writes never queue long. */
+export const APPLY_CHUNK = 40;
+
+/**
+ * Applies a pull page in small transactions (APPLY_CHUNK changes each) instead of one
+ * transaction over every table: a big pull (hundreds of bookmarks/read days) used to hold
+ * the bookmark table locked for the whole run, stalling bookmark toggles. Each chunk
+ * re-reads the outbox, so local writes made between chunks are respected.
+ */
+export async function applyChanges(
   db: MushafDb,
   accountId: string,
   changes: Change[],
   opts: ApplyOptions,
 ): Promise<ApplyResult> {
-  return db.transaction('rw', TABLES(db), async () => {
-    const ctx = await makeCtx(db, accountId, opts);
-    for (const ch of changes) await applyOne(ctx, ch);
-    return { conflict: ctx.conflict, changed: ctx.changed };
-  });
+  let conflict: PositionConflict | null = null;
+  let changed = false;
+  if (!changes.length) return { conflict, changed };
+  for (let i = 0; i < changes.length; i += APPLY_CHUNK) {
+    const chunk = changes.slice(i, i + APPLY_CHUNK);
+    const res = await db.transaction('rw', TABLES(db), async () => {
+      const ctx = await makeCtx(db, accountId, {
+        ...opts,
+        // After a conflict was found, later chunks must not touch the position.
+        holdPosition: opts.holdPosition || conflict !== null,
+      });
+      for (const ch of chunk) await applyOne(ctx, ch);
+      return { conflict: ctx.conflict, changed: ctx.changed };
+    });
+    conflict ??= res.conflict;
+    changed = changed || res.changed;
+  }
+  return { conflict, changed };
 }
 
 export interface PushOutcome {

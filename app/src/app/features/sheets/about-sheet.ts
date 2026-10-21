@@ -61,6 +61,14 @@ import { SHEET_STYLES } from './sheet-styles';
               : 'Periksa pembaruan'
         }}
       </button>
+      <button
+        type="button"
+        class="mf-btn mf-btn--ghost"
+        data-search-id="about-reload"
+        (click)="reloadApp()"
+      >
+        Muat ulang aplikasi
+      </button>
       <p class="muted">Aplikasi memeriksa pembaruan otomatis saat dibuka dan setiap 30 menit.</p>
       @if (updateNote(); as note) {
         <p class="muted" role="status">{{ note }}</p>
@@ -101,7 +109,10 @@ import { SHEET_STYLES } from './sheet-styles';
 
     <section aria-label="Atribusi tampilan tajwid">
       <h3>Tampilan tajwid berwarna (eksperimen)</h3>
-      <p class="muted">{{ qcfCredit }}. Font tidak disertakan dalam aplikasi; dimuat dari Quran Foundation saat tampilan ini dipakai.</p>
+      <p class="muted">
+        {{ qcfCredit }}. Font tidak disertakan dalam aplikasi; dimuat dari Quran Foundation saat
+        tampilan ini dipakai.
+      </p>
     </section>
 
     <section aria-label="Atribusi audio">
@@ -178,6 +189,10 @@ export class AboutSheet {
    * Asks the service worker for a newer version; when one is ready it is
    * activated and the page reloads, so a stale cached app never lingers.
    */
+  protected reloadApp(): void {
+    document.location.reload();
+  }
+
   protected async checkForUpdate(): Promise<void> {
     if (!this.sw.isEnabled) {
       this.updateNote.set('Pembaruan otomatis tidak aktif di mode pengembangan.');
