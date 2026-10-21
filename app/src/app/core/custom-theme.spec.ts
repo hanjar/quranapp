@@ -111,14 +111,14 @@ describe('paper ids', () => {
     expect(customIdOf('ivory')).toBeNull();
   });
 
-  it('resolves a missing custom theme to Krem Madinah', () => {
+  it('resolves a missing custom theme to the default Sepia', () => {
     const t = theme('a');
     expect(resolvePaper({ paperTheme: 'custom:a', customThemes: [t] })).toEqual({
-      builtin: 'cream',
+      builtin: 'sepia',
       custom: t,
     });
     expect(resolvePaper({ paperTheme: 'custom:gone', customThemes: [t] })).toEqual({
-      builtin: 'cream',
+      builtin: 'sepia',
       custom: null,
     });
     expect(resolvePaper({ paperTheme: 'photo', customThemes: [t] })).toEqual({

@@ -220,7 +220,7 @@ const SYNC_LABEL: Record<string, string> = {
               </div>
               @if (confirmDelete() === t.id) {
                 <div class="confirm" role="alertdialog" [attr.aria-label]="'Hapus tema ' + t.name + '?'">
-                  <p>Hapus tema "{{ t.name }}"?{{ prefs().paperTheme === 'custom:' + t.id ? ' Kertas kembali ke Krem Madinah.' : '' }}</p>
+                  <p>Hapus tema "{{ t.name }}"?{{ prefs().paperTheme === 'custom:' + t.id ? ' Kertas kembali ke Sepia.' : '' }}</p>
                   <div class="confirm__acts">
                     <button type="button" class="mf-btn mf-btn--ghost mini" (click)="confirmDelete.set(null)">Batal</button>
                     <button type="button" class="mf-btn mf-btn--primary mini" (click)="deleteTheme(t.id)">Hapus</button>
@@ -549,7 +549,7 @@ export class SettingsSheet {
     const wasActive = p.paperTheme === customPaperId(id);
     void this.data.setPrefs({
       customThemes: p.customThemes.filter((t) => t.id !== id),
-      ...(wasActive ? { paperTheme: 'cream' as const } : {}),
+      ...(wasActive ? { paperTheme: 'sepia' as const } : {}),
     });
     this.confirmDelete.set(null);
   }

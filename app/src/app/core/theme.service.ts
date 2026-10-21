@@ -20,6 +20,8 @@ export interface UiThemeOption {
 
 /** Labels + swatches for pickers (welcome, settings). Values mirror styles.scss. */
 export const PAPER_THEMES: PaperThemeOption[] = [
+  // Default since 0.16.2: the owner's own 'Sephia' theme.
+  { id: 'sepia', name: 'Sepia', hex: '#F4ECD8' },
   { id: 'cream', name: 'Krem Madinah', hex: '#FFFDF6' },
   { id: 'photo', name: 'Foto Sampel', hex: '#EEEDEB' },
   { id: 'ivory', name: 'Gading Hangat', hex: '#F5F1E8' },

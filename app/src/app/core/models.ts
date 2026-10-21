@@ -7,11 +7,11 @@ export type EditionId = 'hafs-kfqc';
 export const DEFAULT_EDITION: EditionId = 'hafs-kfqc';
 export const PAGE_COUNT = 604;
 
-export type BuiltinPaperTheme = 'photo' | 'ivory' | 'antique' | 'cream' | 'comfort';
+export type BuiltinPaperTheme = 'photo' | 'ivory' | 'antique' | 'cream' | 'comfort' | 'sepia';
 /** A user-made theme is referenced as `custom:<CustomTheme.id>`. */
 export type CustomPaperTheme = `custom:${string}`;
 export type PaperTheme = BuiltinPaperTheme | CustomPaperTheme;
-export const BUILTIN_PAPER_THEMES: readonly BuiltinPaperTheme[] = ['photo', 'ivory', 'antique', 'cream', 'comfort'];
+export const BUILTIN_PAPER_THEMES: readonly BuiltinPaperTheme[] = ['photo', 'ivory', 'antique', 'cream', 'comfort', 'sepia'];
 
 /** A theme the user built on /tema. Colours are lowercase `#rrggbb`. Synced inside Preferences. */
 export interface CustomTheme {
@@ -240,7 +240,7 @@ export function clampDailyTarget(n: number): number {
 }
 
 export const DEFAULT_PREFERENCES: Preferences = {
-  paperTheme: 'cream',
+  paperTheme: 'sepia',
   customThemes: [],
   uiTheme: 'segar',
   layoutMode: 'auto',

@@ -149,7 +149,7 @@ export function isPaperThemeId(v: unknown): v is PaperTheme {
 }
 
 export interface ResolvedPaper {
-  /** Value for html[data-paper]: the built-in id, or 'cream' when the custom theme is missing. */
+  /** Value for html[data-paper]: the built-in id, or the default 'sepia' when the custom theme is missing. */
   builtin: BuiltinPaperTheme;
   custom: CustomTheme | null;
 }
@@ -159,7 +159,7 @@ export function resolvePaper(p: Pick<Preferences, 'paperTheme' | 'customThemes'>
   const id = customIdOf(p.paperTheme);
   if (id === null) return { builtin: p.paperTheme as BuiltinPaperTheme, custom: null };
   const custom = p.customThemes.find((t) => t.id === id) ?? null;
-  return { builtin: 'cream', custom };
+  return { builtin: 'sepia', custom };
 }
 
 /** Lenient parse of stored/imported/synced themes: bad entries dropped, ids unique, capped. */

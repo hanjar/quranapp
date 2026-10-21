@@ -38,7 +38,7 @@ describe('ThemeService custom themes', () => {
     expect(html().style.getPropertyValue('--mf-surround')).toBe('#d6e2f2');
     expect(html().style.getPropertyValue('--mf-frame-ink')).toBe('#1f4e8c');
     expect(html().style.getPropertyValue('--mf-surface-paper')).not.toBe('');
-    expect(html().dataset['paper']).toBe('cream');
+    expect(html().dataset['paper']).toBe('sepia');
   });
 
   it('removes them when switching back to a built-in paper', () => {
@@ -62,12 +62,12 @@ describe('ThemeService custom themes', () => {
     expect(varsSet().length).toBe(CUSTOM_THEME_VAR_NAMES.length);
   });
 
-  it('a deleted active theme falls back to Krem Madinah with no inline vars', () => {
+  it('a deleted active theme falls back to the default Sepia with no inline vars', () => {
     const { d } = setup({ paperTheme: 'custom:mine', customThemes: [mine] });
     d.prefs.update((p) => ({ ...p, customThemes: [] }));
     TestBed.tick();
     expect(varsSet()).toEqual([]);
-    expect(html().dataset['paper']).toBe('cream');
+    expect(html().dataset['paper']).toBe('sepia');
   });
 
   it('edited colours apply live', () => {

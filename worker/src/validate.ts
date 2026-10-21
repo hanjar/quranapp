@@ -10,7 +10,7 @@ const EDITION_RE = /^[a-z0-9-]{1,32}$/;
 const DEVICE_RE = /^[A-Za-z0-9_-]{1,64}$/;
 const EMAIL_RE = /^[^\s@]{1,64}@[^\s@]{1,190}\.[^\s@]{2,}$/;
 
-export const PAPER_THEMES = ['photo', 'ivory', 'antique', 'cream', 'comfort'] as const;
+export const PAPER_THEMES = ['photo', 'ivory', 'antique', 'cream', 'comfort', 'sepia'] as const;
 export const UI_THEMES = ['klasik', 'segar', 'ceria', 'samudra'] as const;
 export const LAYOUT_MODES = ['auto', 'single', 'spread'] as const;
 export const MOTION_PREFS = ['system', 'reduce'] as const;

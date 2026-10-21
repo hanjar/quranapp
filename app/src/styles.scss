@@ -120,6 +120,18 @@ html[data-paper='comfort'] {
   --mf-line-rule: rgb(169 133 47 / 0.35);
 }
 
+/* Sepia (default): the owner's own theme — warm sepia paper, brown border, gold inner line, blue ayah rings */
+html[data-paper='sepia'] {
+  --mf-paper: #f4ecd8;
+  --mf-surround: #e2d3b3;
+  --mf-surface-paper: #f9f3e6;
+  --mf-text-ink: #3b2a17;
+  --mf-frame-ink: #6e4a24;
+  --mf-frame-ink-inner: #a07a2c;
+  --mf-ayah-ornament: #1f4e8c;
+  --mf-line-rule: rgb(160 122 44 / 0.35);
+}
+
 /* Krem Madinah: cream paper with the red + gold frame of printed Madinah mushafs. */
 html[data-paper='cream'] {
   --mf-paper: #fffdf6;
