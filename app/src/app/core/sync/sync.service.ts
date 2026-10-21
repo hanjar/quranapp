@@ -19,7 +19,9 @@ import { SYNC_DB } from './sync-db';
 import { Change, MeUser } from './sync-types';
 
 /** Debounce after local outbox changes before a sync cycle starts. */
-export const SYNC_DEBOUNCE_MS = 8000;
+export const SYNC_DEBOUNCE_MS = 3000;
+/** While the app is visible, look for changes made on other devices this often. */
+export const SYNC_POLL_MS = 45_000;
 const BATCH_SIZE = 100;
 const PULL_LIMIT = 500;
 const MIN_RETRY_MS = 1000;
@@ -565,9 +567,21 @@ export class SyncService extends SyncApi {
         'visibilitychange',
         () => {
           if (document.visibilityState === 'visible') this.trigger();
+          // Leaving the app (switching device or tab): send pending changes now
+          // instead of waiting for the debounce, so the other device sees them.
+          else if (this.debounceTimer) {
+            this.clearTimer('debounce');
+            this.trigger();
+          }
         },
         { signal },
       );
+      // Pick up changes from other devices while this one stays open.
+      const poll = setInterval(() => {
+        if (document.visibilityState === 'visible' && navigator.onLine !== false && !this.inflight)
+          this.trigger();
+      }, SYNC_POLL_MS);
+      this.destroyRef.onDestroy(() => clearInterval(poll));
     }
     // Debounced sync after local outbox changes.
     const sub = liveQuery(async () => {
