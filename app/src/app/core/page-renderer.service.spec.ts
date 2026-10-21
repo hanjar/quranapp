@@ -1,10 +1,15 @@
 import { TestBed } from '@angular/core/testing';
-import { MUSHAF_STYLES, PageRendererService, RENDERER_KEY, isRendererId } from './page-renderer.service';
+import { MUSHAF_STYLES, PageRendererService, isRendererId } from './page-renderer.service';
+import { fakeUserData } from './testing-prefs';
 import { ReaderUiService } from './reader-ui.service';
 
 describe('PageRendererService', () => {
-  beforeEach(() => localStorage.removeItem(RENDERER_KEY));
-  afterEach(() => localStorage.removeItem(RENDERER_KEY));
+  let d: ReturnType<typeof fakeUserData>;
+  beforeEach(() => {
+    TestBed.resetTestingModule();
+    d = fakeUserData();
+    TestBed.configureTestingModule({ providers: [d.provider] });
+  });
 
   const make = () => TestBed.inject(PageRendererService);
 
@@ -14,18 +19,17 @@ describe('PageRendererService', () => {
     expect(s.effective()).toBe('classic');
   });
 
-  it('persists the choice per device and restores it', () => {
-    make().set('qcf-tajweed');
-    expect(localStorage.getItem(RENDERER_KEY)).toBe('qcf-tajweed');
-    TestBed.resetTestingModule();
-    expect(make().style()).toBe('qcf-tajweed');
-    make().set('classic');
-    expect(localStorage.getItem(RENDERER_KEY)).toBeNull();
+  it('reads the synced preference and writes the choice through setPrefs', () => {
+    const s = make();
+    s.set('qcf-tajweed');
+    expect(d.setPrefs).toHaveBeenCalledWith({ pageRenderer: 'qcf-tajweed' });
+    expect(s.style()).toBe('qcf-tajweed');
+    s.set('classic');
+    expect(d.setPrefs).toHaveBeenLastCalledWith({ pageRenderer: 'classic' });
+    expect(s.style()).toBe('classic');
   });
 
-  it('ignores unknown stored values', () => {
-    localStorage.setItem(RENDERER_KEY, 'bogus');
-    expect(make().style()).toBe('classic');
+  it('knows the renderer ids', () => {
     expect(isRendererId('bogus')).toBe(false);
     expect(MUSHAF_STYLES.map((m) => m.id)).toEqual(['classic', 'qcf-tajweed']);
   });

@@ -86,6 +86,10 @@ const SYNC_LABEL: Record<string, string> = {
       </section>
     }
 
+    @if (sync.account()) {
+      <p class="muted" data-testid="sync-note">Pengaturan ini ikut tersinkron ke akun.</p>
+    }
+
     <section aria-labelledby="st-night" data-search-id="night">
       <h3 id="st-night">Mode malam</h3>
       <div class="mf-segmented" role="group" aria-labelledby="st-night">
@@ -249,7 +253,7 @@ const SYNC_LABEL: Record<string, string> = {
       </div>
       @if (audioOffline.supported().length > 0 && audioOffline.manifest()) {
         <button type="button" class="row" (click)="ui.openSheet('offline')">
-          <span>Audio offline</span
+          <span>Audio offline (perangkat ini)</span
           ><span class="end"
             >{{ audioOfflineSummary() }} <span class="chev" aria-hidden="true">›</span></span
           >
@@ -321,7 +325,7 @@ const SYNC_LABEL: Record<string, string> = {
         ></span>
       </div>
       <div class="row" style="cursor: default">
-        <span id="wake-label">Layar tetap menyala</span>
+        <span id="wake-label">Layar tetap menyala (perangkat ini)</span>
       </div>
       <div class="mf-segmented" role="group" aria-labelledby="wake-label" data-search-id="wake">
         @for (w of wakeOptions; track w.id) {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { decorateLineRules, ruleYs } from './line-rules';
+import { decorateLineRules, findGapY, ruleYs } from './line-rules';
 
 describe('ruleYs', () => {
   it('gives 14 evenly spaced separators', () => {
@@ -12,6 +12,37 @@ describe('ruleYs', () => {
     const ys = ruleYs([{ surah: 2, x: 0, y: 40, width: 345, height: 36 }]);
     expect(ys.length).toBeLessThan(14);
     expect(ys).not.toContain(73.33);
+  });
+});
+
+describe('findGapY', () => {
+  const inkWith = (gaps: [number, number][], base = 100) => {
+    const a = new Array<number>(550).fill(base);
+    for (const [s, e] of gaps) for (let y = s; y <= e; y++) a[y] = 0;
+    return a;
+  };
+  it('centres on the lowest-ink run', () => {
+    expect(findGapY(inkWith([[40, 45]]), 36.67)).toBe(43);
+  });
+  it('prefers the run closest to the grid on ties', () => {
+    // runs centred at 30 (|d|=6.67) and 43 (|d|=6.33)
+    expect(findGapY(inkWith([[29, 30], [42, 43]]), 36.67)).toBe(43);
+  });
+  it('ignores gaps outside the search window', () => {
+    expect(findGapY(inkWith([[100, 110]]), 36.67)).toBeLessThanOrEqual(36.67 + 1);
+  });
+  it('uses the least-ink rows when no row is empty', () => {
+    const a = new Array<number>(550).fill(50);
+    a[38] = 5;
+    expect(findGapY(a, 36.67)).toBe(38.5);
+  });
+  it('returns the grid position when ink does not cover the window', () => {
+    expect(findGapY([], 36.67)).toBe(36.67);
+  });
+  it('is used by ruleYs when an ink profile is given', () => {
+    const ys = ruleYs([], inkWith([[40, 45]]));
+    expect(ys[0]).toBe(43);
+    expect(ys.length).toBe(14);
   });
 });
 

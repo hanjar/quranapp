@@ -1,7 +1,6 @@
-import { AyahRef } from '../models';
+import { AudioMode, AyahRef } from '../models';
 
-/** How far continuous playback goes from the ayah the user started. */
-export type AudioMode = 'ayah' | 'page' | 'surah';
+export type { AudioMode };
 
 /** One qari for now (owner's choice, D19). Recordings are per ayah, so verse timing is exact. */
 export const QARI = {

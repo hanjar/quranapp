@@ -1,6 +1,6 @@
 import { DestroyRef, Injectable, computed, inject, signal } from '@angular/core';
 import { Router } from '@angular/router';
-import { ContentApi } from '../contracts';
+import { ContentApi, UserDataApi } from '../contracts';
 import { AyahRef } from '../models';
 import { ReaderUiService } from '../reader-ui.service';
 import { AudioOfflineApi } from './audio-offline.api';
@@ -16,9 +16,6 @@ import {
 
 export type AudioState = 'idle' | 'loading' | 'playing' | 'paused' | 'error';
 
-const MODE_KEY = 'mf-audio-mode';
-const FOLLOW_KEY = 'mf-audio-follow';
-
 /**
  * Verse-by-verse recitation (streamed; recordings are one file per ayah, so the
  * highlighted ayah always matches what is heard). Owned by the orchestrator;
@@ -27,6 +24,7 @@ const FOLLOW_KEY = 'mf-audio-follow';
 @Injectable({ providedIn: 'root' })
 export class AudioService {
   private readonly content = inject(ContentApi);
+  private readonly data = inject(UserDataApi);
   private readonly ui = inject(ReaderUiService);
   private readonly router = inject(Router);
   private readonly offline = inject(AudioOfflineApi);
@@ -38,9 +36,9 @@ export class AudioService {
   /** True while the basmalah before `current` is playing. */
   readonly basmalah = signal(false);
   readonly error = signal<string | null>(null);
-  readonly mode = signal<AudioMode>(readMode());
+  readonly mode = computed<AudioMode>(() => this.data.prefs().audioMode);
   /** Turn pages automatically so the recited ayah stays on screen. */
-  readonly follow = signal<boolean>(readBool(FOLLOW_KEY, true));
+  readonly follow = computed<boolean>(() => this.data.prefs().audioFollow);
 
   /** Ayah to highlight on the page (not during the basmalah). */
   readonly highlight = computed<AyahRef | null>(() => {
@@ -110,8 +108,7 @@ export class AudioService {
   }
 
   setMode(m: AudioMode): void {
-    this.mode.set(m);
-    writeStore(MODE_KEY, m);
+    void this.data.setPrefs({ audioMode: m });
     // Re-anchor the range at the current ayah so a changed mode applies from here.
     const cur = this.current();
     if (cur && this.start)
@@ -119,8 +116,7 @@ export class AudioService {
   }
 
   setFollow(on: boolean): void {
-    this.follow.set(on);
-    writeStore(FOLLOW_KEY, on ? '1' : '0');
+    void this.data.setPrefs({ audioFollow: on });
   }
 
   // --- internals ------------------------------------------------------------
@@ -274,30 +270,4 @@ export class AudioService {
 
 function isOffline(): boolean {
   return typeof navigator !== 'undefined' && navigator.onLine === false;
-}
-
-function readMode(): AudioMode {
-  const v = readStore(MODE_KEY);
-  return v === 'ayah' || v === 'page' || v === 'surah' ? v : 'surah';
-}
-
-function readBool(key: string, fallback: boolean): boolean {
-  const v = readStore(key);
-  return v === null ? fallback : v === '1';
-}
-
-function readStore(key: string): string | null {
-  try {
-    return localStorage.getItem(key);
-  } catch {
-    return null;
-  }
-}
-
-function writeStore(key: string, value: string): void {
-  try {
-    localStorage.setItem(key, value);
-  } catch {
-    // preference lasts for this page load only
-  }
 }

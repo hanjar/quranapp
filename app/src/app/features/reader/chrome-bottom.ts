@@ -135,13 +135,18 @@ export const BOOKMARK_LONG_PRESS_MS = 500;
         width="21"
         height="21"
         viewBox="0 0 24 24"
-        [attr.fill]="pageBookmarked() ? 'currentColor' : 'none'"
         stroke="currentColor"
         stroke-width="1.6"
         stroke-linejoin="round"
         aria-hidden="true"
       >
-        <path d="M6.5 4h11v16l-5.5-4-5.5 4z" />
+        <path
+          d="M5.5 3h9l4 4v14h-13z"
+          [attr.fill]="pageBookmarked() ? 'currentColor' : 'none'"
+          [attr.fill-opacity]="pageBookmarked() ? 0.18 : 1"
+        />
+        <path d="M14.5 3v4h4" fill="none" />
+        <path d="M8.5 21v-7h4v7l-2-1.6z" fill="currentColor" />
       </svg>
     </button>
 

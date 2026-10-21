@@ -171,6 +171,25 @@ describe('sync apply', () => {
       });
     });
 
+    it('applies the synced device settings; omitted or invalid fields keep the local value', async () => {
+      await db.prefs.put({ ...DEFAULT_PREFERENCES, key: 'prefs', lineRules: true, audioMode: 'page', rev: 1 });
+      const change = (data: Record<string, unknown>, rev: number): Change => ({ entity: 'prefs', id: 'prefs', rev, deleted: false, data });
+      // an older client omits the new fields: nothing is reset
+      await applyChanges(db, ACC, [change({ paperTheme: 'photo', updatedAt: 5 }, 2)], opts());
+      expect(await db.prefs.get('prefs')).toMatchObject({ lineRules: true, audioMode: 'page', showLatin: false });
+      await applyChanges(
+        db,
+        ACC,
+        [change({ lineRules: false, showLatin: true, translationScale: 1.5, audioMode: 'ayah', audioFollow: false, pageRenderer: 'qcf-tajweed', updatedAt: 6 }, 3)],
+        opts(),
+      );
+      expect(await db.prefs.get('prefs')).toMatchObject({
+        lineRules: false, showLatin: true, translationScale: 1.45, audioMode: 'ayah', audioFollow: false, pageRenderer: 'qcf-tajweed',
+      });
+      await applyChanges(db, ACC, [change({ audioMode: 'nope', pageRenderer: 'nope', showLatin: 'x', updatedAt: 7 }, 4)], opts());
+      expect(await db.prefs.get('prefs')).toMatchObject({ audioMode: 'ayah', pageRenderer: 'qcf-tajweed', showLatin: true });
+    });
+
     it('keeps a pending local prefs edit and bumps its baseRev', async () => {
       await db.prefs.put({
         ...DEFAULT_PREFERENCES,

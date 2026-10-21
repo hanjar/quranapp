@@ -24,6 +24,23 @@ export function isHHMM(v: unknown): v is string {
   return typeof v === 'string' && HHMM.test(v);
 }
 
+/** How far continuous recitation goes from the ayah the user started. */
+export type AudioMode = 'ayah' | 'page' | 'surah';
+export const AUDIO_MODE_IDS: readonly AudioMode[] = ['ayah', 'page', 'surah'];
+/** Identifier of a mushaf page style (see MUSHAF_STYLES in page-renderer.service). */
+export type PageRendererId = 'classic' | 'qcf-tajweed';
+export const PAGE_RENDERER_IDS: readonly PageRendererId[] = ['classic', 'qcf-tajweed'];
+/** Allowed translation font scales (multiplier on the base size). */
+export const FONT_SCALES: readonly number[] = [0.9, 1, 1.15, 1.3, 1.45, 1.6];
+export const DEFAULT_FONT_SCALE = 1;
+
+/** Snap an arbitrary stored value to the nearest allowed scale. */
+export function snapScale(raw: unknown): number {
+  const n = typeof raw === 'string' ? Number(raw) : typeof raw === 'number' ? raw : NaN;
+  if (!Number.isFinite(n)) return DEFAULT_FONT_SCALE;
+  return FONT_SCALES.reduce((best, s) => (Math.abs(s - n) < Math.abs(best - n) ? s : best));
+}
+
 export interface AyahRef {
   surah: number; // 1–114
   ayah: number; // 1–ayahCount
@@ -177,6 +194,18 @@ export interface Preferences {
   /** 'HH:MM' local time the night schedule starts / ends (may cross midnight). Synced. */
   nightStart: string;
   nightEnd: string;
+  /** "Garis antarbaris" between mushaf text lines. Synced. */
+  lineRules: boolean;
+  /** Show the Latin transliteration in the translation view. Synced. */
+  showLatin: boolean;
+  /** Translation font scale (one of FONT_SCALES). Synced. */
+  translationScale: number;
+  /** How far continuous recitation goes. Synced. */
+  audioMode: AudioMode;
+  /** Turn pages automatically while reciting. Synced. */
+  audioFollow: boolean;
+  /** Mushaf page style. Synced. */
+  pageRenderer: PageRendererId;
   updatedAt: number;
   rev: number | null;
 }
@@ -204,6 +233,12 @@ export const DEFAULT_PREFERENCES: Preferences = {
   nightAuto: 'system',
   nightStart: DEFAULT_NIGHT_START,
   nightEnd: DEFAULT_NIGHT_END,
+  lineRules: false,
+  showLatin: false,
+  translationScale: DEFAULT_FONT_SCALE,
+  audioMode: 'surah',
+  audioFollow: true,
+  pageRenderer: 'classic',
   updatedAt: 0,
   rev: null,
 };

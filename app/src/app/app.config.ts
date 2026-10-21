@@ -41,9 +41,10 @@ export const appConfig: ApplicationConfig = {
       inject(ThemeService);
       inject(InstallService); // must listen for beforeinstallprompt from the start
       inject(WakeLockService); // keeps the screen on while reading (per-device setting)
-      inject(LineRulesService); // applies the saved "Garis antarbaris" choice before the first page
+      const lineRules = inject(LineRulesService); // "Garis antarbaris" is a synced pref
       void content.load();
       await data.init();
+      lineRules.applyNow(); // before the first page renders
       // Sync is optional and never blocks reading.
       void sync.init().catch(() => undefined);
       void offline.refresh().catch(() => undefined);

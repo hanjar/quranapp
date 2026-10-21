@@ -1,5 +1,10 @@
 import { PositionConflict } from '../contracts';
 import {
+  AUDIO_MODE_IDS,
+  AudioMode,
+  PAGE_RENDERER_IDS,
+  PageRendererId,
+  snapScale,
   Bookmark,
   BookmarkFolder,
   DEFAULT_PREFERENCES,
@@ -265,6 +270,9 @@ async function applyPrefs(ctx: Ctx, ch: Change): Promise<void> {
   const nightAuto = str(d, 'nightAuto');
   const nStart = str(d, 'nightStart');
   const nEnd = str(d, 'nightEnd');
+  const audioMode = str(d, 'audioMode');
+  const renderer = str(d, 'pageRenderer');
+  const tScale = num(d, 'translationScale');
   await db.prefs.put({
     ...base,
     key: 'prefs',
@@ -281,6 +289,18 @@ async function applyPrefs(ctx: Ctx, ch: Change): Promise<void> {
       nightAuto && NIGHT_AUTO.includes(nightAuto) ? (nightAuto as NightAuto) : base.nightAuto,
     nightStart: isHHMM(nStart) ? nStart : base.nightStart,
     nightEnd: isHHMM(nEnd) ? nEnd : base.nightEnd,
+    lineRules: bool(d, 'lineRules') ?? base.lineRules,
+    showLatin: bool(d, 'showLatin') ?? base.showLatin,
+    translationScale: tScale != null ? snapScale(tScale) : base.translationScale,
+    audioMode:
+      audioMode && AUDIO_MODE_IDS.includes(audioMode as AudioMode)
+        ? (audioMode as AudioMode)
+        : base.audioMode,
+    audioFollow: bool(d, 'audioFollow') ?? base.audioFollow,
+    pageRenderer:
+      renderer && PAGE_RENDERER_IDS.includes(renderer as PageRendererId)
+        ? (renderer as PageRendererId)
+        : base.pageRenderer,
     updatedAt: num(d, 'updatedAt') ?? base.updatedAt,
     rev: ch.rev,
   });

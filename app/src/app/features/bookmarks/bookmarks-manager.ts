@@ -23,6 +23,7 @@ import {
   folderNameSuggestions,
   isPageEndVerse,
 } from './bookmark-filters';
+import { BookmarkIcon, bookmarkIconKind, loadBookmarkTab, saveBookmarkTab } from './bookmark-icon';
 
 type NewFolderTarget = 'filter' | 'move';
 
@@ -86,17 +87,17 @@ type NewFolderTarget = 'filter' | 'move';
           </button>
         </div>
         <div class="mf-segmented" role="group" aria-label="Jenis penanda">
-          <button type="button" [attr.aria-pressed]="kind() === 'all'" (click)="kind.set('all')">
+          <button type="button" [attr.aria-pressed]="kind() === 'all'" (click)="setKind('all')">
             Semua
           </button>
           <button
             type="button"
             [attr.aria-pressed]="kind() === 'verse'"
-            (click)="kind.set('verse')"
+            (click)="setKind('verse')"
           >
             Ayat
           </button>
-          <button type="button" [attr.aria-pressed]="kind() === 'page'" (click)="kind.set('page')">
+          <button type="button" [attr.aria-pressed]="kind() === 'page'" (click)="setKind('page')">
             Halaman
           </button>
         </div>
@@ -254,6 +255,7 @@ type NewFolderTarget = 'filter' | 'move';
                 />
               </label>
             }
+            <app-bookmark-icon class="kicon" [kind]="r.icon" [size]="18" />
             <button type="button" class="go" (click)="rowTap(r.b)">
               <span class="title"
                 >{{ r.title }}
@@ -659,6 +661,9 @@ type NewFolderTarget = 'filter' | 'move';
     .item.sel {
       background: color-mix(in srgb, var(--ui-primary) 8%, transparent);
     }
+    .kicon {
+      margin-left: 2px;
+    }
     .cb {
       width: var(--mf-tap);
       height: var(--mf-tap);
@@ -790,7 +795,7 @@ type NewFolderTarget = 'filter' | 'move';
       overflow-y: auto;
     }
   `,
-  imports: [NgTemplateOutlet],
+  imports: [NgTemplateOutlet, BookmarkIcon],
 })
 export class BookmarksManager {
   private readonly router = inject(Router);
@@ -804,7 +809,12 @@ export class BookmarksManager {
 
   protected readonly query = signal('');
   protected readonly sort = signal<SortMode>('mushaf');
-  protected readonly kind = signal<KindFilter>('all');
+  protected readonly kind = signal<KindFilter>(loadBookmarkTab());
+
+  protected setKind(k: KindFilter): void {
+    this.kind.set(k);
+    saveBookmarkTab(k);
+  }
   protected readonly folder = signal<FolderFilter>('all');
 
   protected readonly selectMode = signal(false);
@@ -861,6 +871,7 @@ export class BookmarksManager {
         return {
           b,
           pageEnd,
+          icon: bookmarkIconKind('verse', pageEnd),
           title: `${name} · Ayat ${b.ayah}`,
           sub: pageEnd
             ? `Hal. ${b.page} selesai dibaca · Juz ${juz} · ${date}`
@@ -873,6 +884,7 @@ export class BookmarksManager {
       return {
         b,
         pageEnd: false,
+        icon: bookmarkIconKind('page', false),
         title: `Halaman ${b.page} · ${name}`,
         sub: `Hal. ${b.page} · Juz ${juz} · ${date}`,
         folderName,

@@ -103,6 +103,12 @@ export function prefsPayload(p: Preferences): Record<string, unknown> {
     nightAuto: p.nightAuto,
     nightStart: p.nightStart,
     nightEnd: p.nightEnd,
+    lineRules: p.lineRules,
+    showLatin: p.showLatin,
+    translationScale: p.translationScale,
+    audioMode: p.audioMode,
+    audioFollow: p.audioFollow,
+    pageRenderer: p.pageRenderer,
     updatedAt: p.updatedAt,
   };
 }

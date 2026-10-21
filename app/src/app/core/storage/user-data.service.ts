@@ -21,6 +21,7 @@ import {
 import { ReaderUiService } from '../reader-ui.service';
 import { MUSHAF_DB } from './db-token';
 import { PrefsRow } from './db';
+import { devicePrefsMigrationPatch, readLegacyDevicePrefs } from './device-prefs-migration';
 import { MAX_IMPORT_BYTES, parseExportText } from './export-file';
 import { activeSyncAccount, enqueueOutbox } from './outbox';
 import { recordStorageError } from './storage-diagnostics';
@@ -80,6 +81,12 @@ function prefsPayload(p: Preferences) {
     nightAuto: p.nightAuto,
     nightStart: p.nightStart,
     nightEnd: p.nightEnd,
+    lineRules: p.lineRules,
+    showLatin: p.showLatin,
+    translationScale: p.translationScale,
+    audioMode: p.audioMode,
+    audioFollow: p.audioFollow,
+    pageRenderer: p.pageRenderer,
     updatedAt: p.updatedAt,
   };
 }
@@ -241,6 +248,7 @@ export class UserDataService extends UserDataApi {
       this._deviceId.set(id);
       await this.reload();
       await this.migrateMenuDefault();
+      await this.migrateDevicePrefs();
     } catch {
       if (!this._deviceId()) this._deviceId.set(uuid());
     }
@@ -270,6 +278,22 @@ export class UserDataService extends UserDataApi {
     if (!this.prefs().controlsAlwaysVisible) {
       await this.setPrefs({ controlsAlwaysVisible: true });
     }
+    await this.db.meta.put({ key: KEY, value: Date.now() });
+  }
+
+  /**
+   * One-time: settings that used to live in localStorage (line rules, translation options,
+   * audio options, page style) are adopted into the synced prefs so nobody loses a choice.
+   */
+  private async migrateDevicePrefs(): Promise<void> {
+    const KEY = 'migr:device-prefs-synced';
+    if (await this.db.meta.get(KEY)) return;
+    const row = await this.db.prefs.get('prefs');
+    const patch = devicePrefsMigrationPatch(
+      row as Record<string, unknown> | undefined,
+      readLegacyDevicePrefs(),
+    );
+    if (Object.keys(patch).length) await this.setPrefs(patch);
     await this.db.meta.put({ key: KEY, value: Date.now() });
   }
 

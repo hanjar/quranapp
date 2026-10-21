@@ -16,6 +16,9 @@ export const LAYOUT_MODES = ['auto', 'single', 'spread'] as const;
 export const MOTION_PREFS = ['system', 'reduce'] as const;
 export const NIGHT_MODES = ['off', 'on', 'auto'] as const;
 export const NIGHT_AUTOS = ['system', 'schedule'] as const;
+export const AUDIO_MODES = ['ayah', 'page', 'surah'] as const;
+export const PAGE_RENDERERS = ['classic', 'qcf-tajweed'] as const;
+export const TRANSLATION_SCALES = [0.9, 1, 1.15, 1.3, 1.45, 1.6] as const;
 const HHMM_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
 
 export type Entity = 'bookmark' | 'position' | 'prefs' | 'folder' | 'readday' | 'khatam' | 'readmark';
@@ -66,6 +69,12 @@ export interface PrefsData {
   nightAuto?: (typeof NIGHT_AUTOS)[number];
   nightStart?: string;
   nightEnd?: string;
+  lineRules?: boolean;
+  showLatin?: boolean;
+  translationScale?: number;
+  audioMode?: (typeof AUDIO_MODES)[number];
+  audioFollow?: boolean;
+  pageRenderer?: (typeof PAGE_RENDERERS)[number];
   updatedAt: number;
 }
 
@@ -240,6 +249,29 @@ export function parsePrefs(raw: unknown): Result<PrefsData> {
     if (v === undefined) continue;
     if (typeof v !== 'string' || !HHMM_RE.test(v)) return fail(`${k} must be HH:MM`);
     value[k] = v;
+  }
+  for (const k of ['lineRules', 'showLatin', 'audioFollow'] as const) {
+    const v = raw[k];
+    if (v === undefined) continue;
+    if (typeof v !== 'boolean') return fail(`${k} must be a boolean`);
+    value[k] = v;
+  }
+  if (raw['translationScale'] !== undefined) {
+    const ts = raw['translationScale'];
+    if (typeof ts !== 'number' || !(TRANSLATION_SCALES as readonly number[]).includes(ts)) {
+      return fail('translationScale must be one of 0.9, 1, 1.15, 1.3, 1.45, 1.6');
+    }
+    value.translationScale = ts;
+  }
+  if (raw['audioMode'] !== undefined) {
+    const am = oneOf(raw['audioMode'], AUDIO_MODES);
+    if (!am) return fail('audioMode must be ayah, page or surah');
+    value.audioMode = am;
+  }
+  if (raw['pageRenderer'] !== undefined) {
+    const pr = oneOf(raw['pageRenderer'], PAGE_RENDERERS);
+    if (!pr) return fail('pageRenderer must be classic or qcf-tajweed');
+    value.pageRenderer = pr;
   }
   return { ok: true, value };
 }

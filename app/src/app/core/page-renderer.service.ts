@@ -1,8 +1,9 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
+import { UserDataApi } from './contracts';
+import { PAGE_RENDERER_IDS, PageRendererId } from './models';
 import { ReaderUiService } from './reader-ui.service';
 
-/** Identifier of a mushaf page style. Add new styles here + in MUSHAF_STYLES (and render them in PageView). */
-export type PageRendererId = 'classic' | 'qcf-tajweed';
+export type { PageRendererId };
 
 export interface MushafStyle {
   id: PageRendererId;
@@ -39,21 +40,20 @@ export const MUSHAF_STYLES: readonly MushafStyle[] = [
   },
 ];
 
-export const RENDERER_KEY = 'mf-page-renderer';
-
 export function isRendererId(v: unknown): v is PageRendererId {
-  return MUSHAF_STYLES.some((s) => s.id === v);
+  return PAGE_RENDERER_IDS.includes(v as PageRendererId);
 }
 
 /**
- * Which renderer draws mushaf pages. Per device (localStorage), never synced.
+ * Which renderer draws mushaf pages. A synced preference (`prefs.pageRenderer`).
  * If the chosen style cannot be loaded, `failed` makes the pages fall back to the classic SVG
  * (one toast per session) until the user picks a style again.
  */
 @Injectable({ providedIn: 'root' })
 export class PageRendererService {
   private readonly ui = inject(ReaderUiService);
-  readonly style = signal<PageRendererId>(read());
+  private readonly data = inject(UserDataApi);
+  readonly style = computed<PageRendererId>(() => this.data.prefs().pageRenderer);
   readonly failed = signal(false);
   private warned = false;
 
@@ -65,15 +65,9 @@ export class PageRendererService {
   );
 
   set(id: PageRendererId): void {
-    this.style.set(id);
     this.failed.set(false);
     this.warned = false;
-    try {
-      if (id === 'classic') localStorage.removeItem(RENDERER_KEY);
-      else localStorage.setItem(RENDERER_KEY, id);
-    } catch {
-      /* storage unavailable */
-    }
+    void this.data.setPrefs({ pageRenderer: id });
   }
 
   /** A style could not be loaded: fall back to classic and tell the reader once. */
@@ -85,14 +79,5 @@ export class PageRendererService {
       message: 'Tampilan tajwid berwarna tidak dapat dimuat. Memakai tampilan klasik.',
       duration: 6000,
     });
-  }
-}
-
-function read(): PageRendererId {
-  try {
-    const v = localStorage.getItem(RENDERER_KEY);
-    return isRendererId(v) ? v : 'classic';
-  } catch {
-    return 'classic';
   }
 }

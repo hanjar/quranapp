@@ -1,4 +1,11 @@
 import { isPageEndVerse } from '../bookmarks/bookmark-filters';
+import {
+  BookmarkIcon,
+  BookmarkTab,
+  bookmarkIconKind,
+  loadBookmarkTab,
+  saveBookmarkTab,
+} from '../bookmarks/bookmark-icon';
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { ContentApi, UserDataApi } from '../../core/contracts';
 import { Bookmark } from '../../core/models';
@@ -7,8 +14,6 @@ import { ProgressService } from '../../core/progress/progress.service';
 import { formatDate } from './nav-helpers';
 import { relativeDay } from './progress-format';
 import { SheetHistory } from './sheet-history';
-
-type BmTab = 'verse' | 'page';
 
 @Component({
   selector: 'app-bookmarks-sheet',
@@ -49,8 +54,16 @@ type BmTab = 'verse' | 'page';
       <button
         type="button"
         role="tab"
+        [attr.aria-selected]="tab() === 'all'"
+        (click)="setTab('all')"
+      >
+        Semua
+      </button>
+      <button
+        type="button"
+        role="tab"
         [attr.aria-selected]="tab() === 'verse'"
-        (click)="tab.set('verse')"
+        (click)="setTab('verse')"
       >
         Ayat
       </button>
@@ -58,7 +71,7 @@ type BmTab = 'verse' | 'page';
         type="button"
         role="tab"
         [attr.aria-selected]="tab() === 'page'"
-        (click)="tab.set('page')"
+        (click)="setTab('page')"
       >
         Halaman
       </button>
@@ -66,32 +79,7 @@ type BmTab = 'verse' | 'page';
 
     @for (r of rows(); track r.id) {
       <div class="item">
-        @if (r.pageEnd) {
-          <svg
-            class="flag flag--end"
-            width="18"
-            height="18"
-            viewBox="0 0 24 24"
-            stroke-width="1.4"
-            stroke-linejoin="round"
-            aria-hidden="true"
-          >
-            <path d="M6.5 4h11v16l-5.5-4-5.5 4z" />
-            <path d="M9.2 9.6l2 2 3.6-3.8" fill="none" stroke-width="1.8" stroke-linecap="round" />
-          </svg>
-        } @else {
-          <svg
-            class="flag"
-            width="18"
-            height="18"
-            viewBox="0 0 24 24"
-            stroke-width="1.4"
-            stroke-linejoin="round"
-            aria-hidden="true"
-          >
-            <path d="M6.5 4h11v16l-5.5-4-5.5 4z" />
-          </svg>
-        }
+        <app-bookmark-icon [kind]="r.icon" [size]="18" />
         <button type="button" class="go" (click)="open(r.bookmark)">
           <span class="title"
             >{{ r.title }}
@@ -141,14 +129,10 @@ type BmTab = 'verse' | 'page';
           <path d="M6.5 4h11v16l-5.5-4-5.5 4z" />
         </svg>
         <div class="etitle">
-          {{ tab() === 'verse' ? 'Belum ada ayat ditandai' : 'Belum ada halaman ditandai' }}
+          {{ emptyTitle() }}
         </div>
         <div class="ehint">
-          {{
-            tab() === 'verse'
-              ? 'Ketuk sebuah ayat, lalu pilih Tandai.'
-              : 'Tampilkan kontrol, lalu ketuk ikon penanda di bilah bawah.'
-          }}
+          {{ emptyHint() }}
         </div>
       </div>
     }
@@ -207,19 +191,6 @@ type BmTab = 'verse' | 'page';
       gap: 8px;
       padding: 6px 0 6px 4px;
       border-bottom: 1px solid var(--ui-hair);
-    }
-    .flag {
-      flex: none;
-      fill: var(--ui-accent-icon);
-      stroke: var(--ui-accent-icon);
-    }
-    /* Last ayah of its page: page finished — primary colour + check mark. */
-    .flag--end {
-      fill: var(--ui-primary);
-      stroke: var(--ui-primary);
-    }
-    .flag--end path + path {
-      stroke: var(--ui-on);
     }
     .end-badge {
       display: inline-block;
@@ -322,6 +293,7 @@ type BmTab = 'verse' | 'page';
       max-width: 280px;
     }
   `,
+  imports: [BookmarkIcon],
 })
 export class BookmarksSheet {
   private readonly ui = inject(ReaderUiService);
@@ -330,7 +302,28 @@ export class BookmarksSheet {
   private readonly progress = inject(ProgressService);
   protected readonly history = inject(SheetHistory);
 
-  protected readonly tab = signal<BmTab>('verse');
+  protected readonly tab = signal<BookmarkTab>(loadBookmarkTab());
+
+  protected setTab(t: BookmarkTab): void {
+    this.tab.set(t);
+    saveBookmarkTab(t);
+  }
+
+  protected emptyTitle(): string {
+    const t = this.tab();
+    return t === 'verse'
+      ? 'Belum ada ayat ditandai'
+      : t === 'page'
+        ? 'Belum ada halaman ditandai'
+        : 'Belum ada penanda';
+  }
+
+  protected emptyHint(): string {
+    const t = this.tab();
+    if (t === 'verse') return 'Ketuk sebuah ayat, lalu pilih Tandai.';
+    if (t === 'page') return 'Tampilkan kontrol, lalu ketuk ikon penanda di bilah bawah.';
+    return 'Ketuk sebuah ayat lalu pilih Tandai, atau tandai halaman dari bilah bawah.';
+  }
 
   protected readonly last = computed(() => {
     const pos = this.userData.position();
@@ -363,7 +356,7 @@ export class BookmarksSheet {
     const folderName = (b: Bookmark) => folders.find((f) => f.id === b.folderId)?.name ?? null;
     return this.userData
       .bookmarks()
-      .filter((b) => b.kind === kind)
+      .filter((b) => kind === 'all' || b.kind === kind)
       .map((b) => {
         const date = formatDate(b.createdAt);
         if (b.kind === 'verse' && b.surah && b.ayah) {
@@ -374,6 +367,7 @@ export class BookmarksSheet {
             bookmark: b,
             folderName: folderName(b),
             pageEnd,
+            icon: bookmarkIconKind('verse', pageEnd),
             title: `${name} · Ayat ${b.ayah}`,
             sub: pageEnd ? `Hal. ${b.page} selesai dibaca · ${date}` : `Hal. ${b.page} · ${date}`,
           };
@@ -384,6 +378,7 @@ export class BookmarksSheet {
           bookmark: b,
           folderName: folderName(b),
           pageEnd: false,
+          icon: bookmarkIconKind('page', false),
           title: `Halaman ${b.page} · ${surah}`,
           sub: `Juz ${this.content.juzAt(b.page).number} · ${date}`,
         };

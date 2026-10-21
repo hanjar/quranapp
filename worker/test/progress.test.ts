@@ -297,6 +297,24 @@ describe('progress with the rest of the account', () => {
     expect(r.map((x) => x.status)).toEqual(['rejected', 'rejected', 'rejected', 'rejected', 'rejected']);
   });
 
+  it('prefs accept the former device-local settings and reject bad values', async () => {
+    const cookie = await login('a@x.co');
+    const pref = (baseRev: number | null, over: Record<string, unknown>) => ({
+      opId: uid(), entity: 'prefs', entityId: 'prefs', action: 'upsert', baseRev, payload: prefsPayload(over),
+    });
+    const all = { lineRules: true, showLatin: true, translationScale: 1.3, audioMode: 'page', audioFollow: false, pageRenderer: 'qcf-tajweed' };
+    expect((await batch(cookie, [pref(null, all)]))[0].status).toBe('applied');
+    expect((await pull(cookie)).changes[0].data).toMatchObject(all);
+    // older clients omit the fields: still valid, and the stored payload simply lacks them
+    expect((await batch(cookie, [pref(1, {})]))[0].status).toBe('applied');
+    const r = await batch(cookie, [
+      pref(2, { lineRules: 'on' }), pref(2, { showLatin: 1 }), pref(2, { audioFollow: null }),
+      pref(2, { translationScale: 1.2 }), pref(2, { translationScale: '1' }),
+      pref(2, { audioMode: 'juz' }), pref(2, { pageRenderer: 'bogus' }),
+    ]);
+    expect(r.map((x) => x.status)).toEqual(Array(7).fill('rejected'));
+  });
+
   it('mixes progress with bookmark ops in one batch and keeps revisions dense', async () => {
     const cookie = await login('a@x.co');
     const r = await batch(cookie, [dayOp('2026-10-20', { '1': [T, T + 1] }), roundOp('r-1', 1), dayOp('2026-10-20', { '2': [T, T + 1] })]);

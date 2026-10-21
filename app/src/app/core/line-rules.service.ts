@@ -1,35 +1,27 @@
-import { Injectable, signal } from '@angular/core';
-
-const KEY = 'mf-line-rules';
+import { Injectable, computed, effect, inject } from '@angular/core';
+import { UserDataApi } from './contracts';
 
 /**
  * Optional thin separator lines between the text lines of a mushaf page.
- * Stored per device; applied as `html[data-line-rules='on']` so toggling never re-renders pages.
+ * A synced preference; applied as `html[data-line-rules='on']` so toggling never re-renders pages.
  */
 @Injectable({ providedIn: 'root' })
 export class LineRulesService {
-  readonly enabled = signal(read());
+  private readonly data = inject(UserDataApi);
+  readonly enabled = computed(() => this.data.prefs().lineRules);
 
   constructor() {
+    effect(() => apply(this.enabled()));
+  }
+
+  /** Applies the stored choice right now (called once prefs are loaded, before the first page). */
+  applyNow(): void {
     apply(this.enabled());
   }
 
   set(on: boolean): void {
-    this.enabled.set(on);
     apply(on);
-    try {
-      localStorage.setItem(KEY, on ? 'on' : 'off');
-    } catch {
-      /* storage unavailable */
-    }
-  }
-}
-
-function read(): boolean {
-  try {
-    return localStorage.getItem(KEY) === 'on';
-  } catch {
-    return false;
+    void this.data.setPrefs({ lineRules: on });
   }
 }
 

@@ -1,4 +1,9 @@
 import {
+  AUDIO_MODE_IDS,
+  AudioMode,
+  PAGE_RENDERER_IDS,
+  PageRendererId,
+  snapScale,
   BOOKMARK_NOTE_MAX,
   Bookmark,
   clampDailyTarget,
@@ -158,6 +163,22 @@ export function validatePreferences(raw: unknown): Preferences {
         : DEFAULT_PREFERENCES.nightAuto,
     nightStart: isHHMM(raw['nightStart']) ? raw['nightStart'] : DEFAULT_PREFERENCES.nightStart,
     nightEnd: isHHMM(raw['nightEnd']) ? raw['nightEnd'] : DEFAULT_PREFERENCES.nightEnd,
+    lineRules:
+      typeof raw['lineRules'] === 'boolean' ? raw['lineRules'] : DEFAULT_PREFERENCES.lineRules,
+    showLatin:
+      typeof raw['showLatin'] === 'boolean' ? raw['showLatin'] : DEFAULT_PREFERENCES.showLatin,
+    translationScale:
+      typeof raw['translationScale'] === 'number'
+        ? snapScale(raw['translationScale'])
+        : DEFAULT_PREFERENCES.translationScale,
+    audioMode: AUDIO_MODE_IDS.includes(raw['audioMode'] as AudioMode)
+      ? (raw['audioMode'] as AudioMode)
+      : DEFAULT_PREFERENCES.audioMode,
+    audioFollow:
+      typeof raw['audioFollow'] === 'boolean' ? raw['audioFollow'] : DEFAULT_PREFERENCES.audioFollow,
+    pageRenderer: PAGE_RENDERER_IDS.includes(raw['pageRenderer'] as PageRendererId)
+      ? (raw['pageRenderer'] as PageRendererId)
+      : DEFAULT_PREFERENCES.pageRenderer,
     updatedAt: isTime(raw['updatedAt']) ? raw['updatedAt'] : 0,
     rev: null,
   };

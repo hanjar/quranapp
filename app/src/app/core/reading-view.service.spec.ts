@@ -1,6 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { FONT_SCALES, ReadingViewService, snapScale } from './reading-view.service';
+import { fakeUserData } from './testing-prefs';
 
 describe('snapScale', () => {
   it('snaps to the nearest allowed step and falls back to 1', () => {
@@ -12,35 +13,45 @@ describe('snapScale', () => {
 });
 
 describe('ReadingViewService', () => {
+  let d: ReturnType<typeof fakeUserData>;
+  const make = (init = {}) => {
+    d = fakeUserData(init);
+    TestBed.configureTestingModule({ providers: [d.provider] });
+    return TestBed.inject(ReadingViewService);
+  };
   beforeEach(() => {
     localStorage.clear();
     TestBed.resetTestingModule();
   });
 
   it('defaults to mushaf, no latin, scale 1', () => {
-    const s = TestBed.inject(ReadingViewService);
+    const s = make();
     expect(s.mode()).toBe('mushaf');
     expect(s.showLatin()).toBe(false);
     expect(s.fontScale()).toBe(1);
   });
 
-  it('persists and restores per device', () => {
-    const a = TestBed.inject(ReadingViewService);
+  it('keeps the view mode per device but syncs latin and size through prefs', () => {
+    const a = make();
     a.toggleMode();
     a.setShowLatin(true);
     a.larger();
     expect(localStorage.getItem('mf-view-mode')).toBe('translation');
-    expect(localStorage.getItem('mf-tr-latin')).toBe('1');
-    expect(localStorage.getItem('mf-tr-size')).toBe('1.15');
-    TestBed.resetTestingModule();
-    const b = TestBed.inject(ReadingViewService);
-    expect(b.mode()).toBe('translation');
-    expect(b.showLatin()).toBe(true);
-    expect(b.fontScale()).toBe(1.15);
+    expect(localStorage.getItem('mf-tr-latin')).toBeNull();
+    expect(d.setPrefs).toHaveBeenCalledWith({ showLatin: true });
+    expect(d.setPrefs).toHaveBeenCalledWith({ translationScale: 1.15 });
+    expect(a.showLatin()).toBe(true);
+    expect(a.fontScale()).toBe(1.15);
+  });
+
+  it('reads synced prefs', () => {
+    const s = make({ showLatin: true, translationScale: 1.6 });
+    expect(s.showLatin()).toBe(true);
+    expect(s.fontScale()).toBe(1.6);
   });
 
   it('clamps font scale at both ends', () => {
-    const s = TestBed.inject(ReadingViewService);
+    const s = make();
     for (let i = 0; i < 10; i++) s.larger();
     expect(s.canLarger()).toBe(false);
     for (let i = 0; i < 10; i++) s.smaller();
