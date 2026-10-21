@@ -12,7 +12,11 @@
   --mf-surface-paper: #fffefa;
 
   /* mushaf frame ornament (UI layer only, never Quran glyphs) */
-  --mf-frame-ink: #3e6e99;
+  /* Madinah-print frame on every paper: red-brown outer line, gold inner line */
+  --mf-frame-ink: #ae3033;
+  --mf-frame-ink-inner: #d7c388;
+  --mf-frame-outer-w: 2px;
+  --mf-frame-inner-w: 1.5px;
   /* ink of the Quran text in the page artwork (the svg itself draws #231f20) */
   --mf-text-ink: #231f20;
   --mf-line-rule: rgb(110 90 60 / 0.24); /* optional separators between text lines */
@@ -181,8 +185,9 @@ html[data-contrast='high'] {
   --ui-hair: #9a9284;
   --ui-line: #9a9284;
   --ui-muted: var(--ui-ink2);
-  --mf-frame-ink: #24507a;
-  --mf-ayah-ornament: #231f20; /* same ink as the text */
+  --mf-frame-ink: #7a1f22; /* darker red-brown */
+  --mf-frame-ink-inner: #6b5216;
+  --mf-ayah-ornament: #6b5216; /* dark gold, ≥ 7:1 on the paper */
   --mf-line-rule: rgb(35 31 32 / 0.4);
 }
 
