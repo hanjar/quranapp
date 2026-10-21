@@ -70,6 +70,7 @@ const sameName = (a: string, b: string) => a.toLocaleLowerCase('id') === b.toLoc
 function prefsPayload(p: Preferences) {
   return {
     paperTheme: p.paperTheme,
+    customThemes: p.customThemes,
     uiTheme: p.uiTheme,
     layoutMode: p.layoutMode,
     controlsAlwaysVisible: p.controlsAlwaysVisible,

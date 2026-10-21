@@ -6,11 +6,20 @@
   /* 345:600 = the 345:550 mushaf text block plus a running head and a footer band. */
   width: var(--mf-page-w, min(calc(100cqw / var(--mf-pages, 1)), calc(100cqh * 0.575)));
   aspect-ratio: 345 / 600;
+  /* Bars visible: running head and page number are hidden (the bars say it), so the page drops
+     those bands: 345:560 = frame plus a small margin. Frame and text block keep their size in
+     page units; only the vertical insets are re-expressed against the shorter page. */
+
   container-type: size;
   background: var(--mf-paper);
   box-shadow: 0 1px 4px color-mix(in srgb, var(--ui-ink) 14%, transparent);
   user-select: none;
   -webkit-user-select: none;
+}
+
+:host(.is-bare) {
+  width: var(--mf-page-w, min(calc(100cqw / var(--mf-pages, 1)), calc(100cqh * 0.6161)));
+  aspect-ratio: 345 / 560;
 }
 
 .page {
@@ -35,6 +44,21 @@
   border-width: var(--mf-frame-inner-w, 0.75px);
   border-radius: 2px;
 }
+:host(.is-bare) {
+  .frame--outer {
+    top: 2.64%;
+    bottom: 2.64%;
+  }
+  .frame--inner {
+    top: 3.39%;
+    bottom: 3.39%;
+  }
+  .art,
+  .qcf {
+    top: 4.89%;
+    bottom: 5.11%;
+  }
+}
 :host(.is-cover) {
   .frame--outer {
     inset: 6.5% 6% 7.5%;
@@ -56,6 +80,21 @@
 }
 :host(.is-cover) .qcf {
   inset: 11% 10% 12%;
+}
+:host(.is-bare.is-cover) {
+  .frame--outer {
+    top: 3.82%;
+    bottom: 4.04%;
+  }
+  .frame--inner {
+    top: 5%;
+    bottom: 5.21%;
+  }
+  .art,
+  .qcf {
+    top: 8.64%;
+    bottom: 8.86%;
+  }
 }
 
 /* Text block keeps the artwork's 345:550 shape: 0.916 W wide, 0.84 H tall. */
@@ -215,6 +254,16 @@
   font-size: 0.72em;
   line-height: 1.1;
   opacity: 0.85;
+}
+.credit--bare {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0.3%;
+  text-align: center;
+  font-size: clamp(7px, 1.5cqh, 11px);
+  color: var(--ui-muted);
+  pointer-events: none;
 }
 .num {
   flex-direction: column;

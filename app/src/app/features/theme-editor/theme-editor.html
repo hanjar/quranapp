@@ -1,0 +1,144 @@
+<header class="top">
+  <button type="button" class="mf-icon-btn" aria-label="Kembali ke mushaf" (click)="back()">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <path d="M15 5l-7 7 7 7" />
+    </svg>
+  </button>
+  <h1 class="mf-display">{{ isEdit ? 'Ubah tema' : 'Buat tema sendiri' }}</h1>
+</header>
+
+<div class="layout">
+  <section class="preview" aria-label="Pratinjau halaman" [style]="previewVars()">
+    <div class="stage">
+      <mf-page-view [page]="previewPage()" [active]="true" [preview]="true" />
+    </div>
+  </section>
+
+  <main class="controls">
+    @if (dayOnlyNote()) {
+      <p class="mf-note" role="note">
+        Mode malam atau Kontras tinggi sedang aktif. Pratinjau memperlihatkan warna siang; tema ini
+        tidak dipakai selama keduanya menyala.
+      </p>
+    } @else {
+      <p class="muted">
+        Tema sendiri hanya dipakai di mode siang. Mode malam dan Kontras tinggi memakai warnanya
+        sendiri.
+      </p>
+    }
+
+    <section aria-labelledby="te-start">
+      <h2 id="te-start" class="sec">Mulai dari</h2>
+      <div class="chips">
+        @for (s of starters; track s.id) {
+          <button type="button" class="chip" (click)="applyStarter(s.colors)">
+            <span class="chip__dot" [style.background]="s.colors.paper" [style.border-color]="s.colors.frameInk" aria-hidden="true"></span>
+            {{ s.name }}
+          </button>
+        }
+      </div>
+    </section>
+
+    @for (f of fields; track f.key) {
+      <section class="field" [attr.aria-labelledby]="'te-l-' + f.key">
+        <div class="field__head">
+          <h2 [id]="'te-l-' + f.key" class="sec">{{ f.label }}</h2>
+          <span class="hint">{{ f.hint }}</span>
+        </div>
+        <div class="field__row">
+          <input
+            type="color"
+            class="picker"
+            [value]="colors()[f.key]"
+            (input)="setColor(f.key, $any($event.target).value)"
+            [attr.aria-label]="'Pilih ' + f.label.toLowerCase()"
+          />
+          <input
+            type="text"
+            class="mf-input hex"
+            maxlength="7"
+            autocomplete="off"
+            autocapitalize="off"
+            spellcheck="false"
+            [value]="hexText()[f.key]"
+            (input)="typeHex(f.key, $any($event.target).value)"
+            (blur)="commitHex(f.key)"
+            [attr.aria-label]="'Kode warna ' + f.label.toLowerCase() + ' (#rrggbb)'"
+            [attr.aria-invalid]="hexInvalid(f.key)"
+            [attr.aria-describedby]="hexInvalid(f.key) ? 'te-err-' + f.key : null"
+          />
+        </div>
+        @if (hexInvalid(f.key)) {
+          <p class="err" [id]="'te-err-' + f.key">Gunakan format #rrggbb, mis. #fffdf6.</p>
+        }
+        <div class="swatches" role="group" [attr.aria-label]="'Pilihan cepat ' + f.label.toLowerCase()">
+          @for (s of swatches[f.key]; track s.hex) {
+            <button
+              type="button"
+              class="sw"
+              [style.background]="s.hex"
+              [attr.aria-label]="s.name + ' ' + s.hex"
+              [attr.aria-pressed]="isCurrent(f.key, s.hex)"
+              [title]="s.name"
+              (click)="setColor(f.key, s.hex)"
+            ></button>
+          }
+        </div>
+      </section>
+    }
+
+    <section aria-labelledby="te-contrast">
+      <h2 id="te-contrast" class="sec">Keterbacaan</h2>
+      <ul class="checks">
+        @for (c of checks(); track c.key) {
+          <li [class.is-warn]="!c.ok">
+            <span class="checks__mark" aria-hidden="true">{{ c.ok ? '✓' : '!' }}</span>
+            <span>
+              {{ c.label }} terhadap kertas: <strong>{{ c.text }} : 1</strong>
+              @if (c.ok) {
+                <span class="muted"> · cukup (min {{ c.minText }} : 1)</span>
+              } @else {
+                <span class="warn"> · kurang jelas, disarankan minimal {{ c.minText }} : 1</span>
+              }
+            </span>
+          </li>
+        }
+      </ul>
+      @if (warnCount() > 0) {
+        <p class="muted">Peringatan ini hanya saran; Anda tetap bisa menyimpan tema.</p>
+      }
+    </section>
+
+    <section class="save" aria-labelledby="te-save">
+      <h2 id="te-save" class="sec">Simpan</h2>
+      <label class="lbl" for="te-name">Nama tema</label>
+      <input
+        id="te-name"
+        class="mf-input"
+        type="text"
+        [value]="name()"
+        [attr.maxlength]="nameMax"
+        autocomplete="off"
+        (input)="name.set($any($event.target).value); nameError.set(null)"
+        (keydown.enter)="save()"
+        [attr.aria-invalid]="nameError() ? true : null"
+        [attr.aria-describedby]="nameError() ? 'te-name-err' : null"
+      />
+      @if (full()) {
+        <p class="err" role="alert">
+          Sudah ada {{ limit }} tema. Hapus salah satu di Pengaturan sebelum membuat yang baru.
+        </p>
+      } @else if (nameError()) {
+        <p class="err" id="te-name-err" role="alert">{{ nameError() }}</p>
+      }
+      <div class="actions">
+        <button type="button" class="mf-btn mf-btn--outline" [disabled]="!dirty()" (click)="reset()">
+          Kembalikan
+        </button>
+        <button type="button" class="mf-btn mf-btn--primary" [disabled]="full()" (click)="save()">
+          Simpan &amp; pakai
+        </button>
+      </div>
+    </section>
+  </main>
+</div>

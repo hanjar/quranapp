@@ -63,18 +63,22 @@
     }
   }
 
-  @if (header(); as h) {
-    <div class="head" aria-hidden="true">
-      <span class="head__surah">{{ h.surahs }}</span>
-      <span class="head__juz">{{ h.juz }}</span>
-    </div>
-  }
-  <span class="num" aria-hidden="true"
-    >{{ page() }}
-    @if (qcfData()) {
-      <small class="credit">{{ qcfCredit }}</small>
+  @if (!bare()) {
+    @if (header(); as h) {
+      <div class="head" aria-hidden="true">
+        <span class="head__surah">{{ h.surahs }}</span>
+        <span class="head__juz">{{ h.juz }}</span>
+      </div>
     }
-  </span>
+    <span class="num" aria-hidden="true"
+      >{{ page() }}
+      @if (qcfData()) {
+        <small class="credit">{{ qcfCredit }}</small>
+      }
+    </span>
+  } @else if (qcfData()) {
+    <small class="credit credit--bare" aria-hidden="true">{{ qcfCredit }}</small>
+  }
 
   @if (verses().length && !preview()) {
     <ul class="mf-visually-hidden verse-list" [attr.aria-label]="'Ayat pada halaman ' + page()">

@@ -315,6 +315,41 @@ describe('progress with the rest of the account', () => {
     expect(r.map((x) => x.status)).toEqual(Array(7).fill('rejected'));
   });
 
+  it('prefs accept custom themes (and custom: paper ids) and reject malformed ones', async () => {
+    const cookie = await login('a@x.co');
+    const pref = (baseRev: number | null, over: Record<string, unknown>) => ({
+      opId: uid(), entity: 'prefs', entityId: 'prefs', action: 'upsert', baseRev, payload: prefsPayload(over),
+    });
+    const theme = (id: string, over: Record<string, unknown> = {}) => ({
+      id, name: 'Tema saya 1', paper: '#fffdf6', surround: '#f1e9d2', frameInk: '#AE3033',
+      frameInkInner: '#d7c388', ayahOrnament: '#a07a2c', textInk: '#231f20', ...over,
+    });
+    expect((await batch(cookie, [pref(null, { paperTheme: 'custom:t1', customThemes: [theme('t1')] })]))[0].status).toBe('applied');
+    const stored = (await pull(cookie)).changes[0].data;
+    expect(stored.paperTheme).toBe('custom:t1');
+    expect(stored.customThemes).toHaveLength(1);
+    expect(stored.customThemes[0].frameInk).toBe('#ae3033');
+    // an older client omits the field: still valid
+    expect((await batch(cookie, [pref(1, { paperTheme: 'cream' })]))[0].status).toBe('applied');
+    const six = Array.from({ length: 6 }, (_, i) => theme(`t${i}`));
+    expect((await batch(cookie, [pref(2, { customThemes: six })]))[0].status).toBe('applied');
+    const bad = [
+      pref(3, { customThemes: [...six, theme('t9')] }),
+      pref(3, { customThemes: 'x' }),
+      pref(3, { customThemes: [theme('t1', { name: 'x'.repeat(31) })] }),
+      pref(3, { customThemes: [theme('t1', { name: '  ' })] }),
+      pref(3, { customThemes: [theme('t1', { paper: '#fff' })] }),
+      pref(3, { customThemes: [theme('t1', { textInk: 'red' })] }),
+      pref(3, { customThemes: [theme('bad id!')] }),
+      pref(3, { customThemes: [theme('t1'), theme('t1')] }),
+      pref(3, { customThemes: [{ id: 't1', name: 'a' }] }),
+      pref(3, { paperTheme: 'custom:' }),
+      pref(3, { paperTheme: 'custom:a b' }),
+      pref(3, { paperTheme: 'neon' }),
+    ];
+    expect((await batch(cookie, bad)).map((x) => x.status)).toEqual(Array(bad.length).fill('rejected'));
+  });
+
   it('mixes progress with bookmark ops in one batch and keeps revisions dense', async () => {
     const cookie = await login('a@x.co');
     const r = await batch(cookie, [dayOp('2026-10-20', { '1': [T, T + 1] }), roundOp('r-1', 1), dayOp('2026-10-20', { '2': [T, T + 1] })]);

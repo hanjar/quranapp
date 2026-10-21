@@ -38,6 +38,12 @@ export const routes: Routes = [
     title: 'Kelola penanda · Mushaf Digital',
   },
   {
+    path: 'tema',
+    loadComponent: () =>
+      import('./features/theme-editor/theme-editor').then((m) => m.ThemeEditor),
+    title: 'Buat tema sendiri · Mushaf Digital',
+  },
+  {
     path: 'selamat-datang',
     loadComponent: () => import('./features/onboarding/welcome').then((m) => m.Welcome),
     title: 'Selamat datang · Mushaf Digital',

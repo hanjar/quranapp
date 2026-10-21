@@ -171,6 +171,20 @@ describe('sync apply', () => {
       });
     });
 
+    it('applies synced custom themes; an older client omitting them keeps the local list', async () => {
+      const mine = { id: 't1', name: 'Tema saya 1', paper: '#fffdf6', surround: '#f1e9d2', frameInk: '#ae3033', frameInkInner: '#d7c388', ayahOrnament: '#a07a2c', textInk: '#231f20' };
+      await db.prefs.put({ ...DEFAULT_PREFERENCES, key: 'prefs', customThemes: [mine], paperTheme: 'custom:t1', rev: 1 });
+      const change = (data: Record<string, unknown>, rev: number): Change => ({ entity: 'prefs', id: 'prefs', rev, deleted: false, data });
+      await applyChanges(db, ACC, [change({ updatedAt: 5 }, 2)], opts());
+      expect(await db.prefs.get('prefs')).toMatchObject({ customThemes: [mine], paperTheme: 'custom:t1' });
+      await applyChanges(db, ACC, [change({ paperTheme: 'custom:t2', customThemes: [{ ...mine, id: 't2' }, { ...mine, id: 'x', paper: 'bad' }], updatedAt: 6 }, 3)], opts());
+      const p = await db.prefs.get('prefs');
+      expect(p?.paperTheme).toBe('custom:t2');
+      expect(p?.customThemes.map((t) => t.id)).toEqual(['t2']);
+      await applyChanges(db, ACC, [change({ paperTheme: 'custom:', updatedAt: 7 }, 4)], opts());
+      expect((await db.prefs.get('prefs'))?.paperTheme).toBe('custom:t2');
+    });
+
     it('applies the synced device settings; omitted or invalid fields keep the local value', async () => {
       await db.prefs.put({ ...DEFAULT_PREFERENCES, key: 'prefs', lineRules: true, audioMode: 'page', rev: 1 });
       const change = (data: Record<string, unknown>, rev: number): Change => ({ entity: 'prefs', id: 'prefs', rev, deleted: false, data });

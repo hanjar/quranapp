@@ -92,6 +92,7 @@ export function roundPayload(r: KhatamRound): Record<string, unknown> {
 export function prefsPayload(p: Preferences): Record<string, unknown> {
   return {
     paperTheme: p.paperTheme,
+    customThemes: p.customThemes,
     uiTheme: p.uiTheme,
     layoutMode: p.layoutMode,
     controlsAlwaysVisible: p.controlsAlwaysVisible,

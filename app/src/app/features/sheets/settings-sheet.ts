@@ -14,6 +14,8 @@ import { ProgressService } from '../../core/progress/progress.service';
 import { LineRulesService } from '../../core/line-rules.service';
 import { InstallService } from '../../core/install.service';
 import { ReaderUiService } from '../../core/reader-ui.service';
+import { customPaperId } from '../../core/custom-theme';
+import { SheetHistory } from './sheet-history';
 import { PAPER_THEMES, ThemeService, UI_THEMES } from '../../core/theme.service';
 import { exportFilename, formatMb, importSummary } from '../shell/format';
 import { useSearchFocusTarget } from './focus-target';
@@ -61,6 +63,16 @@ const SYNC_LABEL: Record<string, string> = {
       .time { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
       .time-row .mf-input { min-width: 0; }
       .is-inactive { opacity: 0.45; }
+      .subh { margin: 14px 0 8px; font-size: 13px; font-weight: 600; color: var(--ui-ink2); }
+      .custom { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+      .custom .card { width: 100%; }
+      .custom__acts { display: flex; gap: 2px; }
+      .mini { min-height: var(--mf-tap); padding: 0 8px; font-size: 13px; flex: 1; }
+      .mini.danger { color: var(--mf-danger); }
+      .confirm { grid-column: 1 / -1; padding: 8px; border: 1px solid var(--ui-line); border-radius: var(--mf-radius-sm); font-size: 13px; }
+      .confirm p { margin: 0 0 6px; }
+      .confirm__acts { display: flex; gap: 6px; justify-content: flex-end; }
+      .build { margin-top: 12px; width: 100%; }
     `,
   ],
   template: `
@@ -177,6 +189,42 @@ const SYNC_LABEL: Record<string, string> = {
           </button>
         }
       </div>
+      @if (prefs().customThemes.length) {
+        <h4 class="subh" id="st-custom">Tema saya</h4>
+        <div class="grid3" [class.is-inactive]="theme.nightActive()">
+          @for (t of prefs().customThemes; track t.id) {
+            <div class="custom">
+              <button
+                type="button"
+                class="card"
+                [attr.aria-pressed]="prefs().paperTheme === 'custom:' + t.id"
+                (click)="data.setPrefs({ paperTheme: customPaperId(t.id) })"
+              >
+                <span class="swatch" [style.background]="t.paper" [style.border-color]="t.frameInk" [style.border-width.px]="2"></span>
+                <span class="name">{{ t.name }}</span>
+                <span class="sub">{{ t.paper }}</span>
+              </button>
+              <div class="custom__acts">
+                <button type="button" class="mf-btn mf-btn--ghost mini" [attr.aria-label]="'Ubah tema ' + t.name" (click)="editTheme(t.id)">Ubah</button>
+                <button type="button" class="mf-btn mf-btn--ghost mini danger" [attr.aria-label]="'Hapus tema ' + t.name" (click)="confirmDelete.set(t.id)">Hapus</button>
+              </div>
+              @if (confirmDelete() === t.id) {
+                <div class="confirm" role="alertdialog" [attr.aria-label]="'Hapus tema ' + t.name + '?'">
+                  <p>Hapus tema "{{ t.name }}"?{{ prefs().paperTheme === 'custom:' + t.id ? ' Kertas kembali ke Krem Madinah.' : '' }}</p>
+                  <div class="confirm__acts">
+                    <button type="button" class="mf-btn mf-btn--ghost mini" (click)="confirmDelete.set(null)">Batal</button>
+                    <button type="button" class="mf-btn mf-btn--primary mini" (click)="deleteTheme(t.id)">Hapus</button>
+                  </div>
+                </div>
+              }
+            </div>
+          }
+        </div>
+        <p class="muted">Tema sendiri hanya tampil di mode siang tanpa Kontras tinggi.</p>
+      }
+      <button type="button" class="mf-btn mf-btn--outline build" (click)="history.navigateUrl('/tema')">
+        Buat tema sendiri
+      </button>
     </section>
 
     <section aria-labelledby="st-ui" data-search-id="ui-theme">
@@ -478,6 +526,23 @@ export class SettingsSheet {
   protected readonly nightOptions = NIGHT_OPTIONS;
   protected readonly nightAutoOptions = NIGHT_AUTO_OPTIONS;
   protected readonly paperThemes = PAPER_THEMES;
+  protected readonly history = inject(SheetHistory);
+  protected readonly customPaperId = customPaperId;
+  protected readonly confirmDelete = signal<string | null>(null);
+
+  protected editTheme(id: string): void {
+    this.history.navigateUrl(`/tema?edit=${encodeURIComponent(id)}`);
+  }
+
+  protected deleteTheme(id: string): void {
+    const p = this.data.prefs();
+    const wasActive = p.paperTheme === customPaperId(id);
+    void this.data.setPrefs({
+      customThemes: p.customThemes.filter((t) => t.id !== id),
+      ...(wasActive ? { paperTheme: 'cream' as const } : {}),
+    });
+    this.confirmDelete.set(null);
+  }
   protected readonly uiThemes = UI_THEMES;
   protected readonly layouts = LAYOUTS;
   protected readonly prefs = this.data.prefs;

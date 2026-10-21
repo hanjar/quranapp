@@ -22,8 +22,9 @@
     @if (textMode()) {
       <div class="textmode" [class.is-wide]="textWide()">
         @if (textWide()) {
-          <div class="textmode__mushaf">
+          <div class="textmode__mushaf" [class.is-bare]="chromeShown()">
             <mf-page-view
+              [bare]="chromeShown()"
               [page]="pageNum() ?? 1"
               [selected]="selected()"
               [bookmarked]="bookmarkedVerses()"
@@ -50,6 +51,7 @@
     >
       @for (p of visible(); track p) {
         <mf-page-view
+          [bare]="hasBars()"
           [page]="p"
           [active]="spread() && p === pageNum()"
           [selected]="selected()"

@@ -1,0 +1,219 @@
+:host {
+  display: block;
+  position: fixed;
+  inset: 0;
+  overflow-y: auto;
+  background: var(--ui-surface);
+  color: var(--ui-ink);
+  font-family: var(--ui-font);
+  --hdr: calc(var(--mf-safe-top) + 57px);
+}
+
+.top {
+  position: sticky;
+  top: 0;
+  z-index: 4;
+  box-sizing: border-box;
+  height: var(--hdr);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: var(--mf-safe-top) 8px 0;
+  background: var(--ui-surface);
+  border-bottom: 1px solid var(--ui-hair);
+}
+h1 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 500;
+}
+
+.layout {
+  max-width: 1040px;
+  margin: 0 auto;
+}
+
+/* Phones: the preview stays pinned under the header while the controls scroll. */
+.preview {
+  position: sticky;
+  top: var(--hdr);
+  z-index: 3;
+  height: clamp(220px, 38svh, 340px);
+  background: var(--mf-surround);
+  border-bottom: 1px solid var(--ui-hair);
+}
+.stage {
+  position: absolute;
+  inset: 0;
+  container-type: size;
+  display: grid;
+  place-items: center;
+  padding: 8px 0;
+}
+
+.controls {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding: var(--mf-space-4) var(--mf-space-4) var(--mf-space-12);
+}
+
+.sec {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+}
+.muted {
+  margin: 0;
+  color: var(--ui-muted);
+  font-size: 13px;
+}
+.hint {
+  color: var(--ui-muted);
+  font-size: 12.5px;
+}
+.field__head {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-bottom: 8px;
+}
+.field__row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+.picker {
+  flex: none;
+  width: var(--mf-tap);
+  height: var(--mf-tap);
+  padding: 2px;
+  border: 1px solid var(--ui-line);
+  border-radius: var(--mf-radius-sm);
+  background: var(--ui-surface);
+  cursor: pointer;
+}
+.hex {
+  flex: 1;
+  min-width: 0;
+  font-variant-numeric: tabular-nums;
+  text-transform: lowercase;
+}
+.swatches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+.sw {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 1px solid var(--ui-line);
+  padding: 0;
+  cursor: pointer;
+  position: relative;
+  /* 44px hit area without enlarging the dot */
+  &::before {
+    content: '';
+    position: absolute;
+    inset: -4px;
+  }
+  &[aria-pressed='true'] {
+    outline: 2px solid var(--ui-primary);
+    outline-offset: 2px;
+  }
+}
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: var(--mf-tap);
+  padding: 0 14px;
+  border-radius: 22px;
+  border: 1px solid var(--ui-line);
+  background: var(--ui-surface);
+  color: var(--ui-ink);
+  font-size: 13.5px;
+  cursor: pointer;
+}
+.chip__dot {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 3px solid;
+  box-sizing: border-box;
+}
+
+.checks {
+  list-style: none;
+  margin: 8px 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 13.5px;
+  li {
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+  }
+}
+.checks__mark {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 12px;
+  font-weight: 700;
+  background: color-mix(in srgb, var(--ui-primary) 16%, transparent);
+  color: var(--ui-primary);
+}
+.is-warn .checks__mark {
+  background: color-mix(in srgb, var(--mf-danger, #b3261e) 16%, transparent);
+  color: var(--mf-danger, #b3261e);
+}
+.warn {
+  color: var(--mf-danger, #b3261e);
+}
+.err {
+  margin: 6px 0 0;
+  color: var(--mf-danger, #b3261e);
+  font-size: 13px;
+}
+.lbl {
+  display: block;
+  margin: 8px 0 6px;
+  font-size: 13px;
+  color: var(--ui-ink2);
+}
+.actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  margin-top: 14px;
+  flex-wrap: wrap;
+}
+
+/* Tablets and up: preview left, controls right. */
+@media (min-width: 760px) {
+  .layout {
+    display: grid;
+    grid-template-columns: minmax(280px, 40%) 1fr;
+    align-items: start;
+  }
+  .preview {
+    top: var(--hdr);
+    height: calc(100svh - var(--hdr));
+    border-bottom: none;
+    border-right: 1px solid var(--ui-hair);
+  }
+}

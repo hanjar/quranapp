@@ -19,6 +19,11 @@ export const NIGHT_AUTOS = ['system', 'schedule'] as const;
 export const AUDIO_MODES = ['ayah', 'page', 'surah'] as const;
 export const PAGE_RENDERERS = ['classic', 'qcf-tajweed'] as const;
 export const TRANSLATION_SCALES = [0.9, 1, 1.15, 1.3, 1.45, 1.6] as const;
+const CUSTOM_THEME_ID_RE = /^[A-Za-z0-9_-]{1,40}$/;
+const HEX_COLOR_RE = /^#[0-9a-fA-F]{6}$/;
+export const MAX_CUSTOM_THEMES = 6;
+export const MAX_CUSTOM_THEME_NAME = 30;
+const CUSTOM_THEME_COLORS = ['paper', 'surround', 'frameInk', 'frameInkInner', 'ayahOrnament', 'textInk'] as const;
 const HHMM_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
 
 export type Entity = 'bookmark' | 'position' | 'prefs' | 'folder' | 'readday' | 'khatam' | 'readmark';
@@ -54,8 +59,20 @@ export interface PositionData {
   deviceId: string;
 }
 
+export interface CustomThemeData {
+  id: string;
+  name: string;
+  paper: string;
+  surround: string;
+  frameInk: string;
+  frameInkInner: string;
+  ayahOrnament: string;
+  textInk: string;
+}
+
 export interface PrefsData {
-  paperTheme: (typeof PAPER_THEMES)[number];
+  /** A built-in paper id, or `custom:<id>` of one of customThemes. */
+  paperTheme: string;
   uiTheme: (typeof UI_THEMES)[number];
   layoutMode: (typeof LAYOUT_MODES)[number];
   controlsAlwaysVisible: boolean;
@@ -63,6 +80,7 @@ export interface PrefsData {
   highContrast: boolean;
   onboardingDone: boolean;
   /** Optional so older clients that never send them do not reset the stored values. */
+  customThemes?: CustomThemeData[];
   dailyTarget?: number;
   trackProgress?: boolean;
   nightMode?: (typeof NIGHT_MODES)[number];
@@ -200,9 +218,40 @@ export function parsePosition(raw: unknown): Result<PositionData> {
   return { ok: true, value: { editionId, page, surah: surah.value, ayah: ayah.value, updatedAt, deviceId } };
 }
 
+function parsePaperTheme(v: unknown): string | null {
+  if (typeof v !== 'string') return null;
+  if ((PAPER_THEMES as readonly string[]).includes(v)) return v;
+  return v.startsWith('custom:') && CUSTOM_THEME_ID_RE.test(v.slice(7)) ? v : null;
+}
+
+function parseCustomThemes(raw: unknown): Result<CustomThemeData[]> {
+  if (!Array.isArray(raw) || raw.length > MAX_CUSTOM_THEMES) return fail(`customThemes must be an array of at most ${MAX_CUSTOM_THEMES}`);
+  const out: CustomThemeData[] = [];
+  const ids = new Set<string>();
+  for (const item of raw) {
+    if (!isRecord(item)) return fail('customThemes entries must be objects');
+    const id = item['id'];
+    if (typeof id !== 'string' || !CUSTOM_THEME_ID_RE.test(id)) return fail('custom theme id is invalid');
+    if (ids.has(id)) return fail('custom theme ids must be unique');
+    ids.add(id);
+    const name = item['name'];
+    if (typeof name !== 'string' || name.trim().length === 0 || name.length > MAX_CUSTOM_THEME_NAME) {
+      return fail(`custom theme name must be 1-${MAX_CUSTOM_THEME_NAME} characters`);
+    }
+    const theme: Record<string, string> = { id, name };
+    for (const k of CUSTOM_THEME_COLORS) {
+      const c = item[k];
+      if (typeof c !== 'string' || !HEX_COLOR_RE.test(c)) return fail(`custom theme ${k} must be #rrggbb`);
+      theme[k] = c.toLowerCase();
+    }
+    out.push(theme as unknown as CustomThemeData);
+  }
+  return { ok: true, value: out };
+}
+
 export function parsePrefs(raw: unknown): Result<PrefsData> {
   if (!isRecord(raw)) return fail('payload must be an object');
-  const paperTheme = oneOf(raw['paperTheme'], PAPER_THEMES);
+  const paperTheme = parsePaperTheme(raw['paperTheme']);
   const uiTheme = oneOf(raw['uiTheme'], UI_THEMES);
   const layoutMode = oneOf(raw['layoutMode'], LAYOUT_MODES);
   const motion = oneOf(raw['motion'], MOTION_PREFS);
@@ -225,6 +274,11 @@ export function parsePrefs(raw: unknown): Result<PrefsData> {
     onboardingDone: ob,
     updatedAt,
   };
+  if (raw['customThemes'] !== undefined) {
+    const ct = parseCustomThemes(raw['customThemes']);
+    if (!ct.ok) return fail(ct.error);
+    value.customThemes = ct.value;
+  }
   if (raw['dailyTarget'] !== undefined) {
     const dt = int(raw['dailyTarget'], 1, MAX_DAILY_TARGET);
     if (dt === null) return fail('dailyTarget must be 1-40');

@@ -16,6 +16,7 @@ import {
   Preferences,
   ReadingPosition,
 } from '../models';
+import { isPaperThemeId, parseCustomThemes } from '../custom-theme';
 
 export const MAX_IMPORT_BYTES = 2 * 1024 * 1024;
 const MAX_BOOKMARKS = 20000;
@@ -38,6 +39,9 @@ const oneOf = <T extends string>(v: unknown, allowed: readonly T[], label: strin
   allowed.includes(v as T)
     ? (v as T)
     : fail(`Berkas tidak valid: pengaturan "${label}" tidak dikenal.`);
+
+const paperThemeOf = (v: unknown): Preferences['paperTheme'] =>
+  isPaperThemeId(v) ? v : fail('Berkas tidak valid: pengaturan "paperTheme" tidak dikenal.');
 
 export function validateBookmark(raw: unknown, i: number, version: 1 | 2 = 2): Bookmark {
   const n = `penanda #${i + 1}`;
@@ -135,7 +139,8 @@ export function validatePreferences(raw: unknown): Preferences {
       ? (raw[k] as boolean)
       : fail(`Berkas tidak valid: pengaturan "${k}" salah.`);
   return {
-    paperTheme: oneOf(raw['paperTheme'], ['photo', 'ivory', 'antique', 'cream'], 'paperTheme'),
+    paperTheme: paperThemeOf(raw['paperTheme']),
+    customThemes: parseCustomThemes(raw['customThemes']),
     uiTheme: oneOf(raw['uiTheme'], ['klasik', 'segar', 'ceria', 'samudra'], 'uiTheme'),
     layoutMode: oneOf(raw['layoutMode'], ['auto', 'single', 'spread'], 'layoutMode'),
     controlsAlwaysVisible: bool('controlsAlwaysVisible'),

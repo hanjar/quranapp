@@ -7,7 +7,25 @@ export type EditionId = 'hafs-kfqc';
 export const DEFAULT_EDITION: EditionId = 'hafs-kfqc';
 export const PAGE_COUNT = 604;
 
-export type PaperTheme = 'photo' | 'ivory' | 'antique' | 'cream';
+export type BuiltinPaperTheme = 'photo' | 'ivory' | 'antique' | 'cream';
+/** A user-made theme is referenced as `custom:<CustomTheme.id>`. */
+export type CustomPaperTheme = `custom:${string}`;
+export type PaperTheme = BuiltinPaperTheme | CustomPaperTheme;
+export const BUILTIN_PAPER_THEMES: readonly BuiltinPaperTheme[] = ['photo', 'ivory', 'antique', 'cream'];
+
+/** A theme the user built on /tema. Colours are lowercase `#rrggbb`. Synced inside Preferences. */
+export interface CustomTheme {
+  id: string; // [A-Za-z0-9_-]{1,40}
+  name: string; // trimmed, 1..CUSTOM_THEME_NAME_MAX chars
+  paper: string; // --mf-paper
+  surround: string; // --mf-surround (background around the page)
+  frameInk: string; // --mf-frame-ink (outer border)
+  frameInkInner: string; // --mf-frame-ink-inner (inner border)
+  ayahOrnament: string; // --mf-ayah-ornament
+  textInk: string; // --mf-text-ink
+}
+export const CUSTOM_THEME_LIMIT = 6;
+export const CUSTOM_THEME_NAME_MAX = 30;
 export type UiTheme = 'klasik' | 'segar' | 'ceria' | 'samudra';
 export type LayoutMode = 'auto' | 'single' | 'spread';
 export type MotionPref = 'system' | 'reduce';
@@ -177,6 +195,8 @@ export interface ReadingPosition {
 
 export interface Preferences {
   paperTheme: PaperTheme;
+  /** Themes made by the user (max CUSTOM_THEME_LIMIT). Synced. */
+  customThemes: CustomTheme[];
   uiTheme: UiTheme;
   layoutMode: LayoutMode;
   controlsAlwaysVisible: boolean;
@@ -221,6 +241,7 @@ export function clampDailyTarget(n: number): number {
 
 export const DEFAULT_PREFERENCES: Preferences = {
   paperTheme: 'cream',
+  customThemes: [],
   uiTheme: 'segar',
   layoutMode: 'auto',
   controlsAlwaysVisible: true,

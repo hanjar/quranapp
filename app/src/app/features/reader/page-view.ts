@@ -46,6 +46,7 @@ export interface PageLoadResult {
     '[attr.data-page]': 'page()',
     '[attr.aria-current]': "active() ? 'page' : null",
     '[class.is-active]': 'active()',
+    '[class.is-bare]': 'bare()',
     '[attr.data-preview]': "preview() ? '' : null",
   },
 })
@@ -61,6 +62,8 @@ export class PageView implements OnDestroy {
   readonly page = input.required<number>();
   /** True for the active page of a spread pair. */
   readonly active = input(false);
+  /** Reader bars are showing: hide the running head and page number and use the frame-only page shape. */
+  readonly bare = input(false);
   readonly selected = input<AyahRef | null>(null);
   /** Set of `surah:ayah` keys that are bookmarked. */
   readonly bookmarked = input<ReadonlySet<string>>(new Set());

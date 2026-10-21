@@ -1,10 +1,11 @@
 import { DOCUMENT, Injectable, DestroyRef, computed, effect, inject, signal } from '@angular/core';
 import { isNightAt, nextBoundary } from './night-schedule';
 import { UserDataApi } from './contracts';
-import { PaperTheme, UiTheme } from './models';
+import { BuiltinPaperTheme, UiTheme } from './models';
+import { CUSTOM_THEME_VAR_NAMES, customThemeVars, resolvePaper } from './custom-theme';
 
 export interface PaperThemeOption {
-  id: PaperTheme;
+  id: BuiltinPaperTheme;
   name: string;
   hex: string;
 }
@@ -84,11 +85,19 @@ export class ThemeService {
     effect(() => {
       const p = this.data.prefs();
       const html = this.doc.documentElement;
-      html.dataset['paper'] = p.paperTheme;
+      const night = this.nightActive();
+      const paper = resolvePaper(p);
+      html.dataset['paper'] = paper.builtin;
+      // A custom theme only paints in day mode; night mode and high contrast keep their own palette.
+      const custom = !night && !p.highContrast ? paper.custom : null;
+      if (custom) {
+        for (const [k, v] of Object.entries(customThemeVars(custom))) html.style.setProperty(k, v);
+      } else {
+        for (const k of CUSTOM_THEME_VAR_NAMES) html.style.removeProperty(k);
+      }
       html.dataset['ui'] = p.uiTheme;
       html.dataset['contrast'] = p.highContrast ? 'high' : 'normal';
       html.dataset['motion'] = p.motion === 'reduce' ? 'reduce' : 'system';
-      const night = this.nightActive();
       if (night) html.dataset['night'] = 'on';
       else delete html.dataset['night'];
       const meta = this.doc.querySelector('meta[name="theme-color"]');
@@ -96,7 +105,7 @@ export class ThemeService {
         ? p.highContrast
           ? NIGHT_THEME_COLOR_HIGH
           : NIGHT_THEME_COLOR
-        : PAPER_THEMES.find((t) => t.id === p.paperTheme)?.hex;
+        : (custom?.paper ?? PAPER_THEMES.find((t) => t.id === paper.builtin)?.hex);
       if (meta && hex) meta.setAttribute('content', hex);
     });
   }

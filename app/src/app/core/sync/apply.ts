@@ -1,4 +1,5 @@
 import { PositionConflict } from '../contracts';
+import { isPaperThemeId, parseCustomThemes } from '../custom-theme';
 import {
   AUDIO_MODE_IDS,
   AudioMode,
@@ -16,7 +17,6 @@ import {
   NightMode,
   isHHMM,
   OutboxOperation,
-  PaperTheme,
   PageReadSpan,
   ReadDay,
   ReadMarks,
@@ -60,7 +60,6 @@ interface Ctx extends ApplyResult {
   opts: ApplyOptions;
 }
 
-const PAPER: readonly string[] = ['photo', 'ivory', 'antique', 'cream'];
 const UI: readonly string[] = ['klasik', 'segar', 'ceria', 'samudra'];
 const LAYOUT: readonly string[] = ['auto', 'single', 'spread'];
 const MOTION: readonly string[] = ['system', 'reduce'];
@@ -276,7 +275,9 @@ async function applyPrefs(ctx: Ctx, ch: Change): Promise<void> {
   await db.prefs.put({
     ...base,
     key: 'prefs',
-    paperTheme: paper && PAPER.includes(paper) ? (paper as PaperTheme) : base.paperTheme,
+    paperTheme: paper && isPaperThemeId(paper) ? paper : base.paperTheme,
+    // absent (older client) keeps the local list; present replaces it, bad entries dropped
+    customThemes: Array.isArray(d['customThemes']) ? parseCustomThemes(d['customThemes']) : base.customThemes,
     uiTheme: ui && UI.includes(ui) ? (ui as UiTheme) : base.uiTheme,
     layoutMode: layout && LAYOUT.includes(layout) ? (layout as LayoutMode) : base.layoutMode,
     motion: motion && MOTION.includes(motion) ? (motion as MotionPref) : base.motion,
