@@ -19,7 +19,7 @@
   /* raised controls (selected segment, inputs) */
   --mf-raised: #ffffff;
   /* ring around the ayah number (the number itself keeps the text ink) */
-  --mf-ayah-ornament: var(--mf-frame-ink);
+  --mf-ayah-ornament: #a07a2c; /* gold on every paper; themes below tune the shade */
 
   /* UI theme (default: segar) */
   --ui-primary: #0a7a5c;
@@ -89,16 +89,19 @@ html[data-paper='photo'] {
   --mf-paper: #eeedeb;
   --mf-surround: #dfddd9;
   --mf-surface-paper: #f8f7f5;
+  --mf-ayah-ornament: #8f6e2a;
 }
 html[data-paper='ivory'] {
   --mf-paper: #f5f1e8;
   --mf-surround: #e8e2d4;
   --mf-surface-paper: #fbf8f2;
+  --mf-ayah-ornament: #9a7428;
 }
 html[data-paper='antique'] {
   --mf-paper: #f2ebdd;
   --mf-surround: #e4d9c4;
   --mf-surface-paper: #f9f4ea;
+  --mf-ayah-ornament: #8a6622;
 }
 
 /* Krem Madinah: cream paper with the red + gold frame of printed Madinah mushafs. */
