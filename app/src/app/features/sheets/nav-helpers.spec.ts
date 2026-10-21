@@ -1,6 +1,16 @@
 import { describe, expect, it } from 'vitest';
 import { SurahMeta } from '../../core/models';
-import { filterJuz, filterSurahs, formatDate, parsePageInput, latinCopyText, shareText, translationCopyText, verseReference, verseUrl } from './nav-helpers';
+import {
+  filterJuz,
+  filterSurahs,
+  formatDate,
+  parsePageInput,
+  latinCopyText,
+  shareText,
+  translationCopyText,
+  verseReference,
+  verseUrl,
+} from './nav-helpers';
 
 const mk = (
   number: number,
@@ -83,14 +93,18 @@ describe('verseReference', () => {
 
 describe('latinCopyText', () => {
   it('prefixes the reference with an em dash', () => {
-    expect(latinCopyText({ nameLatin: 'At-Tur', number: 52 }, 47, '  wa inna  ')).toBe('QS. At-Tur 52:47 — wa inna');
+    expect(latinCopyText({ nameLatin: 'At-Tur', number: 52 }, 47, '  wa inna  ')).toBe(
+      'QS. At-Tur 52:47 — wa inna',
+    );
   });
 });
 
 describe('translationCopyText / shareText', () => {
   const surah = { nameLatin: 'At-Tur', number: 52 };
   it('copies translation with attribution', () => {
-    expect(translationCopyText(surah, 47, ' terjemah ')).toBe('QS. At-Tur 52:47 — terjemah (Terjemahan Kemenag RI)');
+    expect(translationCopyText(surah, 47, ' terjemah ')).toBe(
+      'QS. At-Tur 52:47 — terjemah (Terjemahan Kemenag RI)',
+    );
   });
   it('shares reference only when nothing else is loaded', () => {
     expect(shareText({ reference: 'R', latin: null, translation: undefined })).toBe('R');
