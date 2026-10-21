@@ -105,6 +105,9 @@ function readText(file: Blob): Promise<string> {
   });
 }
 
+/** A write slower than this is recorded in the storage diagnostics. */
+const SLOW_WRITE_MS = 2000;
+
 @Injectable({ providedIn: 'root' })
 export class UserDataService extends UserDataApi {
   private readonly db = inject(MUSHAF_DB);
@@ -184,9 +187,34 @@ export class UserDataService extends UserDataApi {
 
   /** Serializes all writes so read-modify-write sequences never interleave. */
   private serial<T>(fn: () => Promise<T>, op = 'write'): Promise<T> {
+    const t0 = Date.now();
+    let tQueued = 0;
+    let tOpen = 0;
+    let before = '';
     const run = this.chain
-      .then(() => this.ensureOpen())
-      .then(fn)
+      .then(() => {
+        tQueued = Date.now();
+        before = this.lastOp;
+        return this.ensureOpen();
+      })
+      .then(() => {
+        tOpen = Date.now();
+        this.lastOp = op;
+        return fn();
+      })
+      .then((v) => {
+        // Slow writes are recorded too (sent with Masukan) to find what blocks them.
+        const done = Date.now();
+        if (done - t0 > SLOW_WRITE_MS) {
+          const sec = (ms: number) => (ms / 1000).toFixed(1) + 's';
+          const slow = new Error(
+            `antre ${sec(tQueued - t0)} (setelah ${before || '-'}), buka DB ${sec(tOpen - tQueued)}, tulis ${sec(done - tOpen)}`,
+          );
+          slow.name = 'SlowWrite';
+          recordStorageError(op, slow);
+        }
+        return v;
+      })
       .catch((e: unknown) => {
         recordStorageError(op, e);
         throw e;
@@ -194,6 +222,7 @@ export class UserDataService extends UserDataApi {
     this.chain = run.catch(() => undefined);
     return run;
   }
+  private lastOp = '';
 
   init(): Promise<void> {
     this.initPromise ??= this.doInit();
@@ -298,7 +327,7 @@ export class UserDataService extends UserDataApi {
         return merged;
       });
       this._prefs.set(next);
-    });
+    }, 'prefs');
   }
 
   // ---- reading position ----------------------------------------------------
@@ -372,7 +401,7 @@ export class UserDataService extends UserDataApi {
         return row;
       });
       this._position.set(next);
-    });
+    }, 'position');
   }
 
   // ---- bookmarks -----------------------------------------------------------
