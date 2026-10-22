@@ -267,11 +267,15 @@ export class UserDataService extends UserDataApi {
       document.addEventListener(
         'visibilitychange',
         () => {
-          if (document.visibilityState === 'hidden') this.flushQuietly();
+          if (document.visibilityState === 'hidden') this.onHidden();
+          else this.onVisible();
         },
         { signal },
       );
       window.addEventListener('pagehide', () => this.flushQuietly(), { signal });
+      // Chrome fires this right before freezing a background page.
+      document.addEventListener('freeze', () => this.releaseDb(), { signal });
+      this.destroyRef.onDestroy(() => clearInterval(this.releaseTimer));
     }
     this._ready.set(true);
   }
@@ -385,6 +389,37 @@ export class UserDataService extends UserDataApi {
     } else if (this.posTimer === null) {
       this.posTimer = setTimeout(() => this.flushQuietly(), wait);
     }
+  }
+
+  /**
+   * A page in the background (e.g. the browser tab while the installed app is open) can be
+   * frozen in the middle of a database transaction, and then every write in the other
+   * window waits until that tab is closed. So a hidden page lets go of the database: it
+   * flushes, then closes the connection (again every few seconds, in case a late sync write
+   * reopened it). Any later access reopens it automatically.
+   */
+  private releaseTimer: ReturnType<typeof setInterval> | undefined;
+
+  private onHidden(): void {
+    this.flushPosition()
+      .catch(() => undefined)
+      .finally(() => {
+        if (document.visibilityState !== 'hidden') return;
+        this.releaseDb();
+        clearInterval(this.releaseTimer);
+        this.releaseTimer = setInterval(() => this.releaseDb(), 3000);
+      });
+  }
+
+  private onVisible(): void {
+    clearInterval(this.releaseTimer);
+    this.releaseTimer = undefined;
+    // The other window may have changed bookmarks or settings meanwhile.
+    if (!this.db.outdated) void this.reload().catch(() => undefined);
+  }
+
+  private releaseDb(): void {
+    if (this.db.isOpen() && !this.db.outdated) this.db.close({ disableAutoOpen: false });
   }
 
   /** Fire-and-forget flush: a closed database must never surface as an unhandled rejection. */
