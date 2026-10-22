@@ -2,9 +2,9 @@ import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { Router, provideRouter } from '@angular/router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { OfflineApi, SyncApi } from '../../core/contracts';
+import { OfflineApi, SyncApi, UserDataApi } from '../../core/contracts';
 import { InstallService } from '../../core/install.service';
-import { Account, SyncStatus } from '../../core/models';
+import { Account, DEFAULT_PREFERENCES, Preferences, SyncStatus } from '../../core/models';
 import { ReaderUiService } from '../../core/reader-ui.service';
 import { UpdateService } from '../../core/update.service';
 import { MenuSheet } from './menu-sheet';
@@ -14,6 +14,7 @@ describe('MenuSheet', () => {
   const status = signal<SyncStatus>('off');
   const offline = signal({ state: 'idle' });
   const update = signal(false);
+  const prefs = signal<Preferences>({ ...DEFAULT_PREFERENCES });
   const install = signal('manual');
   let syncAvailable = true;
   const openModal = vi.fn();
@@ -35,6 +36,7 @@ describe('MenuSheet', () => {
     status.set('off');
     offline.set({ state: 'idle' });
     update.set(false);
+    prefs.set({ ...DEFAULT_PREFERENCES });
     install.set('manual');
     syncAvailable = true;
     openModal.mockClear();
@@ -53,10 +55,18 @@ describe('MenuSheet', () => {
           },
         },
         { provide: OfflineApi, useValue: { status: offline } },
+        { provide: UserDataApi, useValue: { prefs } },
         { provide: UpdateService, useValue: { available: update } },
         { provide: InstallService, useValue: { state: install, openModal } },
       ],
     });
+  });
+
+  it('hides the Doa khatam tile when the doa is turned off', () => {
+    prefs.set({ ...DEFAULT_PREFERENCES, showDoaKhatam: false });
+    const m = mount();
+    expect(m.tile('doa')).toBeNull();
+    expect(m.tiles()).toContain('progress');
   });
 
   it('lists the tiles in order', () => {

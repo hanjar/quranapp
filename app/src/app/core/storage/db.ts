@@ -91,6 +91,26 @@ export class MushafDb extends Dexie {
     });
     // v4: manual "already read" marks (singleton row).
     this.version(4).stores({ readMarks: 'key' });
+    // v5: favorites (bookmark kind 'favorite') and khatam archive (archivedAt on bookmarks + folders).
+    this.version(5)
+      .stores({
+        bookmarks: 'id, key, kind, page, updatedAt, deletedAt, folderId, archivedAt',
+        folders: 'id, updatedAt, deletedAt, archivedAt',
+      })
+      .upgrade(async (tx) => {
+        await tx
+          .table('bookmarks')
+          .toCollection()
+          .modify((b: Partial<Bookmark>) => {
+            if (b.archivedAt === undefined) b.archivedAt = null;
+          });
+        await tx
+          .table('folders')
+          .toCollection()
+          .modify((f: Partial<BookmarkFolder>) => {
+            if (f.archivedAt === undefined) f.archivedAt = null;
+          });
+      });
   }
 }
 

@@ -2,6 +2,7 @@ import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { KhatamService } from '../../core/khatam.service';
 import { ContentApi, DownloadState, OfflineApi, SyncApi, UserDataApi } from '../../core/contracts';
 import {
   ContentIndex,
@@ -90,6 +91,9 @@ class FakeUserData extends UserDataApi {
   override readonly prefs = signal<Preferences>({ ...DEFAULT_PREFERENCES, layoutMode: 'single' });
   override readonly position = signal(null);
   override readonly bookmarks = signal([]);
+  override readonly favorites = signal([]);
+  override readonly archivedBookmarks = signal([]);
+  override readonly archivedFolders = signal([]);
   saved: number[] = [];
   override async init() {}
   override async setPrefs() {}
@@ -102,6 +106,21 @@ class FakeUserData extends UserDataApi {
   }
   override isVerseBookmarked() {
     return false;
+  }
+  override isFavorite() {
+    return false;
+  }
+  override async toggleFavorite() {
+    return 'added' as const;
+  }
+  override async convertToFavorites() {
+    return { count: 0, undo: async () => {} };
+  }
+  override async archiveCurrentBookmarks() {
+    return { folder: null, count: 0, undo: async () => {} };
+  }
+  override async unarchiveFolder() {
+    return { restored: 0, skipped: 0 };
   }
   override async togglePageBookmark() {
     return 'added' as const;
@@ -194,7 +213,12 @@ describe('ReaderShell', () => {
         { provide: UpdateService, useValue: { available: updateAvailable } },
         {
           provide: ProgressService,
-          useValue: { createTracker: () => ({ visible: () => {}, stop: () => {}, hidden: () => {} }) },
+          useValue: {
+            createTracker: () => ({ visible: () => {}, stop: () => {}, hidden: () => {} }),
+            enabled: () => false,
+            currentRound: () => null,
+            startNextRound: async () => null,
+          },
         },
         {
           provide: TranslationService,
@@ -236,6 +260,23 @@ describe('ReaderShell', () => {
       for (const gone of ['Penanda', 'Progres membaca', 'Pengaturan', 'Sembunyikan menu (layar penuh)']) {
         expect(top).not.toContain(gone);
       }
+    });
+
+    it('page 604 replaces the page-bookmark button with Khatam, which opens the khatam dialog', async () => {
+      const f = await mount('604');
+      expect(q(f, '[data-testid="bookmark-btn"]')).toBeNull();
+      const btn = q(f, '[data-testid="khatam-btn"]')!;
+      expect(btn.getAttribute('aria-label')).toBe('Khatam');
+      btn.click();
+      const state = TestBed.inject(KhatamService).dialog();
+      expect(state).toMatchObject({ n: 1, count: 0 });
+      expect(state!.folderName).toMatch(/^Khatam ke-1 · \w{3} \d{4}$/);
+    });
+
+    it('other pages keep the page-bookmark button and have no Khatam button', async () => {
+      const f = await mount('603');
+      expect(q(f, '[data-testid="bookmark-btn"]')).not.toBeNull();
+      expect(q(f, '[data-testid="khatam-btn"]')).toBeNull();
     });
 
     it('title opens the browse sheet; menu button opens the menu sheet', async () => {
@@ -357,6 +398,15 @@ describe('ReaderShell', () => {
     next.click();
     expect(doa).toHaveBeenCalledTimes(2);
     expect(userData.saved).toEqual([604]);
+  });
+
+  it('next past page 604 does nothing when the doa khatam is turned off', async () => {
+    userData.prefs.set({ ...DEFAULT_PREFERENCES, layoutMode: 'single', showDoaKhatam: false });
+    const doa = vi.spyOn(ui, 'openDoaKhatam').mockImplementation(() => {});
+    await mount('604');
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft', bubbles: true }));
+    expect(doa).not.toHaveBeenCalled();
+    expect(goTo).not.toHaveBeenCalled();
   });
 
   it('Escape chain: sheet, then zoom, then chrome', async () => {

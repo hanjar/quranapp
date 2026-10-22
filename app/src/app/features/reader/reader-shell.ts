@@ -316,7 +316,7 @@ export class ReaderShell {
     const t = nextTarget(this.visible(), this.spread());
     this.pageSound.play();
     if (t !== null) this.ui.goToPage(t);
-    else this.ui.openDoaKhatam();
+    else if (this.userData.prefs().showDoaKhatam) this.ui.openDoaKhatam();
   }
 
   protected goPrev(): void {

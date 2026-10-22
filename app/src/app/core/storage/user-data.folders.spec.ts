@@ -87,6 +87,7 @@ describe('UserDataService folders & bookmark management', () => {
           updatedAt: now,
           deletedAt: null,
           rev: null,
+          archivedAt: null,
         })),
       );
       await expect(svc.createFolder('Lagi')).rejects.toThrow(/maksimal 100/);
@@ -229,6 +230,7 @@ describe('UserDataService folders & bookmark management', () => {
         baseRev: null,
       });
       expect(Object.keys(ops[0].payload as object).sort()).toEqual([
+        'archivedAt',
         'createdAt',
         'name',
         'updatedAt',
@@ -327,7 +329,7 @@ describe('UserDataService folders & bookmark management', () => {
       await svc.setBookmarkNote(b.id, 'penting');
       const text = await read(await svc.exportJson());
       const parsed = JSON.parse(text);
-      expect(parsed.version).toBe(2);
+      expect(parsed.version).toBe(3);
       expect(parsed.folders).toHaveLength(1);
       expect(parsed.bookmarks[0]).toMatchObject({ folderId: f.id, note: 'penting' });
 
@@ -382,7 +384,7 @@ describe('UserDataService folders & bookmark management', () => {
     });
 
     it('rejects invalid folders / notes / unknown versions', async () => {
-      await expect(svc.importJson(file(base({ version: 3 })))).rejects.toThrow(/Versi/);
+      await expect(svc.importJson(file(base({ version: 4 })))).rejects.toThrow(/Versi/);
       await expect(
         svc.importJson(file(base({ folders: [{ id: 'a', name: '   ' }] }))),
       ).rejects.toThrow(/folder #1/);

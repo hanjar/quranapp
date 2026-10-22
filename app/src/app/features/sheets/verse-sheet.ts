@@ -206,6 +206,29 @@ import { latinCopyText, shareText, translationCopyText, verseReference, verseUrl
           </svg>
           {{ v.bookmarked ? 'Ditandai' : 'Tandai' }}
         </button>
+        <button
+          type="button"
+          class="act"
+          data-testid="favorite-btn"
+          [class.on]="v.favorite"
+          [attr.aria-pressed]="v.favorite"
+          [attr.aria-label]="v.favorite ? 'Hapus dari favorit' : 'Tambahkan ke favorit'"
+          (click)="toggleFavorite()"
+        >
+          <svg
+            width="22"
+            height="22"
+            viewBox="0 0 24 24"
+            [attr.fill]="v.favorite ? 'currentColor' : 'none'"
+            stroke="currentColor"
+            stroke-width="1.6"
+            stroke-linejoin="round"
+            aria-hidden="true"
+          >
+            <path d="M12 3.6l2.5 5.2 5.7.8-4.1 4 1 5.7-5.1-2.7-5.1 2.7 1-5.7-4.1-4 5.7-.8z" />
+          </svg>
+          {{ v.favorite ? 'Favorit' : '★ Favorit' }}
+        </button>
       </div>
     }
   `,
@@ -332,7 +355,7 @@ import { latinCopyText, shareText, translationCopyText, verseReference, verseUrl
       border-top: 1px solid var(--ui-hair);
       padding-top: var(--mf-space-1);
       display: grid;
-      grid-template-columns: repeat(4, minmax(0, 1fr));
+      grid-template-columns: repeat(5, minmax(0, 1fr));
       gap: var(--mf-space-1);
     }
     .act {
@@ -531,10 +554,12 @@ export class VerseSheet {
     const surah = index.surahs[v.surah - 1];
     if (!surah) return null;
     this.userData.bookmarks(); // reactive dependency for the bookmarked flag
+    this.userData.favorites(); // ... and for the favorite flag
     return {
       title: `${surah.nameLatin} · Ayat ${v.ayah}`,
       sub: `Surah ${surah.number} · Hal. ${v.page} · Juz ${this.content.juzAt(v.page).number}`,
       bookmarked: this.bookmarkToggle.isVerseBookmarked({ surah: v.surah, ayah: v.ayah }),
+      favorite: this.bookmarkToggle.isFavorite({ surah: v.surah, ayah: v.ayah }),
       reference: verseReference(surah, v.ayah, v.page),
     };
   });
@@ -543,6 +568,12 @@ export class VerseSheet {
     const v = this.ui.selectedVerse();
     if (!v) return Promise.resolve();
     return this.bookmarkToggle.toggleVerse({ surah: v.surah, ayah: v.ayah }, v.page);
+  }
+
+  protected toggleFavorite(): Promise<void> {
+    const v = this.ui.selectedVerse();
+    if (!v) return Promise.resolve();
+    return this.bookmarkToggle.toggleFavorite({ surah: v.surah, ayah: v.ayah }, v.page);
   }
 
   /**

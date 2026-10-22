@@ -339,6 +339,14 @@ html[data-motion='reduce'] {
   box-sizing: border-box;
 }
 
+/* Noto Naskh Arabic (SIL OFL 1.1), subset to the glyphs of the doa khatam text. */
+@font-face {
+  font-family: 'Mushaf Doa Naskh';
+  src: url('/fonts/noto-naskh-arabic-doa.woff2') format('woff2');
+  font-weight: 400 700;
+  font-display: swap;
+}
+
 html,
 body {
   margin: 0;

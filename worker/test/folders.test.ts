@@ -29,7 +29,7 @@ describe('folders', () => {
     expect((await batch(cookie, [create]))[0]).toMatchObject({ status: 'applied', rev: 1 });
     let s = await pull(cookie);
     expect(s.changes).toEqual([
-      { entity: 'folder', id: 'f-1', rev: 1, deleted: false, data: { name: 'Hafalan', createdAt: 1700000000000, updatedAt: 1700000000000 } },
+      { entity: 'folder', id: 'f-1', rev: 1, deleted: false, data: { name: 'Hafalan', createdAt: 1700000000000, updatedAt: 1700000000000, archivedAt: null } },
     ]);
     expect((await batch(cookie, [folderOp('f-1', 'Wirid', 1)]))[0]).toMatchObject({ status: 'applied', rev: 2 });
     const del = folderOp('f-1', '', 2, 'delete');
@@ -109,7 +109,7 @@ describe('folders', () => {
     expect(snap.reset).toBe(true);
     expect(snap.changes.map((c: { id: string }) => c.id)).toEqual(['f-1']);
     const exp = (await json(await call('GET', '/export', { cookie }))).data;
-    expect(exp.folders).toEqual([{ id: 'f-1', rev: 1, name: 'Tetap', createdAt: 1700000000000, updatedAt: 1700000000000 }]);
+    expect(exp.folders).toEqual([{ id: 'f-1', rev: 1, name: 'Tetap', createdAt: 1700000000000, updatedAt: 1700000000000, archivedAt: null }]);
     await call('DELETE', '/me/data', { cookie });
     expect((await env.DB.prepare('SELECT COUNT(*) AS n FROM folders').first<{ n: number }>())!.n).toBe(0);
   });

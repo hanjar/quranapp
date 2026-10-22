@@ -61,6 +61,7 @@ describe('applyChanges batching', () => {
           rev: null,
           folderId: null,
           note: null,
+          archivedAt: null,
         });
       })
       .then(() => order.push('local-done'));

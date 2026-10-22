@@ -10,6 +10,8 @@ import {
 } from '@angular/core';
 import { AudioService } from '../../core/audio/audio.service';
 import { ContentApi } from '../../core/contracts';
+import { KhatamService } from '../../core/khatam.service';
+import { PAGE_COUNT } from '../../core/models';
 import { ReaderUiService } from '../../core/reader-ui.service';
 
 /** Press-and-hold on the bookmark button opens the bookmarks list after this long. */
@@ -113,6 +115,34 @@ export const BOOKMARK_LONG_PRESS_MS = 500;
       }}</span>
     </button>
 
+    @if (isLastPage()) {
+      <!-- Page 604: the page bookmark gives way to the khatam action. -->
+      <button
+        type="button"
+        class="mf-icon-btn khatam-btn"
+        data-testid="khatam-btn"
+        aria-label="Khatam"
+        title="Khatam: arsipkan penanda dan mulai putaran baru"
+        (click)="khatam.open()"
+      >
+        <svg
+          width="23"
+          height="23"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.6"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          aria-hidden="true"
+        >
+          <path
+            d="M12 2.8l2.1 1.5 2.6-.1 .9 2.4 2.1 1.5-.8 2.5.8 2.5-2.1 1.5-.9 2.4-2.6-.1L12 19.2l-2.1-1.5-2.6.1-.9-2.4-2.1-1.5.8-2.5-.8-2.5 2.1-1.5.9-2.4 2.6.1z"
+          />
+          <path d="M8.8 11.6l2.3 2.3 4.2-4.4" />
+        </svg>
+      </button>
+    } @else {
     <!-- Tap: mark/unmark the page. Long-press or right-click: open the bookmarks list (Menu › Penanda for keyboard). -->
     <button
       type="button"
@@ -149,6 +179,7 @@ export const BOOKMARK_LONG_PRESS_MS = 500;
         <path d="M8.5 21v-7h4v7l-2-1.6z" fill="currentColor" />
       </svg>
     </button>
+    }
 
     <button
       type="button"
@@ -213,6 +244,9 @@ export const BOOKMARK_LONG_PRESS_MS = 500;
     .mf-icon-btn.is-on {
       color: var(--ui-accent-icon);
     }
+    .khatam-btn {
+      color: var(--ui-primary);
+    }
     .mode-btn {
       flex: none;
       display: inline-flex;
@@ -261,6 +295,7 @@ export class ChromeBottom implements OnDestroy {
   private readonly bookmarkToggle = inject(BookmarkToggleService);
   private readonly content = inject(ContentApi);
   protected readonly audio = inject(AudioService);
+  protected readonly khatam = inject(KhatamService);
 
   readonly shown = input(true);
   readonly canNext = input(true);
@@ -276,6 +311,9 @@ export class ChromeBottom implements OnDestroy {
   protected readonly pageBookmarked = computed(() => {
     return this.bookmarkToggle.isPageBookmarked(this.ui.currentPage());
   });
+
+  /** The last mushaf page: its bookmark button becomes "Khatam". */
+  protected readonly isLastPage = computed(() => this.ui.currentPage() === PAGE_COUNT);
 
   protected readonly pillText = computed(() => {
     return `${this.ui.currentPage()} / 604`;

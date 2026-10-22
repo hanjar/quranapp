@@ -97,8 +97,15 @@ export abstract class UserDataApi {
   abstract readonly deviceId: Signal<string>;
   abstract readonly prefs: Signal<Preferences>;
   abstract readonly position: Signal<ReadingPosition | null>;
-  /** Active (non-deleted) bookmarks, newest first. */
+  /**
+   * Current verse/page bookmarks, newest first: not deleted, not archived, not favorites.
+   * This is what the reader, the page ribbon and the Penanda sheet show.
+   */
   abstract readonly bookmarks: Signal<Bookmark[]>;
+  /** Favorite verses (kind 'favorite'), newest first. Never archived. */
+  abstract readonly favorites: Signal<Bookmark[]>;
+  /** Verse/page bookmarks archived at khatam, newest first. Shown only in Kelola. */
+  abstract readonly archivedBookmarks: Signal<Bookmark[]>;
 
   abstract init(): Promise<void>;
   abstract setPrefs(patch: Partial<Omit<Preferences, 'updatedAt' | 'rev'>>): Promise<void>;
@@ -108,14 +115,19 @@ export abstract class UserDataApi {
 
   abstract isPageBookmarked(page: number): boolean;
   abstract isVerseBookmarked(ref: AyahRef): boolean;
+  abstract isFavorite(ref: AyahRef): boolean;
+  /** Adds/removes the favorite of an ayah (a verse may be both bookmarked and a favorite). */
+  abstract toggleFavorite(ref: AyahRef, page: number): Promise<'added' | 'removed'>;
   abstract togglePageBookmark(page: number): Promise<'added' | 'removed'>;
   abstract toggleVerseBookmark(ref: AyahRef, page: number): Promise<'added' | 'removed'>;
   /** Soft-deletes; resolves to an undo function valid for ~6 s. */
   abstract removeBookmark(id: string): Promise<() => Promise<void>>;
 
   // --- bookmark management (folders = collections such as khatam rounds) ---
-  /** Active folders sorted by name (natural order, so "Khatam ke-2" < "Khatam ke-10"). */
+  /** Active, non-archived folders sorted by name (natural order, so "Khatam ke-2" < "Khatam ke-10"). */
   abstract readonly folders: Signal<BookmarkFolder[]>;
+  /** Archived (khatam) folders, newest archive first. */
+  abstract readonly archivedFolders: Signal<BookmarkFolder[]>;
   /** Rejects with an Indonesian message on empty/too long/duplicate name or FOLDER_LIMIT reached. */
   abstract createFolder(name: string): Promise<BookmarkFolder>;
   abstract renameFolder(id: string, name: string): Promise<void>;
@@ -128,6 +140,22 @@ export abstract class UserDataApi {
   abstract moveBookmarks(ids: readonly string[], folderId: string | null): Promise<void>;
   /** Bulk soft-delete in one transaction; resolves to an undo function valid for ~6 s. */
   abstract removeBookmarks(ids: readonly string[]): Promise<() => Promise<void>>;
+  /**
+   * Turns current verse bookmarks into favorites and removes the originals ("pindahkan").
+   * Verses that are already favorites just lose the bookmark. undo valid for ~6 s.
+   */
+  abstract convertToFavorites(
+    ids: readonly string[],
+  ): Promise<{ count: number; undo: () => Promise<void> }>;
+  /**
+   * Khatam: archives all current verse/page bookmarks into a new archived folder (one
+   * transaction). count 0 = nothing archived (folder null). Favorites stay. undo valid ~6 s.
+   */
+  abstract archiveCurrentBookmarks(
+    folderName: string,
+  ): Promise<{ folder: BookmarkFolder | null; count: number; undo: () => Promise<void> }>;
+  /** Makes an archived folder's bookmarks current again; ones whose key is taken stay archived. */
+  abstract unarchiveFolder(id: string): Promise<{ restored: number; skipped: number }>;
   /** Empty/whitespace note clears it; longer than BOOKMARK_NOTE_MAX rejects. */
   abstract setBookmarkNote(id: string, note: string | null): Promise<void>;
 

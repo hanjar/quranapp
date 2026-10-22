@@ -56,13 +56,19 @@ function bookmarkPayload(b: Bookmark) {
     key: b.key,
     folderId: b.folderId,
     note: b.note,
+    archivedAt: b.archivedAt,
     createdAt: b.createdAt,
     updatedAt: b.updatedAt,
   };
 }
 
 function folderPayload(f: BookmarkFolder) {
-  return { name: f.name, createdAt: f.createdAt, updatedAt: f.updatedAt };
+  return {
+    name: f.name,
+    createdAt: f.createdAt,
+    updatedAt: f.updatedAt,
+    archivedAt: f.archivedAt,
+  };
 }
 
 const naturalCompare = (a: string, b: string) => a.localeCompare(b, 'id', { numeric: true });
@@ -89,6 +95,7 @@ function prefsPayload(p: Preferences) {
     audioMode: p.audioMode,
     audioFollow: p.audioFollow,
     pageRenderer: p.pageRenderer,
+    showDoaKhatam: p.showDoaKhatam,
     updatedAt: p.updatedAt,
   };
 }
@@ -172,16 +179,23 @@ export class UserDataService extends UserDataApi {
   private readonly _prefs = signal<Preferences>({ ...DEFAULT_PREFERENCES });
   private readonly _position = signal<ReadingPosition | null>(null);
   private readonly _bookmarks = signal<Bookmark[]>([]);
+  private readonly _favorites = signal<Bookmark[]>([]);
+  private readonly _archived = signal<Bookmark[]>([]);
   private readonly _folders = signal<BookmarkFolder[]>([]);
+  private readonly _archivedFolders = signal<BookmarkFolder[]>([]);
 
   readonly ready = this._ready.asReadonly();
   readonly deviceId = this._deviceId.asReadonly();
   readonly prefs = this._prefs.asReadonly();
   readonly position = this._position.asReadonly();
   readonly bookmarks = this._bookmarks.asReadonly();
+  readonly favorites = this._favorites.asReadonly();
+  readonly archivedBookmarks = this._archived.asReadonly();
   readonly folders = this._folders.asReadonly();
+  readonly archivedFolders = this._archivedFolders.asReadonly();
 
   private readonly keys = computed(() => new Set(this._bookmarks().map((b) => b.key)));
+  private readonly favoriteKeys = computed(() => new Set(this._favorites().map((b) => b.key)));
 
   private initPromise: Promise<void> | null = null;
   private chain: Promise<unknown> = Promise.resolve();
@@ -324,7 +338,13 @@ export class UserDataService extends UserDataApi {
   private async refreshFolders(): Promise<void> {
     const all = await this.db.folders.filter((f) => f.deletedAt === null).toArray();
     all.sort((a, b) => naturalCompare(a.name, b.name));
-    this._folders.set(all);
+    this._folders.set(all.filter((f) => f.archivedAt == null));
+    // Newest archive first ("Khatam ke-10" before "Khatam ke-2").
+    this._archivedFolders.set(
+      all
+        .filter((f) => f.archivedAt != null)
+        .sort((a, b) => b.archivedAt! - a.archivedAt! || naturalCompare(b.name, a.name)),
+    );
   }
 
   private stripPrefs(row: PrefsRow): Preferences {
@@ -335,7 +355,10 @@ export class UserDataService extends UserDataApi {
   private async refreshBookmarks(): Promise<void> {
     const all = await this.db.bookmarks.filter((b) => b.deletedAt === null).toArray();
     all.sort((a, b) => b.createdAt - a.createdAt || b.updatedAt - a.updatedAt);
-    this._bookmarks.set(all);
+    // Current = what the reader shows: not archived, not a favorite.
+    this._bookmarks.set(all.filter((b) => b.kind !== 'favorite' && b.archivedAt == null));
+    this._favorites.set(all.filter((b) => b.kind === 'favorite'));
+    this._archived.set(all.filter((b) => b.kind !== 'favorite' && b.archivedAt != null));
   }
 
   // ---- preferences ---------------------------------------------------------
@@ -482,6 +505,15 @@ export class UserDataService extends UserDataApi {
     return this.keys().has(bookmarkKey(DEFAULT_EDITION, 'verse', ref));
   }
 
+  isFavorite(ref: AyahRef): boolean {
+    return this.favoriteKeys().has(bookmarkKey(DEFAULT_EDITION, 'favorite', ref));
+  }
+
+  toggleFavorite(ref: AyahRef, page: number): Promise<'added' | 'removed'> {
+    if (!isValidPage(page)) return Promise.reject(new Error('Nomor halaman tidak valid.'));
+    return this.toggle('favorite', { page, surah: ref.surah, ayah: ref.ayah });
+  }
+
   togglePageBookmark(page: number): Promise<'added' | 'removed'> {
     if (!isValidPage(page)) return Promise.reject(new Error('Nomor halaman tidak valid.'));
     return this.toggle('page', { page, surah: null, ayah: null });
@@ -506,7 +538,7 @@ export class UserDataService extends UserDataApi {
         const active = await this.db.bookmarks
           .where('key')
           .equals(key)
-          .filter((b) => b.deletedAt === null)
+          .filter((b) => b.deletedAt === null && b.archivedAt === null)
           .first();
         const now = Date.now();
         if (active) {
@@ -539,6 +571,7 @@ export class UserDataService extends UserDataApi {
           rev: null,
           folderId: null,
           note: null,
+          archivedAt: null,
         };
         await this.db.bookmarks.add(fresh);
         if (account) {
@@ -602,11 +635,11 @@ export class UserDataService extends UserDataApi {
     for (const prev of prevs) {
       const cur = await this.db.bookmarks.get(prev.id);
       if (!cur) continue;
-      if (prev.deletedAt === null && cur.deletedAt !== null) {
+      if (prev.deletedAt === null && prev.archivedAt === null && cur.deletedAt !== null) {
         const clash = await this.db.bookmarks
           .where('key')
           .equals(prev.key)
-          .filter((x) => x.deletedAt === null)
+          .filter((x) => x.deletedAt === null && x.archivedAt === null)
           .first();
         if (clash) continue;
       }
@@ -651,6 +684,7 @@ export class UserDataService extends UserDataApi {
         for (const id of new Set(ids)) {
           const b = await this.db.bookmarks.get(id);
           if (!b || b.deletedAt !== null || b.folderId === folderId) continue;
+          if (b.archivedAt !== null || b.kind === 'favorite') continue; // archived/favorites keep their place
           await this.putBookmark({ ...b, folderId, updatedAt: now }, account, 'upsert', b.rev);
         }
       });
@@ -707,6 +741,7 @@ export class UserDataService extends UserDataApi {
           updatedAt: now,
           deletedAt: null,
           rev: null,
+          archivedAt: null,
         };
         await this.putFolder(f, await activeSyncAccount(this.db), 'upsert', null);
         return f;
@@ -796,6 +831,208 @@ export class UserDataService extends UserDataApi {
     );
   }
 
+  // ---- favorites, khatam archive --------------------------------------------
+
+  /** "Jadikan favorit": each current verse bookmark becomes a favorite and is removed (moved). */
+  async convertToFavorites(ids: readonly string[]): Promise<{ count: number; undo: () => Promise<void> }> {
+    const { prevs, created, at } = await this.serial(async () => {
+      const out = await this.db.transaction('rw', this.tables, async () => {
+        const account = await activeSyncAccount(this.db);
+        const now = Date.now();
+        const prevs: Bookmark[] = [];
+        const created: Bookmark[] = [];
+        for (const id of new Set(ids)) {
+          const b = await this.db.bookmarks.get(id);
+          if (!b || b.deletedAt !== null || b.archivedAt !== null || b.kind !== 'verse') continue;
+          const key = bookmarkKey(DEFAULT_EDITION, 'favorite', b);
+          const has = await this.db.bookmarks
+            .where('key')
+            .equals(key)
+            .filter((x) => x.deletedAt === null)
+            .first();
+          if (!has) {
+            const fav: Bookmark = {
+              id: uuid(),
+              kind: 'favorite',
+              editionId: b.editionId,
+              page: b.page,
+              surah: b.surah,
+              ayah: b.ayah,
+              key,
+              createdAt: now,
+              updatedAt: now,
+              deletedAt: null,
+              rev: null,
+              folderId: null,
+              note: b.note,
+              archivedAt: null,
+            };
+            await this.putBookmark(fav, account, 'upsert', null);
+            created.push(fav);
+          }
+          prevs.push(b);
+          await this.putBookmark({ ...b, deletedAt: now, updatedAt: now }, account, 'delete', b.rev);
+        }
+        return { prevs, created, at: now };
+      });
+      await this.refreshBookmarks();
+      return out;
+    }, 'favorite-convert');
+    const undo = this.undoable(
+      at,
+      async () => {
+        const account = await activeSyncAccount(this.db);
+        const now = Date.now();
+        for (const f of created) {
+          const cur = await this.db.bookmarks.get(f.id);
+          if (cur && cur.deletedAt === null) {
+            await this.putBookmark({ ...cur, deletedAt: now, updatedAt: now }, account, 'delete', cur.rev);
+          }
+        }
+        await this.restoreBookmarks(prevs, account, now);
+      },
+      () => this.refreshBookmarks(),
+    );
+    return { count: prevs.length, undo };
+  }
+
+  /** Archive-folder name that is not taken yet ("X", then "X (2)", "X (3)"...). */
+  private uniqueFolderName(base: string, taken: readonly BookmarkFolder[]): string {
+    const clean = this.cleanFolderName(base);
+    let name = clean;
+    for (let i = 2; taken.some((f) => sameName(f.name, name)); i++) {
+      const suffix = ' (' + i + ')';
+      name = clean.slice(0, FOLDER_NAME_MAX - suffix.length) + suffix;
+    }
+    return name;
+  }
+
+  /**
+   * Khatam: moves every current verse/page bookmark into a NEW archived folder, in one
+   * transaction (with outbox ops). Favorites are untouched. count 0 = nothing to archive,
+   * no folder is made. undo is valid for ~6 s and puts everything back.
+   */
+  async archiveCurrentBookmarks(
+    folderName: string,
+  ): Promise<{ folder: BookmarkFolder | null; count: number; undo: () => Promise<void> }> {
+    const { folder, prevs, at } = await this.serial(async () => {
+      const out = await this.db.transaction('rw', this.tables, async () => {
+        const current = await this.db.bookmarks
+          .filter((b) => b.deletedAt === null && b.archivedAt === null && b.kind !== 'favorite')
+          .toArray();
+        const now = Date.now();
+        if (!current.length) return { folder: null as BookmarkFolder | null, prevs: [] as Bookmark[], at: now };
+        const taken = await this.activeFolders();
+        if (taken.length >= FOLDER_LIMIT) throw new Error('Jumlah folder maksimal ' + FOLDER_LIMIT + '.');
+        const account = await activeSyncAccount(this.db);
+        const f: BookmarkFolder = {
+          id: uuid(),
+          name: this.uniqueFolderName(folderName, taken),
+          createdAt: now,
+          updatedAt: now,
+          deletedAt: null,
+          rev: null,
+          archivedAt: now,
+        };
+        await this.putFolder(f, account, 'upsert', null);
+        for (const b of current) {
+          await this.putBookmark(
+            { ...b, folderId: f.id, archivedAt: now, updatedAt: now },
+            account,
+            'upsert',
+            b.rev,
+          );
+        }
+        return { folder: f as BookmarkFolder | null, prevs: current, at: now };
+      });
+      await this.refreshFolders();
+      await this.refreshBookmarks();
+      return out;
+    }, 'archive-bookmarks');
+    const undo = this.undoable(
+      at,
+      async () => {
+        if (!folder) return;
+        const account = await activeSyncAccount(this.db);
+        const now = Date.now();
+        for (const prev of prevs) {
+          const cur = await this.db.bookmarks.get(prev.id);
+          if (!cur || cur.deletedAt !== null || cur.archivedAt === null) continue;
+          const clash = await this.db.bookmarks
+            .where('key')
+            .equals(prev.key)
+            .filter((x) => x.deletedAt === null && x.archivedAt === null)
+            .first();
+          if (clash) continue; // marked again since: it stays archived
+          await this.putBookmark(
+            { ...cur, folderId: prev.folderId, archivedAt: null, updatedAt: now },
+            account,
+            'upsert',
+            cur.rev,
+          );
+        }
+        const left = await this.db.bookmarks
+          .where('folderId')
+          .equals(folder.id)
+          .filter((x) => x.deletedAt === null)
+          .count();
+        const f = await this.db.folders.get(folder.id);
+        if (f && f.deletedAt === null && left === 0) {
+          await this.putFolder({ ...f, deletedAt: now, updatedAt: now }, account, 'delete', f.rev);
+        }
+      },
+      async () => {
+        await this.refreshFolders();
+        await this.refreshBookmarks();
+      },
+    );
+    return { folder, count: prevs.length, undo };
+  }
+
+  /**
+   * "Pulihkan": makes an archived folder's bookmarks current again. A bookmark whose key already
+   * has a current bookmark stays archived (counted in skipped); the folder is un-archived only
+   * when nothing was skipped.
+   */
+  unarchiveFolder(id: string): Promise<{ restored: number; skipped: number }> {
+    return this.serial(async () => {
+      const out = await this.db.transaction('rw', this.tables, async () => {
+        const f = await this.db.folders.get(id);
+        if (!f || f.deletedAt !== null) throw new Error('Folder tidak ditemukan.');
+        const account = await activeSyncAccount(this.db);
+        const now = Date.now();
+        const rows = await this.db.bookmarks
+          .where('folderId')
+          .equals(id)
+          .filter((b) => b.deletedAt === null && b.archivedAt !== null)
+          .toArray();
+        rows.sort((a, b) => b.createdAt - a.createdAt);
+        let restored = 0;
+        let skipped = 0;
+        for (const b of rows) {
+          const clash = await this.db.bookmarks
+            .where('key')
+            .equals(b.key)
+            .filter((x) => x.deletedAt === null && x.archivedAt === null)
+            .first();
+          if (clash) {
+            skipped++;
+            continue;
+          }
+          await this.putBookmark({ ...b, archivedAt: null, updatedAt: now }, account, 'upsert', b.rev);
+          restored++;
+        }
+        if (skipped === 0 && f.archivedAt !== null) {
+          await this.putFolder({ ...f, archivedAt: null, updatedAt: now }, account, 'upsert', f.rev);
+        }
+        return { restored, skipped };
+      });
+      await this.refreshFolders();
+      await this.refreshBookmarks();
+      return out;
+    }, 'unarchive-folder');
+  }
+
   // ---- export / import -----------------------------------------------------
 
   async exportJson(): Promise<Blob> {
@@ -804,7 +1041,7 @@ export class UserDataService extends UserDataApi {
     bookmarks.sort((a, b) => a.createdAt - b.createdAt);
     const file: ExportFile = {
       format: 'mushaf-digital-export',
-      version: 2,
+      version: 3,
       exportedAt: Date.now(),
       editionId: DEFAULT_EDITION,
       bookmarks,
@@ -822,8 +1059,10 @@ export class UserDataService extends UserDataApi {
     return this.serial(async () => {
       const result = await this.db.transaction('rw', this.tables, async () => {
         const account = await activeSyncAccount(this.db);
+        // Current bookmarks dedupe by key; archived ones by key + archive time (re-importing the same file).
+        const stored = await this.db.bookmarks.filter((b) => b.deletedAt === null).toArray();
         const existing = new Set(
-          (await this.db.bookmarks.filter((b) => b.deletedAt === null).toArray()).map((b) => b.key),
+          stored.map((b) => (b.archivedAt === null ? b.key : b.key + '|' + b.archivedAt)),
         );
         // Folders: merge by case-insensitive name, never reuse ids from the file.
         const folders = await this.activeFolders();
@@ -840,6 +1079,7 @@ export class UserDataService extends UserDataApi {
               updatedAt: now,
               deletedAt: null,
               rev: null,
+              archivedAt: ff.archivedAt,
             };
             folders.push(target);
             await this.putFolder(target, account, 'upsert', null);
@@ -849,11 +1089,12 @@ export class UserDataService extends UserDataApi {
         let added = 0;
         let skipped = 0;
         for (const b of parsed.bookmarks) {
-          if (existing.has(b.key)) {
+          const dedupe = b.archivedAt === null ? b.key : b.key + '|' + b.archivedAt;
+          if (existing.has(dedupe)) {
             skipped++;
             continue;
           }
-          existing.add(b.key);
+          existing.add(dedupe);
           const row: Bookmark = {
             ...b,
             id: uuid(),

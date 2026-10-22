@@ -20,6 +20,7 @@ import {
   weekSummary,
   weekdayShort,
 } from './progress-format';
+import { KhatamService } from '../../core/khatam.service';
 import { SheetHistory } from './sheet-history';
 import { SHEET_STYLES } from './sheet-styles';
 
@@ -743,6 +744,7 @@ const MAX_TARGET = 40;
 })
 export class ProgressSheet {
   protected readonly progress = inject(ProgressService);
+  private readonly khatam = inject(KhatamService);
   protected readonly sync = inject(SyncApi);
   private readonly history = inject(SheetHistory);
   private readonly ui = inject(ReaderUiService);
@@ -1050,15 +1052,9 @@ export class ProgressSheet {
     this.history.navigateTo(this.progress.firstUnreadInJuz(n) ?? juzRange(n)[0]);
   }
 
-  protected async startNext(): Promise<void> {
-    const next = await this.progress.startNextRound();
-    if (!next) return;
-    this.ui.showToast({
-      message: `Alhamdulillah, khatam ke-${next.n - 1}`,
-      actionLabel: 'Baca doa',
-      action: () => this.history.navigateUrl('/doa-khatam'),
-      duration: 10000,
-    });
+  /** Same dialog as the Khatam button on page 604: archive the round's bookmarks, then start the next round. */
+  protected startNext(): void {
+    this.khatam.open();
   }
 }
 

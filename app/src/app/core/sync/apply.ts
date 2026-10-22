@@ -151,17 +151,24 @@ async function applyBookmark(ctx: Ctx, ch: Change): Promise<void> {
   const kind = str(d, 'kind');
   const key = str(d, 'key');
   const page = num(d, 'page');
-  if ((kind !== 'verse' && kind !== 'page') || !key || !isValidPage(page)) return;
+  if ((kind !== 'verse' && kind !== 'page' && kind !== 'favorite') || !key || !isValidPage(page)) return;
+  const surah = num(d, 'surah');
+  const ayah = num(d, 'ayah');
+  if (kind !== 'page' && (surah == null || ayah == null)) return;
+  // Older servers/payloads have no archivedAt: not archived. A favorite is never archived.
+  const archivedAt = kind === 'favorite' ? null : num(d, 'archivedAt');
 
-  // Semantic dedupe: one active bookmark per key.
-  const same = await db.bookmarks
-    .where('key')
-    .equals(key)
-    .filter((b) => b.id !== ch.id && b.deletedAt == null)
-    .toArray();
-  for (const s of same) {
-    await db.bookmarks.delete(s.id);
-    await dropPending(ctx, 'bookmark', s.id);
+  // Semantic dedupe: one active (non-archived) bookmark per key. An archived row owns nothing.
+  if (archivedAt == null) {
+    const same = await db.bookmarks
+      .where('key')
+      .equals(key)
+      .filter((b) => b.id !== ch.id && b.deletedAt == null && b.archivedAt == null)
+      .toArray();
+    for (const s of same) {
+      await db.bookmarks.delete(s.id);
+      await dropPending(ctx, 'bookmark', s.id);
+    }
   }
   const createdAt = num(d, 'createdAt') ?? now;
   const row: Bookmark = {
@@ -169,8 +176,8 @@ async function applyBookmark(ctx: Ctx, ch: Change): Promise<void> {
     kind,
     editionId: (str(d, 'editionId') as EditionId | null) ?? local?.editionId ?? 'hafs-kfqc',
     page,
-    surah: num(d, 'surah'),
-    ayah: num(d, 'ayah'),
+    surah,
+    ayah,
     key,
     createdAt,
     updatedAt: num(d, 'updatedAt') ?? createdAt,
@@ -178,6 +185,7 @@ async function applyBookmark(ctx: Ctx, ch: Change): Promise<void> {
     rev: ch.rev,
     folderId: str(d, 'folderId'),
     note: str(d, 'note'),
+    archivedAt,
   };
   await db.bookmarks.put(row);
   await bumpBaseRev(ctx, 'bookmark', ch.id, ch.rev);
@@ -243,6 +251,7 @@ async function applyFolder(ctx: Ctx, ch: Change): Promise<void> {
     updatedAt: num(d, 'updatedAt') ?? createdAt,
     deletedAt: null,
     rev: ch.rev,
+    archivedAt: num(d, 'archivedAt'),
   };
   await db.folders.put(row);
   await bumpBaseRev(ctx, 'folder', ch.id, ch.rev);
@@ -302,6 +311,7 @@ async function applyPrefs(ctx: Ctx, ch: Change): Promise<void> {
       renderer && PAGE_RENDERER_IDS.includes(renderer as PageRendererId)
         ? (renderer as PageRendererId)
         : base.pageRenderer,
+    showDoaKhatam: bool(d, 'showDoaKhatam') ?? base.showDoaKhatam,
     updatedAt: num(d, 'updatedAt') ?? base.updatedAt,
     rev: ch.rev,
   });
@@ -655,6 +665,15 @@ export function handleResults(
           }
           const rest = pendingFor(ctx, 'bookmark', op.entityId);
           const wantsDelete = rest.some((p) => p.action === 'delete');
+          const known = await db.bookmarks.get(op.entityId);
+          if (known && known.rev != null && known.deletedAt == null && r.current?.id !== known.id) {
+            // The server already has this bookmark, so the clash came from restoring it from the
+            // archive while another bookmark owns the key: it stays archived (the server copy is).
+            await db.bookmarks.put({ ...known, archivedAt: known.archivedAt ?? now });
+            if (r.current) await applyOne(ctx, r.current);
+            out.changed = true;
+            break;
+          }
           await db.bookmarks.delete(op.entityId);
           await dropPending(ctx, 'bookmark', op.entityId);
           const cur = r.current;

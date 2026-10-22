@@ -5,12 +5,13 @@ import { UpdateService } from './core/update.service';
 import { GestureTour } from './features/onboarding/gesture-tour';
 import { AudioPlayer } from './features/shell/audio-player';
 import { InstallPrompt } from './features/shell/install-prompt';
+import { KhatamDialog } from './features/shell/khatam-dialog';
 import { SheetHost } from './features/sheets/sheet-host';
 import { ToastHost } from './features/shell/toast-host';
 
 @Component({
   selector: 'app-root',
-  imports: [RouterOutlet, SheetHost, ToastHost, GestureTour, InstallPrompt, AudioPlayer],
+  imports: [RouterOutlet, SheetHost, ToastHost, GestureTour, InstallPrompt, AudioPlayer, KhatamDialog],
   templateUrl: './app.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })

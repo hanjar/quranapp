@@ -64,6 +64,31 @@ describe('BookmarkToggleService', () => {
     expect(t.ui.toast()?.actionLabel).toBe('Urungkan');
   });
 
+  it('favorite toggles optimistically with its own toasts and Urungkan', async () => {
+    const stored = signal(false);
+    const toggleFavorite = vi.fn(async () => {
+      stored.update((v) => !v);
+      return stored() ? ('added' as Result) : ('removed' as Result);
+    });
+    TestBed.resetTestingModule();
+    TestBed.configureTestingModule({
+      providers: [{ provide: UserDataApi, useValue: { isFavorite: () => stored(), toggleFavorite } }],
+    });
+    const svc = TestBed.inject(BookmarkToggleService);
+    const ui = TestBed.inject(ReaderUiService);
+    const p = svc.toggleFavorite(ref, 3);
+    expect(svc.isFavorite(ref)).toBe(true); // flipped at once
+    await p;
+    expect(toggleFavorite).toHaveBeenCalledWith(ref, 3);
+    expect(ui.toast()?.message).toBe('Ditambahkan ke favorit');
+    expect(ui.toast()?.actionLabel).toBe('Urungkan');
+    ui.toast()?.action?.(); // Urungkan toggles back
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(toggleFavorite).toHaveBeenCalledTimes(2);
+    expect(ui.toast()?.message).toBe('Dihapus dari favorit');
+  });
+
   it('a slow write is not a failure: Menyimpan after 2 s, then the normal success toast', async () => {
     const t = setup();
     const p = t.svc.toggleVerse(ref, 3);

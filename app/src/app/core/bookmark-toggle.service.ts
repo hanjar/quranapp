@@ -36,6 +36,21 @@ export class BookmarkToggleService {
     return this.view(bookmarkKey(DEFAULT_EDITION, 'page', { page }), () => this.userData.isPageBookmarked(page));
   }
 
+  isFavorite(ref: AyahRef): boolean {
+    return this.view(bookmarkKey(DEFAULT_EDITION, 'favorite', ref), () => this.userData.isFavorite(ref));
+  }
+
+  toggleFavorite(ref: AyahRef, page: number): Promise<void> {
+    const key = bookmarkKey(DEFAULT_EDITION, 'favorite', ref);
+    return this.run(
+      key,
+      () => this.userData.isFavorite(ref),
+      () => this.userData.toggleFavorite(ref, page),
+      { added: 'Ditambahkan ke favorit', removed: 'Dihapus dari favorit' },
+      () => this.toggleFavorite(ref, page),
+    );
+  }
+
   toggleVerse(ref: AyahRef, page: number): Promise<void> {
     const key = bookmarkKey(DEFAULT_EDITION, 'verse', ref);
     return this.run(

@@ -256,6 +256,7 @@ export class SearchSheet {
     audioOffline: this.audioOffline.supported().length > 0 && !!this.audioOffline.manifest(),
     sync: this.sync.available,
     wakeLock: this.wake.supported,
+    doa: this.userData.prefs().showDoaKhatam,
   }));
 
   private readonly refResults = computed<SearchResult[]>(() => {

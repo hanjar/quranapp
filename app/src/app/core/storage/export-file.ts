@@ -43,16 +43,18 @@ const oneOf = <T extends string>(v: unknown, allowed: readonly T[], label: strin
 const paperThemeOf = (v: unknown): Preferences['paperTheme'] =>
   isPaperThemeId(v) ? v : fail('Berkas tidak valid: pengaturan "paperTheme" tidak dikenal.');
 
-export function validateBookmark(raw: unknown, i: number, version: 1 | 2 = 2): Bookmark {
+export function validateBookmark(raw: unknown, i: number, version: 1 | 2 | 3 = 3): Bookmark {
   const n = `penanda #${i + 1}`;
   if (!isObj(raw)) return fail(`Berkas tidak valid: ${n} rusak.`);
   const kind = raw['kind'];
-  if (kind !== 'verse' && kind !== 'page') return fail(`Berkas tidak valid: jenis ${n} salah.`);
+  if (kind !== 'verse' && kind !== 'page' && !(kind === 'favorite' && version === 3)) {
+    return fail(`Berkas tidak valid: jenis ${n} salah.`);
+  }
   if (!isValidPage(raw['page'])) return fail(`Berkas tidak valid: halaman ${n} di luar 1–604.`);
   const page = raw['page'];
   let surah: number | null = null;
   let ayah: number | null = null;
-  if (kind === 'verse') {
+  if (kind === 'verse' || kind === 'favorite') {
     if (!isSurah(raw['surah'])) return fail(`Berkas tidak valid: surah ${n} di luar 1–114.`);
     if (!isAyah(raw['ayah'])) return fail(`Berkas tidak valid: ayat ${n} tidak sah.`);
     surah = raw['surah'];
@@ -75,8 +77,11 @@ export function validateBookmark(raw: unknown, i: number, version: 1 | 2 = 2): B
     deletedAt: null,
     rev: null,
     // File folder id (remapped on import); only meaningful for v2 files.
-    folderId: version === 2 ? validateFolderRef(raw['folderId'], n) : null,
-    note: version === 2 ? validateNote(raw['note'], n) : null,
+    folderId: version >= 2 ? validateFolderRef(raw['folderId'], n) : null,
+    note: version >= 2 ? validateNote(raw['note'], n) : null,
+    // Archived at khatam; a favorite is never archived.
+    archivedAt:
+      version === 3 && kind !== 'favorite' && isTime(raw['archivedAt']) ? raw['archivedAt'] : null,
   };
 }
 
@@ -98,6 +103,7 @@ export interface ImportedFolder {
   id: string;
   name: string;
   createdAt: number;
+  archivedAt: number | null;
 }
 
 export function validateFolder(raw: unknown, i: number): ImportedFolder {
@@ -107,7 +113,12 @@ export function validateFolder(raw: unknown, i: number): ImportedFolder {
   if (typeof id !== 'string' || id.length < 1 || id.length > 64) return fail(`Berkas tidak valid: id ${n} salah.`);
   const name = typeof raw['name'] === 'string' ? raw['name'].trim() : '';
   if (!name || name.length > FOLDER_NAME_MAX) return fail(`Berkas tidak valid: nama ${n} harus 1–${FOLDER_NAME_MAX} karakter.`);
-  return { id, name, createdAt: isTime(raw['createdAt']) ? raw['createdAt'] : 0 };
+  return {
+    id,
+    name,
+    createdAt: isTime(raw['createdAt']) ? raw['createdAt'] : 0,
+    archivedAt: isTime(raw['archivedAt']) ? raw['archivedAt'] : null,
+  };
 }
 
 export function validatePosition(raw: unknown): ReadingPosition | null {
@@ -184,6 +195,10 @@ export function validatePreferences(raw: unknown): Preferences {
     pageRenderer: PAGE_RENDERER_IDS.includes(raw['pageRenderer'] as PageRendererId)
       ? (raw['pageRenderer'] as PageRendererId)
       : DEFAULT_PREFERENCES.pageRenderer,
+    showDoaKhatam:
+      typeof raw['showDoaKhatam'] === 'boolean'
+        ? raw['showDoaKhatam']
+        : DEFAULT_PREFERENCES.showDoaKhatam,
     updatedAt: isTime(raw['updatedAt']) ? raw['updatedAt'] : 0,
     rev: null,
   };
@@ -209,13 +224,13 @@ export function parseExportText(text: string, size = text.length): ParsedExport 
     return fail('Berkas ini bukan ekspor Mushaf Digital.');
   }
   const version = data['version'];
-  if (version !== 1 && version !== 2) fail('Versi berkas ekspor tidak didukung.');
+  if (version !== 1 && version !== 2 && version !== 3) fail('Versi berkas ekspor tidak didukung.');
   if (data['editionId'] !== DEFAULT_EDITION) fail('Edisi mushaf pada berkas tidak didukung.');
   const list = data['bookmarks'];
   if (!Array.isArray(list)) return fail('Berkas tidak valid: daftar penanda tidak ada.');
   if (list.length > MAX_BOOKMARKS) fail('Berkas tidak valid: terlalu banyak penanda.');
-  const v = version as 1 | 2;
-  const rawFolders = v === 2 ? (data['folders'] ?? []) : [];
+  const v = version as 1 | 2 | 3;
+  const rawFolders = v >= 2 ? (data['folders'] ?? []) : [];
   if (!Array.isArray(rawFolders)) return fail('Berkas tidak valid: daftar folder rusak.');
   if (rawFolders.length > 1000) fail('Berkas tidak valid: terlalu banyak folder.');
   return {

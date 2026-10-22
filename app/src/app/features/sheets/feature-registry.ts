@@ -25,6 +25,8 @@ export interface FeatureEnv {
   sync: boolean;
   /** Screen Wake Lock API is available. */
   wakeLock: boolean;
+  /** The user has not hidden the khatam supplication (Pengaturan). */
+  doa: boolean;
 }
 
 export type FeatureNeeds = keyof FeatureEnv;
@@ -656,6 +658,51 @@ export const FEATURES: readonly FeatureEntry[] = [
       'doa selesai baca al-quran',
       'khatam',
       'selesai baca',
+    ],
+    'doa',
+  ),
+  f(
+    'doa-khatam-show',
+    'Tampilkan doa khatam',
+    'Sembunyikan atau tampilkan doa khatam di menu, dialog khatam, dan setelah halaman terakhir.',
+    'Baca',
+    settings('doa-khatam-show'),
+    [
+      'doa khatam',
+      'sembunyikan doa',
+      'sembunyikan doa khatam',
+      'tampilkan doa',
+      'tampilkan doa khatam',
+      'hilangkan doa',
+      'matikan doa',
+      'hadis sahih',
+    ],
+  ),
+  f(
+    'favorites',
+    'Favorit',
+    'Ayat favorit yang disimpan terpisah dari penanda dan tidak ikut diarsipkan saat khatam.',
+    'Data',
+    { type: 'sheet', sheet: 'bookmarks' },
+    ['favorit', 'ayat favorit', 'bintang', 'suka', 'simpan ayat', 'favorite', 'ayat pilihan'],
+  ),
+  f(
+    'archive-bookmarks',
+    'Arsipkan penanda / khatam',
+    'Pindahkan penanda putaran ini ke folder arsip khatam agar putaran baru mulai bersih.',
+    'Data',
+    { type: 'url', url: '/penanda' },
+    [
+      'arsipkan penanda',
+      'arsip',
+      'arsipkan',
+      'arsip khatam',
+      'khatam',
+      'selesai khatam',
+      'putaran baru',
+      'mulai baru',
+      'pulihkan penanda',
+      'bersihkan penanda',
     ],
   ),
   f(

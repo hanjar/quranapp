@@ -22,6 +22,7 @@ import {
   folderCounts,
   folderNameSuggestions,
   isPageEndVerse,
+  sortBookmarks,
 } from './bookmark-filters';
 import { BookmarkIcon, bookmarkIconKind, loadBookmarkTab, saveBookmarkTab } from './bookmark-icon';
 
@@ -100,9 +101,18 @@ type NewFolderTarget = 'filter' | 'move';
           <button type="button" [attr.aria-pressed]="kind() === 'page'" (click)="setKind('page')">
             Halaman
           </button>
+          <button
+            type="button"
+            data-testid="kind-favorite"
+            [attr.aria-pressed]="kind() === 'favorite'"
+            (click)="setKind('favorite')"
+          >
+            Favorit
+          </button>
         </div>
       </div>
 
+      @if (kind() !== 'favorite') {
       <div class="chips" role="group" aria-label="Folder">
         <button
           type="button"
@@ -163,6 +173,7 @@ type NewFolderTarget = 'filter' | 'move';
           + Folder baru
         </button>
       </div>
+      }
 
       @if (creating() === 'filter') {
         <ng-container *ngTemplateOutlet="newFolderForm" />
@@ -238,7 +249,7 @@ type NewFolderTarget = 'filter' | 'move';
             {{ allSelected() ? 'Batal pilih' : 'Pilih semua' }}
           </button>
         } @else {
-          <span>{{ rows().length }} penanda</span>
+          <span>{{ rows().length }} {{ kind() === 'favorite' ? 'favorit' : 'penanda' }}</span>
         }
       </div>
 
@@ -357,6 +368,113 @@ type NewFolderTarget = 'filter' | 'move';
           </li>
         }
       </ul>
+
+      @if (kind() !== 'favorite') {
+        <section class="archive" aria-labelledby="arc-h" data-testid="archive">
+          <button
+            type="button"
+            id="arc-h"
+            class="archhead"
+            data-testid="archive-toggle"
+            [attr.aria-expanded]="archiveOpen()"
+            (click)="archiveOpen.set(!archiveOpen())"
+          >
+            <span>Arsip khatam <span class="cnt">{{ archiveGroups().length }}</span></span>
+            <span aria-hidden="true">{{ archiveOpen() ? '▾' : '▸' }}</span>
+          </button>
+          @if (archiveOpen()) {
+            <div class="archbody">
+              <p class="hint">
+                Penanda putaran lama disimpan di sini dan tidak tampil di mushaf. Favorit tidak ikut
+                diarsipkan.
+              </p>
+              @if (archiving()) {
+                <div class="panel" role="group" aria-label="Arsipkan penanda sekarang">
+                  <label class="lbl" for="arc-name">
+                    Arsipkan {{ currentCount() }} penanda ke folder arsip
+                  </label>
+                  <input
+                    id="arc-name"
+                    class="mf-input"
+                    [value]="archiveName()"
+                    (input)="archiveName.set($any($event.target).value)"
+                    [attr.maxlength]="nameMax"
+                  />
+                  @if (formError()) {
+                    <div class="err" role="alert">{{ formError() }}</div>
+                  }
+                  <div class="row end">
+                    <button type="button" class="mf-btn mf-btn--ghost" (click)="archiving.set(false)">
+                      Batal
+                    </button>
+                    <button
+                      type="button"
+                      class="mf-btn mf-btn--primary"
+                      data-testid="archive-confirm"
+                      (click)="archiveNow()"
+                    >
+                      Arsipkan
+                    </button>
+                  </div>
+                </div>
+              } @else {
+                <button
+                  type="button"
+                  class="mf-btn mf-btn--outline"
+                  data-testid="archive-now"
+                  [disabled]="currentCount() === 0"
+                  (click)="startArchive()"
+                >
+                  Arsipkan penanda sekarang
+                </button>
+              }
+              @for (g of archiveGroups(); track g.id) {
+                <div class="archgroup" [attr.data-testid]="'arc-' + g.id">
+                  <div class="archgh">
+                    <div class="archname">
+                      <strong>{{ g.name }}</strong>
+                      <span class="sub">{{ g.items.length }} penanda · {{ g.date }}</span>
+                    </div>
+                    @if (g.folderId) {
+                      <button
+                        type="button"
+                        class="mf-btn mf-btn--outline small"
+                        data-testid="restore-btn"
+                        (click)="restore(g.folderId)"
+                      >
+                        Pulihkan
+                      </button>
+                      <button
+                        type="button"
+                        class="mf-btn mf-btn--ghost danger small"
+                        (click)="removeArchive(g.folderId, g.name)"
+                      >
+                        Hapus
+                      </button>
+                    }
+                  </div>
+                  <ul class="list">
+                    @for (r of g.items; track r.b.id) {
+                      <li class="item">
+                        <app-bookmark-icon class="kicon" [kind]="r.icon" [size]="18" />
+                        <button type="button" class="go" (click)="rowTap(r.b)">
+                          <span class="title">{{ r.title }}</span>
+                          <span class="sub">{{ r.sub }}</span>
+                          @if (r.b.note) {
+                            <span class="note">{{ r.b.note }}</span>
+                          }
+                        </button>
+                      </li>
+                    }
+                  </ul>
+                </div>
+              } @empty {
+                <p class="hint">Belum ada arsip.</p>
+              }
+            </div>
+          }
+        </section>
+      }
     </main>
 
     @if (selectMode()) {
@@ -371,6 +489,18 @@ type NewFolderTarget = 'filter' | 'move';
           </button>
         } @else {
           <span class="bartxt" aria-live="polite">{{ selectedIds().length }} dipilih</span>
+          @if (kind() !== 'favorite') {
+            <button
+              type="button"
+              class="mf-btn mf-btn--outline"
+              data-testid="make-favorite"
+              title="Membuat favorit dan menghapus penanda ayatnya"
+              [disabled]="selectedVerseCount() === 0"
+              (click)="makeFavorites()"
+            >
+              Jadikan favorit
+            </button>
+          }
           <button
             type="button"
             class="mf-btn mf-btn--outline"
@@ -441,6 +571,50 @@ type NewFolderTarget = 'filter' | 'move';
     </ng-template>
   `,
   styles: `
+    .archive {
+      margin-top: var(--mf-space-5);
+      border-top: 1px solid var(--ui-hair);
+    }
+    .archhead {
+      width: 100%;
+      min-height: var(--mf-tap);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border: none;
+      background: transparent;
+      color: var(--ui-ink);
+      font-size: 15px;
+      font-weight: 500;
+      padding: 0 4px;
+    }
+    .archbody {
+      display: flex;
+      flex-direction: column;
+      gap: var(--mf-space-3);
+      padding-bottom: var(--mf-space-6);
+    }
+    .archgroup {
+      display: flex;
+      flex-direction: column;
+      gap: var(--mf-space-2);
+      padding: var(--mf-space-3);
+      border: 1px solid var(--ui-hair);
+      border-radius: var(--mf-radius-md);
+      background: var(--ui-surface);
+    }
+    .archgh {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .archname {
+      flex: 1;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
     :host {
       display: block;
       position: fixed;
@@ -835,6 +1009,11 @@ export class BookmarksManager {
 
   protected readonly folders = this.userData.folders;
 
+  protected readonly archiveOpen = signal(false);
+  protected readonly archiving = signal(false);
+  protected readonly archiveName = signal('');
+  protected readonly currentCount = computed(() => this.userData.bookmarks().length);
+
   constructor() {
     void this.content.load();
   }
@@ -852,18 +1031,73 @@ export class BookmarksManager {
   );
 
   protected readonly rows = computed(() => {
-    const index = this.content.index();
     const folders = this.folders();
+    const fav = this.kind() === 'favorite';
     const list = filterBookmarks(
-      this.userData.bookmarks(),
+      fav ? this.userData.favorites() : this.userData.bookmarks(),
       folders,
-      { query: this.query(), kind: this.kind(), folder: this.folder(), sort: this.sort() },
+      {
+        query: this.query(),
+        kind: fav ? 'all' : this.kind(),
+        folder: fav ? 'all' : this.folder(),
+        sort: this.sort(),
+      },
       this.ctx(),
     );
-    return list.map((b) => {
+    return list.map((b) => this.toRow(b, folders));
+  });
+
+  /** Archived bookmarks grouped by their archived folder (newest archive first). */
+  protected readonly archiveGroups = computed(() => {
+    const archived = this.userData.archivedBookmarks();
+    const folders = this.userData.archivedFolders();
+    const known = new Set(folders.map((f) => f.id));
+    const groups = folders.map((f) => ({
+      id: f.id,
+      folderId: f.id as string | null,
+      name: f.name,
+      date: formatDate(f.archivedAt ?? f.createdAt),
+      items: sortBookmarks(
+        archived.filter((b) => b.folderId === f.id),
+        'mushaf',
+      ).map((b) => this.toRow(b, folders)),
+    }));
+    const orphans = archived.filter((b) => !b.folderId || !known.has(b.folderId));
+    if (orphans.length) {
+      groups.push({
+        id: 'lain',
+        folderId: null,
+        name: 'Arsip lainnya',
+        date: formatDate(orphans[0].archivedAt ?? orphans[0].createdAt),
+        items: sortBookmarks(orphans, 'mushaf').map((b) => this.toRow(b, folders)),
+      });
+    }
+    return groups;
+  });
+
+  protected readonly selectedVerseCount = computed(() => {
+    const sel = this.selected();
+    return this.userData.bookmarks().filter((b) => b.kind === 'verse' && sel.has(b.id)).length;
+  });
+
+  private toRow(b: Bookmark, folders: readonly BookmarkFolder[]) {
+    const index = this.content.index();
+    {
       const date = formatDate(b.createdAt);
       const fid = effectiveFolderId(b, folders);
       const folderName = fid ? (folders.find((f) => f.id === fid)?.name ?? null) : null;
+      if (b.kind === 'favorite' && b.surah && b.ayah) {
+        const name = index?.surahs[b.surah - 1]?.nameLatin ?? `Surah ${b.surah}`;
+        const juz = index ? this.content.juzAt(b.page).number : '';
+        return {
+          b,
+          pageEnd: false,
+          icon: bookmarkIconKind('favorite', false),
+          title: `${name} · Ayat ${b.ayah}`,
+          sub: `Hal. ${b.page} · Juz ${juz} · ${date}`,
+          folderName: null,
+        };
+      }
       if (b.kind === 'verse' && b.surah && b.ayah) {
         const name = index?.surahs[b.surah - 1]?.nameLatin ?? `Surah ${b.surah}`;
         const juz = index ? this.content.juzAt(b.page).number : '';
@@ -889,8 +1123,8 @@ export class BookmarksManager {
         sub: `Hal. ${b.page} · Juz ${juz} · ${date}`,
         folderName,
       };
-    });
-  });
+    }
+  }
 
   protected readonly selectedIds = computed(() => {
     const sel = this.selected();
@@ -933,9 +1167,80 @@ export class BookmarksManager {
       this.toggleSelected(b.id);
       return;
     }
-    const highlight =
-      b.kind === 'verse' && b.surah && b.ayah ? { surah: b.surah, ayah: b.ayah } : null;
+    const highlight = b.kind !== 'page' && b.surah && b.ayah ? { surah: b.surah, ayah: b.ayah } : null;
     this.ui.goToPage(b.page, { highlight });
+  }
+
+  // ---- favorites, archive ----
+  protected async makeFavorites(): Promise<void> {
+    const sel = this.selected();
+    const ids = this.userData
+      .bookmarks()
+      .filter((b) => b.kind === 'verse' && sel.has(b.id))
+      .map((b) => b.id);
+    if (ids.length === 0) return;
+    try {
+      const { count, undo } = await this.userData.convertToFavorites(ids);
+      this.ui.showToast({
+        message: count === 1 ? '1 ayat dijadikan favorit' : `${count} ayat dijadikan favorit`,
+        actionLabel: 'Urungkan',
+        action: () => void undo(),
+        duration: 6000,
+      });
+      this.selected.set(new Set());
+    } catch (e) {
+      this.ui.showToast({ message: errMsg(e, 'Gagal menjadikan favorit') });
+    }
+  }
+
+  protected startArchive(): void {
+    this.formError.set(null);
+    this.archiveName.set(`Arsip · ${formatDate(Date.now())}`.slice(0, FOLDER_NAME_MAX));
+    this.archiving.set(true);
+  }
+
+  protected async archiveNow(): Promise<void> {
+    try {
+      const res = await this.userData.archiveCurrentBookmarks(this.archiveName());
+      this.archiving.set(false);
+      this.archiveOpen.set(true);
+      this.ui.showToast({
+        message: res.count > 0 ? `${res.count} penanda diarsipkan` : 'Tidak ada penanda untuk diarsipkan',
+        ...(res.count > 0
+          ? { actionLabel: 'Urungkan', action: () => void res.undo(), duration: 6000 }
+          : {}),
+      });
+    } catch (e) {
+      this.formError.set(errMsg(e, 'Penanda gagal diarsipkan'));
+    }
+  }
+
+  protected async restore(folderId: string): Promise<void> {
+    try {
+      const { restored, skipped } = await this.userData.unarchiveFolder(folderId);
+      const parts: string[] = [];
+      if (restored > 0) parts.push(`${restored} penanda dipulihkan`);
+      if (skipped > 0) {
+        parts.push(`${skipped} penanda tidak dapat dipulihkan karena sudah ada penanda yang sama`);
+      }
+      this.ui.showToast({ message: parts.join(' · ') || 'Tidak ada penanda untuk dipulihkan', duration: 7000 });
+    } catch (e) {
+      this.ui.showToast({ message: errMsg(e, 'Penanda gagal dipulihkan') });
+    }
+  }
+
+  protected async removeArchive(folderId: string, name: string): Promise<void> {
+    try {
+      const undo = await this.userData.deleteFolder(folderId, { deleteBookmarks: true });
+      this.ui.showToast({
+        message: `Arsip "${name}" dihapus`,
+        actionLabel: 'Urungkan',
+        action: () => void undo(),
+        duration: 6000,
+      });
+    } catch (e) {
+      this.ui.showToast({ message: errMsg(e, 'Arsip gagal dihapus') });
+    }
   }
 
   // ---- filters ----

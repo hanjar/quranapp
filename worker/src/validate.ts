@@ -31,7 +31,7 @@ export type Entity = 'bookmark' | 'position' | 'prefs' | 'folder' | 'readday' | 
 export const MAX_DAILY_TARGET = 40;
 
 export interface BookmarkData {
-  kind: 'verse' | 'page';
+  kind: 'verse' | 'page' | 'favorite';
   editionId: string;
   page: number;
   surah: number | null;
@@ -41,6 +41,8 @@ export interface BookmarkData {
   note: string | null;
   createdAt: number;
   updatedAt: number;
+  /** undefined = absent on the wire: keep the stored value. */
+  archivedAt?: number | null;
 }
 
 export interface FolderData {
@@ -48,6 +50,8 @@ export interface FolderData {
   nameKey: string;
   createdAt: number;
   updatedAt: number;
+  /** undefined = absent on the wire: keep the stored value. */
+  archivedAt?: number | null;
 }
 
 export interface PositionData {
@@ -92,6 +96,7 @@ export interface PrefsData {
   translationScale?: number;
   audioMode?: (typeof AUDIO_MODES)[number];
   audioFollow?: boolean;
+  showDoaKhatam?: boolean;
   pageRenderer?: (typeof PAGE_RENDERERS)[number];
   updatedAt: number;
 }
@@ -144,18 +149,26 @@ function timestamp(v: unknown): number | null {
 
 export function bookmarkKey(
   editionId: string,
-  kind: 'verse' | 'page',
+  kind: 'verse' | 'page' | 'favorite',
   page: number,
   surah: number | null,
   ayah: number | null,
 ): string {
-  return kind === 'verse' ? `${editionId}|verse|${surah}:${ayah}` : `${editionId}|page|${page}`;
+  return kind === 'page' ? `${editionId}|page|${page}` : `${editionId}|${kind}|${surah}:${ayah}`;
+}
+
+/** Optional epoch-ms archive marker: undefined (absent) keeps the stored value, null/number sets it. */
+function optionalArchivedAt(v: unknown): Result<number | null | undefined> {
+  if (v === undefined) return { ok: true, value: undefined };
+  if (v === null) return { ok: true, value: null };
+  const n = timestamp(v);
+  return n === null ? fail('invalid archivedAt') : { ok: true, value: n };
 }
 
 export function parseBookmark(raw: unknown): Result<BookmarkData> {
   if (!isRecord(raw)) return fail('payload must be an object');
-  const kind = oneOf(raw['kind'], ['verse', 'page'] as const);
-  if (!kind) return fail('kind must be verse or page');
+  const kind = oneOf(raw['kind'], ['verse', 'page', 'favorite'] as const);
+  if (!kind) return fail('kind must be verse, page or favorite');
   const editionId = raw['editionId'];
   if (typeof editionId !== 'string' || !EDITION_RE.test(editionId)) return fail('invalid editionId');
   const page = int(raw['page'], 1, 604);
@@ -164,8 +177,13 @@ export function parseBookmark(raw: unknown): Result<BookmarkData> {
   if (!surah.ok) return fail('surah must be 1-114');
   const ayah = nullableInt(raw['ayah'], 1, 286);
   if (!ayah.ok) return fail('ayah must be 1-286');
-  if (kind === 'verse' && (surah.value === null || ayah.value === null)) {
-    return fail('verse bookmark requires surah and ayah');
+  if (kind !== 'page' && (surah.value === null || ayah.value === null)) {
+    return fail(`${kind} bookmark requires surah and ayah`);
+  }
+  const archivedAt = optionalArchivedAt(raw['archivedAt']);
+  if (!archivedAt.ok) return fail(archivedAt.error);
+  if (kind === 'favorite' && archivedAt.value !== undefined && archivedAt.value !== null) {
+    return fail('a favorite cannot be archived');
   }
   const createdAt = timestamp(raw['createdAt']);
   const updatedAt = timestamp(raw['updatedAt']);
@@ -180,12 +198,12 @@ export function parseBookmark(raw: unknown): Result<BookmarkData> {
   }
   const folderId = typeof folderRaw === 'string' ? folderRaw : null;
   const note = typeof noteRaw === 'string' && noteRaw.length > 0 ? noteRaw : null;
-  const s = kind === 'verse' ? surah.value : null;
-  const a = kind === 'verse' ? ayah.value : null;
+  const s = kind !== 'page' ? surah.value : null;
+  const a = kind !== 'page' ? ayah.value : null;
   // The semantic key is always derived server-side; a client-supplied key is ignored.
   return {
     ok: true,
-    value: { kind, editionId, page, surah: s, ayah: a, key: bookmarkKey(editionId, kind, page, s, a), folderId, note, createdAt, updatedAt },
+    value: { kind, editionId, page, surah: s, ayah: a, key: bookmarkKey(editionId, kind, page, s, a), folderId, note, createdAt, updatedAt, archivedAt: archivedAt.value },
   };
 }
 
@@ -198,7 +216,9 @@ export function parseFolder(raw: unknown): Result<FolderData> {
   const createdAt = timestamp(raw['createdAt']);
   const updatedAt = timestamp(raw['updatedAt']);
   if (createdAt === null || updatedAt === null) return fail('invalid timestamps');
-  return { ok: true, value: { name, nameKey: name.toLowerCase(), createdAt, updatedAt } };
+  const archivedAt = optionalArchivedAt(raw['archivedAt']);
+  if (!archivedAt.ok) return fail(archivedAt.error);
+  return { ok: true, value: { name, nameKey: name.toLowerCase(), createdAt, updatedAt, archivedAt: archivedAt.value } };
 }
 
 export function parsePosition(raw: unknown): Result<PositionData> {
@@ -304,7 +324,7 @@ export function parsePrefs(raw: unknown): Result<PrefsData> {
     if (typeof v !== 'string' || !HHMM_RE.test(v)) return fail(`${k} must be HH:MM`);
     value[k] = v;
   }
-  for (const k of ['lineRules', 'showLatin', 'audioFollow'] as const) {
+  for (const k of ['lineRules', 'showLatin', 'audioFollow', 'showDoaKhatam'] as const) {
     const v = raw[k];
     if (v === undefined) continue;
     if (typeof v !== 'boolean') return fail(`${k} must be a boolean`);

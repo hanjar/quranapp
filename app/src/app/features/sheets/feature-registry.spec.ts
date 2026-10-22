@@ -7,8 +7,20 @@ import {
   searchFeatures,
 } from './feature-registry';
 
-const ALL: FeatureEnv = { installable: true, audioOffline: true, sync: true, wakeLock: true };
-const NONE: FeatureEnv = { installable: false, audioOffline: false, sync: false, wakeLock: false };
+const ALL: FeatureEnv = {
+  installable: true,
+  audioOffline: true,
+  sync: true,
+  wakeLock: true,
+  doa: true,
+};
+const NONE: FeatureEnv = {
+  installable: false,
+  audioOffline: false,
+  sync: false,
+  wakeLock: false,
+  doa: false,
+};
 const ids = (q: string, env: FeatureEnv = ALL) => searchFeatures(q, env).map((f) => f.id);
 
 describe('feature registry', () => {
@@ -89,7 +101,15 @@ describe('feature registry', () => {
     expect(ids('audio offline', NONE)).not.toContain('offline-audio');
     expect(ids('login', NONE)).not.toContain('account');
     expect(ids('layar menyala', NONE)).not.toContain('wake');
-    expect(availableFeatures(NONE).length).toBe(FEATURES.length - 5);
+    expect(availableFeatures(NONE).length).toBe(FEATURES.length - 6);
+    expect(ids('doa khatam', NONE)).not.toContain('doa-khatam');
+    expect(ids('sembunyikan doa', NONE)).toContain('doa-khatam-show');
+  });
+
+  it('finds favorites and the khatam archive', () => {
+    expect(ids('favorit')).toContain('favorites');
+    expect(ids('arsipkan penanda')).toContain('archive-bookmarks');
+    expect(ids('selesai khatam')).toContain('archive-bookmarks');
   });
 
   it('ranks title matches first and returns nothing for gibberish', () => {

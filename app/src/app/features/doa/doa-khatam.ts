@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 import { Router } from '@angular/router';
 import { UserDataApi } from '../../core/contracts';
 import { ReaderUiService } from '../../core/reader-ui.service';
@@ -49,6 +49,26 @@ export function doaCopyText(): string {
         </section>
       }
       <p class="src">{{ source }}</p>
+      <div class="switch-row" data-testid="doa-show">
+        <span
+          ><span id="sw-doa">Tampilkan doa khatam</span
+          ><small id="sw-doa-d"
+            >Matikan bila Anda hanya ingin doa yang bersumber dari hadis sahih. Bisa dinyalakan
+            lagi di Pengaturan.</small
+          ></span
+        >
+        <span class="hit"
+          ><button
+            type="button"
+            class="switch"
+            role="switch"
+            aria-labelledby="sw-doa"
+            aria-describedby="sw-doa-d"
+            [attr.aria-checked]="shown()"
+            (click)="toggleShown()"
+          ></button
+        ></span>
+      </div>
     </main>
   `,
   styles: `
@@ -105,7 +125,8 @@ export function doaCopyText(): string {
       margin: 0;
     }
     .ar {
-      font-family: 'Noto Naskh Arabic', 'Amiri', 'Scheherazade New', 'Traditional Arabic', serif;
+      /* Bundled subset of Noto Naskh Arabic (OFL) so the doa looks the same on every device. */
+      font-family: 'Mushaf Doa Naskh', 'Noto Naskh Arabic', 'Amiri', 'Traditional Arabic', serif;
       font-size: clamp(26px, 6vw, 34px);
       line-height: 2.1;
       text-align: right;
@@ -121,6 +142,55 @@ export function doaCopyText(): string {
       font-size: 16px;
       line-height: 1.6;
       color: var(--ui-ink2);
+    }
+    .switch-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      min-height: 52px;
+      padding-top: var(--mf-space-3);
+      border-top: 1px solid var(--ui-hair);
+      font-size: 15px;
+    }
+    .switch-row small {
+      display: block;
+      color: var(--ui-muted);
+      font-size: 12.5px;
+      line-height: 1.45;
+    }
+    .hit {
+      min-height: var(--mf-tap);
+      display: flex;
+      align-items: center;
+    }
+    .switch {
+      position: relative;
+      flex: none;
+      width: 48px;
+      height: 28px;
+      border-radius: 14px;
+      border: none;
+      background: var(--ui-line);
+      padding: 0;
+      transition: background var(--mf-dur-fast);
+    }
+    .switch::after {
+      content: '';
+      position: absolute;
+      top: 3px;
+      left: 3px;
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background: #fff;
+      transition: transform var(--mf-dur-fast) var(--mf-ease);
+    }
+    .switch[aria-checked='true'] {
+      background: var(--ui-primary);
+    }
+    .switch[aria-checked='true']::after {
+      transform: translateX(20px);
     }
     .src {
       font-size: 12.5px;
@@ -138,6 +208,23 @@ export class DoaKhatam {
   protected readonly title = DOA_KHATAM_TITLE;
   protected readonly lines = DOA_KHATAM;
   protected readonly source = DOA_KHATAM_SOURCE;
+  /** The page itself always opens; this switch only hides the other entry points. */
+  protected readonly shown = computed(() => this.userData.prefs().showDoaKhatam);
+
+  protected toggleShown(): void {
+    if (!this.shown()) {
+      void this.userData.setPrefs({ showDoaKhatam: true });
+      return;
+    }
+    void this.userData.setPrefs({ showDoaKhatam: false });
+    this.ui.showToast({
+      message: 'Doa khatam disembunyikan',
+      actionLabel: 'Urungkan',
+      action: () => void this.userData.setPrefs({ showDoaKhatam: true }),
+      duration: 6000,
+    });
+    this.back();
+  }
 
   protected back(): void {
     const page = this.userData.position()?.page ?? this.ui.currentPage();

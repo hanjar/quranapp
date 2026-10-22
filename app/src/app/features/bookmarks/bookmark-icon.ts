@@ -1,25 +1,30 @@
 import { ChangeDetectionStrategy, Component, input } from '@angular/core';
 
-export type BookmarkIconKind = 'verse' | 'end' | 'page';
+export type BookmarkIconKind = 'verse' | 'end' | 'page' | 'favorite';
 
 export const BOOKMARK_ICON_LABEL: Record<BookmarkIconKind, string> = {
   verse: 'Penanda ayat',
   end: 'Penanda akhir halaman',
   page: 'Penanda halaman',
+  favorite: 'Ayat favorit',
 };
 
 /** Which icon a bookmark gets: page bookmark, verse at the end of its page, or plain verse. */
-export function bookmarkIconKind(kind: 'verse' | 'page', pageEnd: boolean): BookmarkIconKind {
+export function bookmarkIconKind(
+  kind: 'verse' | 'page' | 'favorite',
+  pageEnd: boolean,
+): BookmarkIconKind {
+  if (kind === 'favorite') return 'favorite';
   return kind === 'page' ? 'page' : pageEnd ? 'end' : 'verse';
 }
 
 const TAB_KEY = 'mf.bookmarkTab';
-export type BookmarkTab = 'all' | 'verse' | 'page';
+export type BookmarkTab = 'all' | 'verse' | 'page' | 'favorite';
 
 export function loadBookmarkTab(storage: Pick<Storage, 'getItem'> | null = safeStorage()): BookmarkTab {
   try {
     const v = storage?.getItem(TAB_KEY);
-    return v === 'verse' || v === 'page' || v === 'all' ? v : 'all';
+    return v === 'verse' || v === 'page' || v === 'favorite' || v === 'all' ? v : 'all';
   } catch {
     return 'all';
   }
@@ -68,6 +73,9 @@ function safeStorage(): Storage | null {
           <path class="fold" d="M14.5 3v4h4" fill="none" />
           <path class="rib" d="M8.5 21v-7h4v7l-2-1.6z" />
         }
+        @case ('favorite') {
+          <path d="M12 3.6l2.5 5.2 5.7.8-4.1 4 1 5.7-5.1-2.7-5.1 2.7 1-5.7-4.1-4 5.7-.8z" />
+        }
         @case ('end') {
           <path d="M6.5 4h11v16l-5.5-4-5.5 4z" />
           <path
@@ -90,6 +98,10 @@ function safeStorage(): Storage | null {
       flex: none;
     }
     .ic--verse {
+      fill: var(--ui-accent-icon);
+      stroke: var(--ui-accent-icon);
+    }
+    .ic--favorite {
       fill: var(--ui-accent-icon);
       stroke: var(--ui-accent-icon);
     }

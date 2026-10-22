@@ -104,6 +104,15 @@ import { SheetHistory } from './sheet-history';
       >
         Halaman
       </button>
+      <button
+        type="button"
+        role="tab"
+        data-testid="tab-favorite"
+        [attr.aria-selected]="tab() === 'favorite'"
+        (click)="setTab('favorite')"
+      >
+        Favorit
+      </button>
     </div>
 
     @for (r of rows(); track r.id) {
@@ -127,7 +136,7 @@ import { SheetHistory } from './sheet-history';
         <button
           type="button"
           class="mf-icon-btn del"
-          [attr.aria-label]="'Hapus penanda ' + r.title"
+          [attr.aria-label]="(r.bookmark.kind === 'favorite' ? 'Hapus favorit ' : 'Hapus penanda ') + r.title"
           (click)="remove(r.bookmark)"
         >
           <svg
@@ -389,13 +398,16 @@ export class BookmarksSheet {
       ? 'Belum ada ayat ditandai'
       : t === 'page'
         ? 'Belum ada halaman ditandai'
-        : 'Belum ada penanda';
+        : t === 'favorite'
+          ? 'Belum ada ayat favorit'
+          : 'Belum ada penanda';
   }
 
   protected emptyHint(): string {
     const t = this.tab();
     if (t === 'verse') return 'Ketuk sebuah ayat, lalu pilih Tandai.';
     if (t === 'page') return 'Tampilkan kontrol, lalu ketuk ikon penanda di bilah bawah.';
+    if (t === 'favorite') return 'Ketuk sebuah ayat, lalu pilih Favorit. Favorit tidak ikut diarsipkan saat khatam.';
     return 'Ketuk sebuah ayat lalu pilih Tandai, atau tandai halaman dari bilah bawah.';
   }
 
@@ -428,20 +440,21 @@ export class BookmarksSheet {
     const kind = this.tab();
     const folders = this.userData.folders();
     const folderName = (b: Bookmark) => folders.find((f) => f.id === b.folderId)?.name ?? null;
-    return this.userData
-      .bookmarks()
+    // Semua/Ayat/Halaman = current penanda (never archived, never favorites); Favorit = favorites.
+    const source = kind === 'favorite' ? this.userData.favorites() : this.userData.bookmarks();
+    return source
       .filter((b) => kind === 'all' || b.kind === kind)
       .map((b) => {
         const date = formatDate(b.createdAt);
-        if (b.kind === 'verse' && b.surah && b.ayah) {
+        if (b.kind !== 'page' && b.surah && b.ayah) {
           const name = index.surahs[b.surah - 1]?.nameLatin ?? `Surah ${b.surah}`;
-          const pageEnd = isPageEndVerse(b, (p) => this.content.pageMeta(p).last);
+          const pageEnd = b.kind === 'verse' && isPageEndVerse(b, (p) => this.content.pageMeta(p).last);
           return {
             id: b.id,
             bookmark: b,
             folderName: folderName(b),
             pageEnd,
-            icon: bookmarkIconKind('verse', pageEnd),
+            icon: bookmarkIconKind(b.kind, pageEnd),
             title: `${name} · Ayat ${b.ayah}`,
             sub: pageEnd ? `Hal. ${b.page} selesai dibaca · ${date}` : `Hal. ${b.page} · ${date}`,
           };
@@ -467,8 +480,7 @@ export class BookmarksSheet {
   }
 
   protected open(b: Bookmark): void {
-    const highlight =
-      b.kind === 'verse' && b.surah && b.ayah ? { surah: b.surah, ayah: b.ayah } : null;
+    const highlight = b.kind !== 'page' && b.surah && b.ayah ? { surah: b.surah, ayah: b.ayah } : null;
     this.history.navigateTo(b.page, { highlight });
   }
 
@@ -476,7 +488,7 @@ export class BookmarksSheet {
     try {
       const undo = await this.userData.removeBookmark(b.id);
       this.ui.showToast({
-        message: 'Penanda dihapus',
+        message: b.kind === 'favorite' ? 'Favorit dihapus' : 'Penanda dihapus',
         actionLabel: 'Urungkan',
         action: () => void undo(),
         duration: 6000,

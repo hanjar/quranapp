@@ -57,6 +57,7 @@ function bm(p: Partial<Bookmark>): Bookmark {
     rev: null,
     folderId: null,
     note: null,
+    archivedAt: null,
     ...p,
   };
 }
@@ -67,6 +68,7 @@ const folder = (id: string, name: string): BookmarkFolder => ({
   updatedAt: 1,
   deletedAt: null,
   rev: null,
+  archivedAt: null,
 });
 const F1 = folder('f1', 'Khatam ke-1');
 const F2 = folder('f2', 'Khatam ke-2');

@@ -19,7 +19,8 @@
           "/manifest.webmanifest",
           "/*.css",
           "/*.js",
-          "/sfx/*.wav"
+          "/sfx/*.wav",
+          "/fonts/*.woff2"
         ]
       }
     },

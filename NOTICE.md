@@ -29,3 +29,7 @@ remains under its original terms:
 ## Efek suara balik halaman
 
 `app/public/sfx/flip1–3.wav` berasal dari **RPG Audio** oleh Kenney Vleugels ([kenney.nl](https://kenney.nl/assets/rpg-audio)), lisensi **CC0 1.0**. Hening di awal/akhir dipotong dan diubah ke WAV mono 22 kHz.
+
+## Font doa khatam
+
+`app/public/fonts/noto-naskh-arabic-doa.woff2` adalah potongan (subset) **Noto Naskh Arabic** (Google), lisensi **SIL Open Font License 1.1**, hanya berisi huruf teks doa khatam.

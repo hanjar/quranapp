@@ -59,11 +59,17 @@ export function bookmarkPayload(b: Bookmark): Record<string, unknown> {
     updatedAt: b.updatedAt,
     folderId: b.folderId ?? null,
     note: b.note ?? null,
+    archivedAt: b.archivedAt ?? null,
   };
 }
 
 export function folderPayload(f: BookmarkFolder): Record<string, unknown> {
-  return { name: f.name, createdAt: f.createdAt, updatedAt: f.updatedAt };
+  return {
+    name: f.name,
+    createdAt: f.createdAt,
+    updatedAt: f.updatedAt,
+    archivedAt: f.archivedAt ?? null,
+  };
 }
 
 export function positionPayload(p: ReadingPosition): Record<string, unknown> {
@@ -110,6 +116,7 @@ export function prefsPayload(p: Preferences): Record<string, unknown> {
     audioMode: p.audioMode,
     audioFollow: p.audioFollow,
     pageRenderer: p.pageRenderer,
+    showDoaKhatam: p.showDoaKhatam,
     updatedAt: p.updatedAt,
   };
 }

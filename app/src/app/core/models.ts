@@ -7,11 +7,21 @@ export type EditionId = 'hafs-kfqc';
 export const DEFAULT_EDITION: EditionId = 'hafs-kfqc';
 export const PAGE_COUNT = 604;
 
-export type BuiltinPaperTheme = 'photo' | 'ivory' | 'antique' | 'cream' | 'comfort' | 'sepia' | 'blue' | 'green';
+export type BuiltinPaperTheme =
+  'photo' | 'ivory' | 'antique' | 'cream' | 'comfort' | 'sepia' | 'blue' | 'green';
 /** A user-made theme is referenced as `custom:<CustomTheme.id>`. */
 export type CustomPaperTheme = `custom:${string}`;
 export type PaperTheme = BuiltinPaperTheme | CustomPaperTheme;
-export const BUILTIN_PAPER_THEMES: readonly BuiltinPaperTheme[] = ['photo', 'ivory', 'antique', 'cream', 'comfort', 'sepia', 'blue', 'green'];
+export const BUILTIN_PAPER_THEMES: readonly BuiltinPaperTheme[] = [
+  'photo',
+  'ivory',
+  'antique',
+  'cream',
+  'comfort',
+  'sepia',
+  'blue',
+  'green',
+];
 
 /** A theme the user built on /tema. Colours are lowercase `#rrggbb`. Synced inside Preferences. */
 export interface CustomTheme {
@@ -144,16 +154,20 @@ export class PageLoadError extends Error {
 // User data (IndexedDB, optionally synced). Timestamps are epoch ms.
 // ---------------------------------------------------------------------------
 
-export type BookmarkKind = 'verse' | 'page';
+/**
+ * verse/page = "where I am reading" (Penanda); favorite = a verse kept for good (Favorit).
+ * Only verse/page bookmarks can be archived (at khatam); favorites never are.
+ */
+export type BookmarkKind = 'verse' | 'page' | 'favorite';
 
 export interface Bookmark {
   id: string; // uuid v4
   kind: BookmarkKind;
   editionId: EditionId;
-  page: number; // always set (verse bookmarks store the page the ayah was selected on)
-  surah: number | null; // required when kind === 'verse'
-  ayah: number | null; // required when kind === 'verse'
-  /** Semantic dedupe key: `${editionId}|verse|${surah}:${ayah}` or `${editionId}|page|${page}` */
+  page: number; // always set (verse/favorite bookmarks store the page the ayah was selected on)
+  surah: number | null; // required when kind === 'verse' | 'favorite'
+  ayah: number | null; // required when kind === 'verse' | 'favorite'
+  /** Semantic dedupe key: `${editionId}|verse|${surah}:${ayah}`, `${editionId}|favorite|${surah}:${ayah}` or `${editionId}|page|${page}` */
   key: string;
   createdAt: number;
   updatedAt: number;
@@ -163,6 +177,12 @@ export interface Bookmark {
   folderId: string | null;
   /** Optional personal note, trimmed, max BOOKMARK_NOTE_MAX chars. */
   note: string | null;
+  /**
+   * Epoch ms when a khatam archived this verse/page bookmark, or null (current).
+   * Archived bookmarks are hidden from the reader and the Penanda sheet, but kept in Kelola.
+   * Never set on a favorite.
+   */
+  archivedAt: number | null;
 }
 
 export const BOOKMARK_NOTE_MAX = 500;
@@ -181,6 +201,8 @@ export interface BookmarkFolder {
   updatedAt: number;
   deletedAt: number | null; // tombstone
   rev: number | null;
+  /** Epoch ms when this (khatam) folder was archived, or null. UI grouping only. */
+  archivedAt: number | null;
 }
 
 export interface ReadingPosition {
@@ -226,6 +248,8 @@ export interface Preferences {
   audioFollow: boolean;
   /** Mushaf page style. Synced. */
   pageRenderer: PageRendererId;
+  /** Show the khatam supplication (doa khatam) entry points. Synced. */
+  showDoaKhatam: boolean;
   updatedAt: number;
   rev: number | null;
 }
@@ -260,6 +284,7 @@ export const DEFAULT_PREFERENCES: Preferences = {
   audioMode: 'surah',
   audioFollow: true,
   pageRenderer: 'classic',
+  showDoaKhatam: true,
   updatedAt: 0,
   rev: null,
 };
@@ -335,13 +360,7 @@ export function mergeReadMarks(
 }
 
 export type SyncEntity =
-  | 'bookmark'
-  | 'folder'
-  | 'position'
-  | 'prefs'
-  | 'readday'
-  | 'khatam'
-  | 'readmark';
+  'bookmark' | 'folder' | 'position' | 'prefs' | 'readday' | 'khatam' | 'readmark';
 
 export interface OutboxOperation {
   opId: string; // uuid v4, idempotency key
@@ -384,10 +403,13 @@ export interface Account {
 }
 
 /** Shape of the versioned export/import file (US-12). */
-/** Version 2 adds folders and bookmark folderId/note. Version 1 files stay importable. */
+/**
+ * Version 2 adds folders and bookmark folderId/note; version 3 adds favorites and archivedAt
+ * (bookmarks + folders). Version 1 and 2 files stay importable.
+ */
 export interface ExportFile {
   format: 'mushaf-digital-export';
-  version: 1 | 2;
+  version: 1 | 2 | 3;
   exportedAt: number;
   editionId: EditionId;
   bookmarks: Bookmark[];
@@ -405,9 +427,8 @@ export function bookmarkKey(
   kind: BookmarkKind,
   target: { page?: number | null; surah?: number | null; ayah?: number | null },
 ): string {
-  return kind === 'verse'
-    ? `${editionId}|verse|${target.surah}:${target.ayah}`
-    : `${editionId}|page|${target.page}`;
+  if (kind === 'page') return `${editionId}|page|${target.page}`;
+  return `${editionId}|${kind}|${target.surah}:${target.ayah}`;
 }
 
 export function isValidPage(p: unknown): p is number {

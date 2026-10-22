@@ -2,7 +2,7 @@ import { Bookmark, BookmarkFolder, SurahMeta } from '../../core/models';
 import { normalizeName } from '../sheets/search-parser';
 
 export type SortMode = 'mushaf' | 'recent';
-export type KindFilter = 'all' | 'verse' | 'page';
+export type KindFilter = 'all' | 'verse' | 'page' | 'favorite';
 /** 'all' = every folder, 'none' = Tanpa folder, otherwise a folder id. */
 export type FolderFilter = 'all' | 'none' | (string & {});
 

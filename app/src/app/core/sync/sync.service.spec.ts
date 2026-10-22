@@ -30,6 +30,7 @@ function bm(id: string, over: Partial<Bookmark> = {}): Bookmark {
     rev: null,
     folderId: null,
     note: null,
+    archivedAt: null,
     ...over,
   };
 }

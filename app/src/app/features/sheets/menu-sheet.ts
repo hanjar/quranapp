@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { InstallService } from '../../core/install.service';
-import { OfflineApi, SyncApi } from '../../core/contracts';
+import { OfflineApi, SyncApi, UserDataApi } from '../../core/contracts';
 import { ReaderUiService, SheetName } from '../../core/reader-ui.service';
 import { UpdateService } from '../../core/update.service';
 import { SheetHistory } from './sheet-history';
@@ -143,6 +143,7 @@ import { offlineNeedsAttention, syncNeedsAttention } from '../reader/attention';
           <span class="label">Progres</span>
         </button>
       </li>
+      @if (userData.prefs().showDoaKhatam) {
       <li>
         <button type="button" class="tile" data-tile="doa" (click)="openDoa()">
           <svg
@@ -162,6 +163,7 @@ import { offlineNeedsAttention, syncNeedsAttention } from '../reader/attention';
           <span class="label">Doa khatam</span>
         </button>
       </li>
+      }
       <li>
         <button
           type="button"
@@ -363,6 +365,7 @@ import { offlineNeedsAttention, syncNeedsAttention } from '../reader/attention';
 })
 export class MenuSheet {
   private readonly ui = inject(ReaderUiService);
+  protected readonly userData = inject(UserDataApi);
   protected readonly sync = inject(SyncApi);
   protected readonly install = inject(InstallService);
   protected readonly updates = inject(UpdateService);

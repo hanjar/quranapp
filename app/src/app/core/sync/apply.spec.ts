@@ -30,6 +30,7 @@ function bm(id: string, over: Partial<Bookmark> = {}): Bookmark {
     rev: null,
     folderId: null,
     note: null,
+    archivedAt: null,
     ...over,
   };
 }
@@ -102,6 +103,69 @@ describe('sync apply', () => {
       await applyChanges(db, ACC, [bmChange('a', 6, {}, { page: 11, key: 'k2' })], opts());
       const row = await db.bookmarks.get('a');
       expect(row).toMatchObject({ page: 11, rev: 6, deletedAt: null });
+    });
+
+    it('stores archivedAt and favorite bookmarks from a pull; absent archivedAt means current', async () => {
+      await applyChanges(
+        db,
+        ACC,
+        [
+          bmChange('arch', 1, {}, { archivedAt: 1234, folderId: 'f1' }),
+          bmChange('fav', 2, {}, { kind: 'favorite', surah: 2, ayah: 5, key: 'hafs-kfqc|favorite|2:5', archivedAt: 77 }),
+          bmChange('cur', 3, {}, { page: 20, key: 'hafs-kfqc|page|20' }),
+        ],
+        opts(),
+      );
+      expect(await db.bookmarks.get('arch')).toMatchObject({ archivedAt: 1234, folderId: 'f1' });
+      // a favorite is never archived, even if a payload says so
+      expect(await db.bookmarks.get('fav')).toMatchObject({ kind: 'favorite', surah: 2, ayah: 5, archivedAt: null });
+      expect((await db.bookmarks.get('cur'))?.archivedAt).toBeNull();
+    });
+
+    it('a pulled favorite without surah/ayah is ignored', async () => {
+      await applyChanges(db, ACC, [bmChange('bad', 1, {}, { kind: 'favorite', key: 'hafs-kfqc|favorite|x' })], opts());
+      expect(await db.bookmarks.get('bad')).toBeUndefined();
+    });
+
+    it('an archived bookmark does not displace the active one with the same key, and vice versa', async () => {
+      await db.bookmarks.put(bm('active', { rev: 1 }));
+      await applyChanges(db, ACC, [bmChange('arch', 2, {}, { archivedAt: 50 })], opts());
+      expect((await db.bookmarks.get('active'))?.deletedAt).toBeNull();
+      expect(await db.bookmarks.get('arch')).toMatchObject({ archivedAt: 50 });
+      // an unsynced active twin is still replaced by the server's active bookmark
+      await db.bookmarks.put(bm('twin', { rev: null }));
+      await applyChanges(db, ACC, [bmChange('active', 3)], opts());
+      expect(await db.bookmarks.get('twin')).toBeUndefined();
+      expect(await db.bookmarks.get('arch')).toBeDefined();
+    });
+
+    it('stores a folder archivedAt from a pull', async () => {
+      await applyChanges(
+        db,
+        ACC,
+        [{ entity: 'folder', id: 'f1', rev: 1, deleted: false, data: { name: 'Khatam ke-1', archivedAt: 99, createdAt: 1, updatedAt: 1 } }],
+        opts(),
+      );
+      expect(await db.folders.get('f1')).toMatchObject({ name: 'Khatam ke-1', archivedAt: 99 });
+    });
+
+    it('showDoaKhatam is adopted from prefs, and kept when the server omits it', async () => {
+      const prefsChange = (rev: number, data: Record<string, unknown>): Change => ({
+        entity: 'prefs',
+        id: 'prefs',
+        rev,
+        deleted: false,
+        data: { paperTheme: 'sepia', updatedAt: 5, ...data },
+      });
+      await applyChanges(db, ACC, [prefsChange(1, { showDoaKhatam: false })], opts());
+      expect((await db.prefs.get('prefs'))?.showDoaKhatam).toBe(false);
+      await applyChanges(db, ACC, [prefsChange(2, {})], opts());
+      expect((await db.prefs.get('prefs'))?.showDoaKhatam).toBe(false);
+      // a device that never had the pref treats absent as the default (true)
+      const fresh = new MushafDb('test-' + Math.random().toString(36).slice(2));
+      await applyChanges(fresh, ACC, [prefsChange(1, {})], opts());
+      expect((await fresh.prefs.get('prefs'))?.showDoaKhatam).toBe(true);
+      fresh.close();
     });
 
     it('applies tombstones and drops stale pending upserts', async () => {
@@ -435,6 +499,26 @@ describe('sync apply', () => {
       expect(await db.outbox.count()).toBe(0);
     });
 
+    it('duplicate on an unarchive: the local bookmark stays archived, the server holder is adopted', async () => {
+      // already on the server (rev 4), archived locally, then "Pulihkan" while another bookmark owns the key
+      await db.bookmarks.put(bm('old', { rev: 4, archivedAt: null }));
+      const op = makeOp(ACC, 'bookmark', 'old', 'upsert', { archivedAt: null }, 4);
+      await db.outbox.add(op);
+      const out = await handleResults(
+        db,
+        ACC,
+        [op],
+        [res(op.opId, 'duplicate', { current: bmChange('active', 9) })],
+        opts(),
+      );
+      expect(out.duplicates).toBe(1);
+      const old = await db.bookmarks.get('old');
+      expect(old).toBeDefined();
+      expect(old!.archivedAt).not.toBeNull();
+      expect(await db.bookmarks.get('active')).toMatchObject({ rev: 9, archivedAt: null });
+      expect(await db.outbox.count()).toBe(0);
+    });
+
     it('duplicate: a queued local delete is carried over to the server id', async () => {
       await db.bookmarks.put(bm('local', { deletedAt: 10 }));
       const up = makeOp(ACC, 'bookmark', 'local', 'upsert', {}, null);
@@ -549,6 +633,7 @@ describe('sync apply', () => {
       updatedAt: 1,
       deletedAt: null,
       rev: null,
+      archivedAt: null,
       ...over,
     });
     const foChange = (id: string, rev: number, name: string, deleted = false): Change => ({

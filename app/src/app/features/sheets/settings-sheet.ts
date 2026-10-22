@@ -436,6 +436,25 @@ const SYNC_LABEL: Record<string, string> = {
           ></button
         ></span>
       </div>
+      <div class="switch-row" data-search-id="doa-khatam-show">
+        <span
+          ><span id="sw-doa">Tampilkan doa khatam</span
+          ><small id="sw-doa-d" style="display: block; color: var(--ui-muted); font-size: 12.5px"
+            >Matikan bila Anda hanya ingin doa yang bersumber dari hadis sahih.</small
+          ></span
+        >
+        <span class="hit"
+          ><button
+            type="button"
+            class="switch"
+            role="switch"
+            aria-labelledby="sw-doa"
+            aria-describedby="sw-doa-d"
+            [attr.aria-checked]="prefs().showDoaKhatam"
+            (click)="data.setPrefs({ showDoaKhatam: !prefs().showDoaKhatam })"
+          ></button
+        ></span>
+      </div>
       @if (confirmClear()) {
         <div class="panel warn" role="alertdialog" aria-labelledby="clr-t" aria-describedby="clr-d">
           <strong id="clr-t">Hapus riwayat baca?</strong>

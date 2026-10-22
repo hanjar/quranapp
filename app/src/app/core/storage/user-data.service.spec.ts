@@ -178,7 +178,7 @@ describe('UserDataService', () => {
       });
       expect(ops[0].entityId).toBe(svc.bookmarks()[0].id);
       expect(Object.keys(ops[0].payload as object).sort()).toEqual(
-        ['ayah', 'createdAt', 'editionId', 'folderId', 'key', 'kind', 'note', 'page', 'surah', 'updatedAt'].sort(),
+        ['archivedAt', 'ayah', 'createdAt', 'editionId', 'folderId', 'key', 'kind', 'note', 'page', 'surah', 'updatedAt'].sort(),
       );
 
       // Coalesced into a single delete op for the same entity.
@@ -325,7 +325,7 @@ describe('UserDataService', () => {
       });
       const parsed = JSON.parse(text) as ExportFile;
       expect(parsed.format).toBe('mushaf-digital-export');
-      expect(parsed.version).toBe(2);
+      expect(parsed.version).toBe(3);
       expect(parsed.bookmarks.length).toBe(2);
       expect(parsed.position?.page).toBe(30);
 
@@ -369,7 +369,7 @@ describe('UserDataService', () => {
     const rejects: [string, () => File, RegExp][] = [
       ['not JSON', () => fileOf(null, '{nope'), /JSON/],
       ['wrong format', () => fileOf({ format: 'x' }), /bukan ekspor/],
-      ['wrong version', () => fileOf(validFile({ version: 3 })), /Versi/],
+      ['wrong version', () => fileOf(validFile({ version: 4 })), /Versi/],
       ['wrong edition', () => fileOf(validFile({ editionId: 'other' })), /Edisi/],
       ['missing bookmarks', () => fileOf(validFile({ bookmarks: 'x' })), /penanda/],
       [

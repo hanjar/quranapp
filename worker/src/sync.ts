@@ -48,13 +48,14 @@ export interface OpResult {
 interface BookmarkRow {
   id: string;
   semantic_key: string;
-  kind: 'verse' | 'page';
+  kind: 'verse' | 'page' | 'favorite';
   edition_id: string;
   page: number;
   surah: number | null;
   ayah: number | null;
   folder_id: string | null;
   note: string | null;
+  archived_at: number | null;
   created_at: number;
   updated_at: number;
   deleted_at: number | null;
@@ -65,6 +66,7 @@ interface FolderRow {
   id: string;
   name: string;
   name_key: string;
+  archived_at: number | null;
   created_at: number;
   updated_at: number;
   deleted_at: number | null;
@@ -132,6 +134,7 @@ export function bookmarkChange(r: BookmarkRow): Change {
           note: r.note,
           createdAt: r.created_at,
           updatedAt: r.updated_at,
+          archivedAt: r.archived_at ?? null,
         },
   };
 }
@@ -143,7 +146,7 @@ export function folderChange(r: FolderRow): Change {
     id: r.id,
     rev: r.rev,
     deleted,
-    data: deleted ? null : { name: r.name, createdAt: r.created_at, updatedAt: r.updated_at },
+    data: deleted ? null : { name: r.name, createdAt: r.created_at, updatedAt: r.updated_at, archivedAt: r.archived_at ?? null },
   };
 }
 
@@ -384,7 +387,7 @@ export async function applyBatch(
         .bind(userId, JSON.stringify(bookmarkIds)),
       db
         .prepare(
-          'SELECT * FROM bookmarks WHERE user_id = ?1 AND deleted_at IS NULL AND semantic_key IN (SELECT value FROM json_each(?2))',
+          'SELECT * FROM bookmarks WHERE user_id = ?1 AND deleted_at IS NULL AND archived_at IS NULL AND semantic_key IN (SELECT value FROM json_each(?2))',
         )
         .bind(userId, JSON.stringify(keys)),
       db.prepare('SELECT payload, rev FROM preferences WHERE user_id = ?1').bind(userId),
@@ -463,7 +466,7 @@ export async function applyBatch(
       if (r.deleted_at === null) sim.activeFolderByName.set(r.name_key, r.id);
     }
     for (const r of sim.bookmarks.values()) {
-      if (r.deleted_at === null) sim.activeByKey.set(r.semantic_key, r.id);
+      if (r.deleted_at === null && r.archived_at === null) sim.activeByKey.set(r.semantic_key, r.id);
     }
 
     const writes: ((guard: Guard) => Stmt)[] = [];
@@ -586,7 +589,11 @@ function upsertBookmark(
     if (op.baseRev !== existing.rev) {
       return { opId: op.opId, status: 'conflict', current: bookmarkChange(existing) };
     }
-    const otherId = sim.activeByKey.get(data.key);
+    // archivedAt absent => keep the stored value (older clients must not unarchive by editing a note).
+    const archivedAt = data.archivedAt === undefined ? existing.archived_at : data.archivedAt;
+    if (data.kind === 'favorite' && archivedAt !== null) return reject('a favorite cannot be archived');
+    // Only an active (non-archived) bookmark owns its key; unarchiving into a taken key is a duplicate.
+    const otherId = archivedAt === null ? sim.activeByKey.get(data.key) : undefined;
     if (otherId && otherId !== existing.id) {
       const other = sim.bookmarks.get(otherId);
       if (other) return { opId: op.opId, status: 'duplicate', current: bookmarkChange(other) };
@@ -594,6 +601,7 @@ function upsertBookmark(
     const rev = ++sim.rev;
     const row: BookmarkRow = {
       ...existing,
+      archived_at: archivedAt,
       semantic_key: data.key,
       kind: data.kind,
       edition_id: data.editionId,
@@ -605,22 +613,23 @@ function upsertBookmark(
       note: data.note,
       rev,
     };
-    sim.activeByKey.delete(existing.semantic_key);
-    sim.activeByKey.set(row.semantic_key, row.id);
+    if (sim.activeByKey.get(existing.semantic_key) === existing.id) sim.activeByKey.delete(existing.semantic_key);
+    if (row.archived_at === null) sim.activeByKey.set(row.semantic_key, row.id);
     sim.bookmarks.set(row.id, row);
     writes.push((g) =>
       db
         .prepare(
-          `UPDATE bookmarks SET semantic_key = ?2, kind = ?3, edition_id = ?4, page = ?6, surah = ?7, ayah = ?8, updated_at = ?9, rev = ?10, folder_id = ?12, note = ?13
+          `UPDATE bookmarks SET semantic_key = ?2, kind = ?3, edition_id = ?4, page = ?6, surah = ?7, ayah = ?8, updated_at = ?9, rev = ?10, folder_id = ?12, note = ?13, archived_at = ?14
            WHERE user_id = ?1 AND id = ?11 AND ${GUARD_SQL}`,
         )
-        .bind(userId, row.semantic_key, row.kind, row.edition_id, g.finalRev, row.page, row.surah, row.ayah, row.updated_at, rev, row.id, row.folder_id, row.note),
+        .bind(userId, row.semantic_key, row.kind, row.edition_id, g.finalRev, row.page, row.surah, row.ayah, row.updated_at, rev, row.id, row.folder_id, row.note, row.archived_at),
     );
     return { opId: op.opId, status: 'applied', rev };
   }
 
   if (op.baseRev !== null) return reject('not_found');
-  const otherId = sim.activeByKey.get(data.key);
+  const newArchivedAt = data.archivedAt ?? null;
+  const otherId = newArchivedAt === null ? sim.activeByKey.get(data.key) : undefined;
   if (otherId) {
     const other = sim.bookmarks.get(otherId);
     if (other) return { opId: op.opId, status: 'duplicate', current: bookmarkChange(other) };
@@ -637,21 +646,22 @@ function upsertBookmark(
     ayah: data.ayah,
     folder_id: data.folderId,
     note: data.note,
+    archived_at: newArchivedAt,
     created_at: data.createdAt,
     updated_at: data.updatedAt,
     deleted_at: null,
     rev,
   };
   sim.bookmarks.set(row.id, row);
-  sim.activeByKey.set(row.semantic_key, row.id);
+  if (row.archived_at === null) sim.activeByKey.set(row.semantic_key, row.id);
   sim.activeCount++;
   writes.push((g) =>
     db
       .prepare(
-        `INSERT INTO bookmarks (user_id, id, semantic_key, kind, edition_id, page, surah, ayah, created_at, updated_at, deleted_at, rev, folder_id, note)
-         SELECT ?1, ?2, ?3, ?4, ?6, ?7, ?8, ?9, ?10, ?11, NULL, ?12, ?13, ?14 WHERE ${GUARD_SQL}`,
+        `INSERT INTO bookmarks (user_id, id, semantic_key, kind, edition_id, page, surah, ayah, created_at, updated_at, deleted_at, rev, folder_id, note, archived_at)
+         SELECT ?1, ?2, ?3, ?4, ?6, ?7, ?8, ?9, ?10, ?11, NULL, ?12, ?13, ?14, ?15 WHERE ${GUARD_SQL}`,
       )
-      .bind(userId, row.id, row.semantic_key, row.kind, g.finalRev, row.edition_id, row.page, row.surah, row.ayah, row.created_at, row.updated_at, rev, row.folder_id, row.note),
+      .bind(userId, row.id, row.semantic_key, row.kind, g.finalRev, row.edition_id, row.page, row.surah, row.ayah, row.created_at, row.updated_at, rev, row.folder_id, row.note, row.archived_at),
   );
   return { opId: op.opId, status: 'applied', rev };
 }
@@ -670,7 +680,7 @@ function deleteBookmark(
   // Delete beats any stale edit, so baseRev is intentionally ignored.
   const rev = ++sim.rev;
   sim.bookmarks.set(existing.id, { ...existing, deleted_at: now, rev });
-  sim.activeByKey.delete(existing.semantic_key);
+  if (sim.activeByKey.get(existing.semantic_key) === existing.id) sim.activeByKey.delete(existing.semantic_key);
   sim.activeCount--;
   writes.push((g) =>
     db
@@ -724,17 +734,19 @@ function upsertFolder(
     if (op.baseRev !== existing.rev) return { opId: op.opId, status: 'conflict', current: folderChange(existing) };
     if (nameOwner && nameOwner !== existing.id) return reject('folder_name_taken');
     const rev = ++sim.rev;
-    const row: FolderRow = { ...existing, name: data.name, name_key: data.nameKey, updated_at: data.updatedAt, rev };
+    // archivedAt absent => keep the stored value.
+    const archivedAt = data.archivedAt === undefined ? existing.archived_at : data.archivedAt;
+    const row: FolderRow = { ...existing, name: data.name, name_key: data.nameKey, archived_at: archivedAt, updated_at: data.updatedAt, rev };
     sim.activeFolderByName.delete(existing.name_key);
     sim.activeFolderByName.set(row.name_key, row.id);
     sim.folders.set(row.id, row);
     writes.push((g) =>
       db
         .prepare(
-          `UPDATE folders SET name = ?2, name_key = ?3, updated_at = ?4, rev = ?6
+          `UPDATE folders SET name = ?2, name_key = ?3, updated_at = ?4, rev = ?6, archived_at = ?8
            WHERE user_id = ?1 AND id = ?7 AND ${GUARD_SQL}`,
         )
-        .bind(userId, row.name, row.name_key, row.updated_at, g.finalRev, rev, row.id),
+        .bind(userId, row.name, row.name_key, row.updated_at, g.finalRev, rev, row.id, row.archived_at),
     );
     return { opId: op.opId, status: 'applied', rev };
   }
@@ -747,6 +759,7 @@ function upsertFolder(
     id: op.entityId,
     name: data.name,
     name_key: data.nameKey,
+    archived_at: data.archivedAt ?? null,
     created_at: data.createdAt,
     updated_at: data.updatedAt,
     deleted_at: null,
@@ -758,10 +771,10 @@ function upsertFolder(
   writes.push((g) =>
     db
       .prepare(
-        `INSERT INTO folders (user_id, id, name, name_key, created_at, updated_at, deleted_at, rev)
-         SELECT ?1, ?2, ?3, ?4, ?6, ?7, NULL, ?8 WHERE ${GUARD_SQL}`,
+        `INSERT INTO folders (user_id, id, name, name_key, created_at, updated_at, deleted_at, rev, archived_at)
+         SELECT ?1, ?2, ?3, ?4, ?6, ?7, NULL, ?8, ?9 WHERE ${GUARD_SQL}`,
       )
-      .bind(userId, row.id, row.name, row.name_key, g.finalRev, row.created_at, row.updated_at, rev),
+      .bind(userId, row.id, row.name, row.name_key, g.finalRev, row.created_at, row.updated_at, rev, row.archived_at),
   );
   return { opId: op.opId, status: 'applied', rev };
 }
