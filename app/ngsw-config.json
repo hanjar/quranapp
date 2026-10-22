@@ -18,7 +18,8 @@
           "/index.html",
           "/manifest.webmanifest",
           "/*.css",
-          "/*.js"
+          "/*.js",
+          "/sfx/*.wav"
         ]
       }
     },

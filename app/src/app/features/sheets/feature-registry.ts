@@ -325,6 +325,14 @@ export const FEATURES: readonly FeatureEntry[] = [
     ],
   ),
   f(
+    'page-sound',
+    'Suara balik halaman',
+    'Bunyi kertas pelan saat berpindah halaman.',
+    'Tampilan',
+    settings('page-sound'),
+    ['suara', 'bunyi', 'efek suara', 'sound', 'balik halaman', 'kertas', 'senyap', 'mute'],
+  ),
+  f(
     'wake',
     'Layar tetap menyala',
     'Cegah layar padam saat membaca.',
