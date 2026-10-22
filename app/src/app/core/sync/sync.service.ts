@@ -1,5 +1,6 @@
 import { DestroyRef, Injectable, inject, signal } from '@angular/core';
 import { reportError } from '../storage/error-reporter';
+import { TimeoutError, withTimeout } from '../async';
 import { liveQuery } from 'dexie';
 import { PositionConflict, SyncApi, UserDataApi } from '../contracts';
 import { APP_CONFIG } from '../config';
@@ -44,6 +45,9 @@ const DEFAULT_STATE: SyncState = {
  * service for reading/writing; it only drains the outbox and applies pulls.
  * See docs/sync-client.md.
  */
+/** Longer than the request timeout times the requests in a normal cycle. */
+const CYCLE_TIMEOUT_MS = 60_000;
+
 @Injectable({ providedIn: 'root' })
 export class SyncService extends SyncApi {
   private readonly db = inject(SYNC_DB);
@@ -66,6 +70,8 @@ export class SyncService extends SyncApi {
 
   private initialised = false;
   private inflight: Promise<void> | null = null;
+  /** Step of the running cycle, reported when a cycle times out. */
+  private phase = 'idle';
   private rerun: { verify: boolean } | null = null;
   /** True until the first successful cycle after init/login (position conflict detection window). */
   private coldStart = true;
@@ -293,7 +299,12 @@ export class SyncService extends SyncApi {
     }
     const p = (async () => {
       try {
-        await this.cycle(verify);
+        // A cycle stuck on the database (e.g. a frozen tab elsewhere) must not block every later sync.
+        await withTimeout(this.cycle(verify), CYCLE_TIMEOUT_MS).catch((e: unknown) => {
+          if (!(e instanceof TimeoutError)) throw e;
+          reportError({ op: 'sync-timeout', name: 'TimeoutError', message: `phase ${this.phase}`, at: Date.now() });
+          this.setStatus('error');
+        });
       } finally {
         this.inflight = null;
       }
@@ -317,11 +328,16 @@ export class SyncService extends SyncApi {
     this.setStatus('syncing');
     let dirty = false;
     try {
+      this.phase = 'verify';
       if (verify && !(await this.verifySession(accountId))) return;
       const cold = this.coldStart;
+      this.phase = 'pull-cold';
       if (cold) dirty = (await this.pull(accountId, true)) || dirty;
+      this.phase = 'push';
       dirty = (await this.push(accountId)) || dirty;
+      this.phase = 'pull';
       dirty = (await this.pull(accountId, false)) || dirty;
+      this.phase = 'finish';
       this.coldStart = false;
       this.pullFailures = 0;
       const now = Date.now();

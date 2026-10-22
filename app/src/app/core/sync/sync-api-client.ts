@@ -3,6 +3,9 @@ import { APP_CONFIG } from '../config';
 import { parseRetryAfter } from './backoff';
 import { BatchResponse, MeUser, PullResponse, WireOp } from './sync-types';
 
+/** Per request; a sync cycle makes a handful of requests. */
+export const REQUEST_TIMEOUT_MS = 20_000;
+
 export type SyncErrorKind =
   'network' | 'unauthorized' | 'rate-limited' | 'server' | 'client' | 'protocol';
 
@@ -66,7 +69,13 @@ export class SyncApiClient {
 
   async request<T = unknown>(method: string, path: string, body?: unknown): Promise<T> {
     const headers: Record<string, string> = { 'X-Mushaf-Client': '1', Accept: 'application/json' };
-    const init: RequestInit = { method, headers, credentials: 'same-origin' };
+    // A stalled mobile connection must not hold the sync cycle (and the "Memuat…" button) forever.
+    const init: RequestInit = {
+      method,
+      headers,
+      credentials: 'same-origin',
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+    };
     if (body !== undefined) {
       headers['Content-Type'] = 'application/json';
       init.body = JSON.stringify(body);
