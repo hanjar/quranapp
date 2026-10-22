@@ -121,6 +121,8 @@ import { menuNeedsAttention, offlineNeedsAttention, syncNeedsAttention } from '.
   styles: `
     :host {
       position: absolute;
+      /* a pinch on the bars must not zoom the browser (it cannot be undone over the page) */
+      touch-action: none;
       left: 0;
       right: 0;
       top: 0;

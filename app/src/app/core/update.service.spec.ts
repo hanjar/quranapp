@@ -6,7 +6,13 @@ import { UpdateService } from './update.service';
 
 describe('UpdateService', () => {
   let events: Subject<VersionEvent>;
-  let sw: { isEnabled: boolean; versionUpdates: Subject<VersionEvent>; unrecoverable: Subject<unknown>; checkForUpdate: ReturnType<typeof vi.fn>; activateUpdate: ReturnType<typeof vi.fn> };
+  let sw: {
+    isEnabled: boolean;
+    versionUpdates: Subject<VersionEvent>;
+    unrecoverable: Subject<unknown>;
+    checkForUpdate: ReturnType<typeof vi.fn>;
+    activateUpdate: ReturnType<typeof vi.fn>;
+  };
 
   beforeEach(() => {
     vi.useFakeTimers();

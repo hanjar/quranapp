@@ -252,6 +252,7 @@ export class ReaderShell {
         this.measured.set(true);
       };
       measure();
+      this.watchBrowserZoom();
       if (typeof ResizeObserver !== 'undefined') {
         const ro = new ResizeObserver(measure);
         ro.observe(el);
@@ -260,6 +261,35 @@ export class ReaderShell {
     });
 
     this.destroyRef.onDestroy(() => this.gestures.dispose());
+  }
+
+  /**
+   * The reader has its own zoom, so a browser pinch zoom (started on a bar or in a sheet)
+   * only crops the bars off screen, and the page blocks pinching back out. Undo it on the
+   * next touch while no sheet is open.
+   */
+  private watchBrowserZoom(): void {
+    const vv = window.visualViewport;
+    const meta = document.querySelector<HTMLMetaElement>('meta[name="viewport"]');
+    if (!vv || !meta) return;
+    const base = meta.content;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const check = () => {
+      clearTimeout(timer);
+      timer = setTimeout(() => {
+        if (vv.scale <= 1.01 || this.ui.sheetOpen()) return;
+        meta.content = `${base}, maximum-scale=1`;
+        setTimeout(() => (meta.content = base), 300);
+      }, 400);
+    };
+    const ac = new AbortController();
+    window.addEventListener('touchend', check, { passive: true, signal: ac.signal });
+    vv.addEventListener('resize', check, { signal: ac.signal });
+    check();
+    this.destroyRef.onDestroy(() => {
+      ac.abort();
+      clearTimeout(timer);
+    });
   }
 
   // =========================================================================
