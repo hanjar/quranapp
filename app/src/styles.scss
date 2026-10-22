@@ -132,6 +132,30 @@ html[data-paper='sepia'] {
   --mf-line-rule: rgb(160 122 44 / 0.35);
 }
 
+/* Biru Klasik (from the owner's custom theme) */
+html[data-paper='blue'] {
+  --mf-paper: #f6f9fd;
+  --mf-surround: #d6e2f2;
+  --mf-surface-paper: #fbfcfe;
+  --mf-text-ink: #10243f;
+  --mf-frame-ink: #1f4e8c;
+  --mf-frame-ink-inner: #3f73b5;
+  --mf-ayah-ornament: #a07a2c;
+  --mf-line-rule: rgb(63 115 181 / 0.3);
+}
+
+/* Hijau (from the owner's custom theme) */
+html[data-paper='green'] {
+  --mf-paper: #f5faf4;
+  --mf-surround: #d3e5d3;
+  --mf-surface-paper: #fafdf9;
+  --mf-text-ink: #12301f;
+  --mf-frame-ink: #1d6b4a;
+  --mf-frame-ink-inner: #3d8a63;
+  --mf-ayah-ornament: #a07a2c;
+  --mf-line-rule: rgb(61 138 99 / 0.3);
+}
+
 /* Krem Madinah: cream paper with the red + gold frame of printed Madinah mushafs. */
 html[data-paper='cream'] {
   --mf-paper: #fffdf6;

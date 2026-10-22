@@ -26,6 +26,9 @@ export const PAPER_THEMES: PaperThemeOption[] = [
   { id: 'photo', name: 'Foto Sampel', hex: '#EEEDEB' },
   { id: 'ivory', name: 'Gading Hangat', hex: '#F5F1E8' },
   { id: 'antique', name: 'Kertas Antik', hex: '#F2EBDD' },
+  // From the owner's custom themes (2026-10-22).
+  { id: 'blue', name: 'Biru Klasik', hex: '#F6F9FD' },
+  { id: 'green', name: 'Hijau', hex: '#F5FAF4' },
   // Research-based: positive polarity, ~12.5:1 ink (not 21:1 glare), warm low-luminance paper.
   { id: 'comfort', name: 'Krem Nyaman', hex: '#F3EAD3' },
 ];
