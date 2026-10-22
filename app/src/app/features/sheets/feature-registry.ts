@@ -560,6 +560,14 @@ export const FEATURES: readonly FeatureEntry[] = [
     ],
   ),
   f(
+    'error-report',
+    'Kirim laporan galat otomatis',
+    'Kirim pesan galat ke pengembang agar masalah bisa diperbaiki.',
+    'Data',
+    settings('error-report'),
+    ['galat', 'error', 'laporan', 'bug', 'diagnostik', 'gagal simpan', 'privasi', 'telemetri'],
+  ),
+  f(
     'export',
     'Ekspor data',
     'Simpan penanda dan pengaturan ke berkas JSON.',

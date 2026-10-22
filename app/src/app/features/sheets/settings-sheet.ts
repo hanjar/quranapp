@@ -1,4 +1,5 @@
 import { buildLabel } from '../../core/build-info';
+import { errorReportEnabled, setErrorReportEnabled } from '../../core/storage/error-reporter';
 import { AudioService } from '../../core/audio/audio.service';
 import { AudioOfflineApi } from '../../core/audio/audio-offline.api';
 import { AUDIO_MODES } from '../shell/audio-labels';
@@ -492,6 +493,25 @@ const SYNC_LABEL: Record<string, string> = {
           <span>Pasang ke perangkat</span><span class="end chev" aria-hidden="true">›</span>
         </button>
       }
+      <div class="switch-row" data-search-id="error-report">
+        <span
+          ><span id="sw-error-report">Kirim laporan galat otomatis</span
+          ><small id="sw-error-report-d" style="display: block; color: var(--ui-muted); font-size: 12.5px"
+            >Hanya nama &amp; pesan galat, versi aplikasi dan browser, untuk memperbaiki masalah. Tanpa isi penanda.</small
+          ></span
+        >
+        <span class="hit"
+          ><button
+            type="button"
+            class="switch"
+            role="switch"
+            aria-labelledby="sw-error-report"
+            aria-describedby="sw-error-report-d"
+            [attr.aria-checked]="errorReport()"
+            (click)="setErrorReport(!errorReport())"
+          ></button
+        ></span>
+      </div>
       <button type="button" class="row" (click)="ui.openSheet('feedback')">
         <span>Kirim masukan</span><span class="end chev" aria-hidden="true">›</span>
       </button>
@@ -508,6 +528,8 @@ export class SettingsSheet {
   }
 
   protected readonly buildLabel = buildLabel();
+  protected readonly errorReport = errorReportEnabled;
+  protected readonly setErrorReport = setErrorReportEnabled;
   protected readonly audio = inject(AudioService);
   protected readonly audioModes = AUDIO_MODES;
   protected readonly audioOffline = inject(AudioOfflineApi);

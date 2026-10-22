@@ -1,3 +1,4 @@
+import { DIAG_RETENTION_MS } from './diag';
 /** Retention policy (documented in docs/worker.md). */
 export const TOMBSTONE_RETENTION_MS = 180 * 24 * 60 * 60 * 1000;
 export const OP_LOG_RETENTION_MS = 90 * 24 * 60 * 60 * 1000;
@@ -105,5 +106,6 @@ export async function runCleanup(db: D1Database, now: number): Promise<void> {
       .prepare("DELETE FROM rate_limits WHERE (key NOT LIKE 'fb:d:%' AND window_start < ?1) OR window_start < ?2")
       .bind(now - 60 * 60 * 1000, now - 26 * 60 * 60 * 1000),
     db.prepare('DELETE FROM feedback WHERE created_at < ?1').bind(now - OP_LOG_RETENTION_MS),
+    db.prepare('DELETE FROM client_errors WHERE created_at < ?1').bind(now - DIAG_RETENTION_MS),
   ]);
 }

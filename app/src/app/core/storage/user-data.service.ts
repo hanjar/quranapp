@@ -25,6 +25,7 @@ import { devicePrefsMigrationPatch, readLegacyDevicePrefs } from './device-prefs
 import { MAX_IMPORT_BYTES, parseExportText } from './export-file';
 import { activeSyncAccount, enqueueOutbox } from './outbox';
 import { recordStorageError } from './storage-diagnostics';
+import { setErrorReportDevice } from './error-reporter';
 
 const POSITION_THROTTLE_MS = 2000;
 const UNDO_WINDOW_MS = 6000;
@@ -247,6 +248,7 @@ export class UserDataService extends UserDataApi {
         await this.db.meta.put({ key: 'deviceId', value: id });
       }
       this._deviceId.set(id);
+      setErrorReportDevice(id);
       await this.reload();
       await this.migrateMenuDefault();
       await this.migrateDevicePrefs();

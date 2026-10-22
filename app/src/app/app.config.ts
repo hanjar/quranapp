@@ -1,5 +1,6 @@
 import {
   ApplicationConfig,
+  ErrorHandler,
   inject,
   isDevMode,
   provideAppInitializer,
@@ -20,10 +21,12 @@ import { WakeLockService } from './core/wake-lock.service';
 import { LineRulesService } from './core/line-rules.service';
 import { AudioOfflineApi } from './core/audio/audio-offline.api';
 import { AudioOfflineService } from './core/audio/audio-offline.service';
+import { ReportingErrorHandler } from './core/reporting-error-handler';
 
 export const appConfig: ApplicationConfig = {
   providers: [
     provideBrowserGlobalErrorListeners(),
+    { provide: ErrorHandler, useClass: ReportingErrorHandler },
     provideRouter(routes, withComponentInputBinding()),
     { provide: ContentApi, useExisting: ContentService },
     { provide: OfflineApi, useExisting: OfflineService },

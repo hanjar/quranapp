@@ -15,6 +15,7 @@ import {
   createJwksCache,
   verifyGoogleIdToken,
 } from './google';
+import { DIAG_MAX_BODY, DIAG_PER_HOUR, parseDiag } from './diag';
 import { FEEDBACK_MAX_BODY, FEEDBACK_PER_DAY, FEEDBACK_PER_HOUR, buildIssue, parseFeedback } from './feedback';
 import {
   OAUTH_STATE_TTL_MS,
@@ -384,6 +385,34 @@ export function createApp(overrides: Partial<Deps> = {}): Hono<AppBindings> {
     return ok(c, { issueNumber: created.number, issueUrl: created.url });
   });
 
+  // ---- automatic client error reports (anonymous allowed; owner reads them in D1) ----
+  app.post('/diag', async (c) => {
+    const now = deps.now();
+    const parsed = parseDiag(await readJsonBody(c, DIAG_MAX_BODY), now);
+    if (!parsed.ok) throw new ApiError(400, 'invalid_input', parsed.error);
+    const ip = c.req.header('CF-Connecting-IP') ?? 'unknown';
+    const HOUR = 60 * 60 * 1000;
+    const hour = await windowCount(c.env.DB, `diag:${ip}`, HOUR, now);
+    if (hour.count >= DIAG_PER_HOUR) {
+      throw new ApiError(429, 'rate_limited', 'Too many reports.', { 'Retry-After': String(hour.retryAfter) });
+    }
+    await windowHit(c.env.DB, `diag:${ip}`, HOUR, now);
+    const d = parsed.value;
+    const userId = c.get('auth')?.userId ?? null;
+    const stmt = c.env.DB.prepare(
+      `INSERT INTO client_errors
+         (created_at, occurred_at, device_id, user_id, app_version, standalone, platform, op, name, message)
+       VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)`,
+    );
+    const standalone = d.standalone === null ? null : d.standalone ? 1 : 0;
+    await c.env.DB.batch(
+      d.entries.map((e) =>
+        stmt.bind(now, e.at, d.deviceId, userId, d.appVersion, standalone, d.platform, e.op, e.name, e.message),
+      ),
+    );
+    return ok(c, { stored: d.entries.length });
+  });
+
   // ---- export / delete ----
   app.get('/export', async (c) => {
     const auth = requireAuth(c);
@@ -434,6 +463,7 @@ export function createApp(overrides: Partial<Deps> = {}): Hono<AppBindings> {
       db.prepare('DELETE FROM reading_days WHERE user_id = ?1').bind(id),
       db.prepare('DELETE FROM khatam_rounds WHERE user_id = ?1').bind(id),
       db.prepare('DELETE FROM preferences WHERE user_id = ?1').bind(id),
+      db.prepare('DELETE FROM client_errors WHERE user_id = ?1').bind(id),
       db.prepare('DELETE FROM sessions WHERE user_id = ?1').bind(id),
       db.prepare('DELETE FROM user_revisions WHERE user_id = ?1').bind(id),
       db.prepare('DELETE FROM users WHERE id = ?1').bind(id),

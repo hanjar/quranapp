@@ -1,4 +1,5 @@
 import { DestroyRef, Injectable, inject, signal } from '@angular/core';
+import { reportError } from '../storage/error-reporter';
 import { liveQuery } from 'dexie';
 import { PositionConflict, SyncApi, UserDataApi } from '../contracts';
 import { APP_CONFIG } from '../config';
@@ -387,6 +388,7 @@ export class SyncService extends SyncApi {
       if (fatal.length) {
         const first = fatal[0];
         await this.patchState({ lastErrorCode: `rejected:${first?.error ?? 'unknown'}` });
+        reportError({ op: 'sync-push', name: 'Rejected', message: fatal.map((r) => r.error).join(', ').slice(0, 300), at: Date.now() });
       }
     }
   }
@@ -438,6 +440,8 @@ export class SyncService extends SyncApi {
   private async onCycleError(accountId: string, e: unknown): Promise<void> {
     const err = e instanceof SyncHttpError ? e : new SyncHttpError('network');
     await this.patchState({ lastErrorCode: err.code ?? err.kind });
+    // Offline is normal; anything else is worth knowing about.
+    if (err.kind !== 'network') reportError({ op: 'sync', name: err.kind, message: String(err.code ?? ''), at: Date.now() });
     switch (err.kind) {
       case 'unauthorized':
         this.setStatus('unauthorized');

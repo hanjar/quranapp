@@ -9,7 +9,7 @@ import { StorageUnavailableError } from './storage/user-data.service';
 export const SLOW_SAVE_NOTICE_MS = 2000;
 /** Beyond this the tap guard is released and the UI follows the stored state again. */
 export const SAVE_GIVE_UP_MS = 30_000;
-export const OUTDATED_TOAST = 'Versi baru terbuka di tab lain · Muat ulang';
+export const OUTDATED_TOAST = 'Versi baru terbuka di tab lain Â· Muat ulang';
 
 interface Labels {
   added: string;
