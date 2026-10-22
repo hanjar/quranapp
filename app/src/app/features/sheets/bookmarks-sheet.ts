@@ -7,7 +7,7 @@ import {
   saveBookmarkTab,
 } from '../bookmarks/bookmark-icon';
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
-import { ContentApi, UserDataApi } from '../../core/contracts';
+import { ContentApi, SyncApi, UserDataApi } from '../../core/contracts';
 import { Bookmark } from '../../core/models';
 import { ReaderUiService } from '../../core/reader-ui.service';
 import { ProgressService } from '../../core/progress/progress.service';
@@ -42,13 +42,42 @@ import { SheetHistory } from './sheet-history';
       </button>
     }
 
-    <button
-      type="button"
-      class="mf-btn mf-btn--outline manage"
-      (click)="history.navigateUrl('/penanda')"
-    >
-      Kelola
-    </button>
+    <div class="actions">
+      <button
+        type="button"
+        class="mf-btn mf-btn--outline manage"
+        (click)="history.navigateUrl('/penanda')"
+      >
+        Kelola
+      </button>
+      @if (sync.account()) {
+        <button
+          type="button"
+          class="mf-btn mf-btn--outline manage"
+          data-search-id="bookmarks-sync"
+          [disabled]="syncing()"
+          [attr.aria-busy]="syncing()"
+          (click)="syncNow()"
+        >
+          <svg
+            [class.spin]="syncing()"
+            width="18"
+            height="18"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.8"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            aria-hidden="true"
+          >
+            <path d="M20 12a8 8 0 0 1-14 5.3M4 12a8 8 0 0 1 14-5.3" />
+            <path d="M18 3v4h-4M6 21v-4h4" />
+          </svg>
+          {{ syncing() ? 'Memuat…' : 'Muat dari server' }}
+        </button>
+      }
+    </div>
 
     <div class="mf-segmented" role="tablist" aria-label="Jenis penanda">
       <button
@@ -263,9 +292,32 @@ import { SheetHistory } from './sheet-history';
       font-size: 12.5px;
       color: var(--ui-muted);
     }
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
     .manage {
-      align-self: flex-start;
       min-height: var(--mf-tap);
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .manage:disabled {
+      opacity: 0.7;
+    }
+    .spin {
+      animation: mf-spin 0.9s linear infinite;
+    }
+    @keyframes mf-spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .spin {
+        animation: none;
+      }
     }
     .del {
       flex: none;
@@ -301,6 +353,28 @@ export class BookmarksSheet {
   private readonly userData = inject(UserDataApi);
   private readonly progress = inject(ProgressService);
   protected readonly history = inject(SheetHistory);
+  protected readonly sync = inject(SyncApi);
+  protected readonly syncing = signal(false);
+
+  /** Pulls the latest bookmarks from the server now instead of waiting for the next poll. */
+  protected async syncNow(): Promise<void> {
+    if (this.syncing()) return;
+    this.syncing.set(true);
+    try {
+      await this.sync.syncNow();
+      const st = this.sync.status();
+      this.ui.showToast({
+        message:
+          st === 'error' || st === 'offline' || st === 'unauthorized'
+            ? 'Belum bisa memuat dari server. Coba lagi nanti.'
+            : 'Penanda diperbarui dari server',
+      });
+    } catch (e) {
+      this.ui.showToast({ message: e instanceof Error && e.message ? e.message : 'Gagal memuat dari server.' });
+    } finally {
+      this.syncing.set(false);
+    }
+  }
 
   protected readonly tab = signal<BookmarkTab>(loadBookmarkTab());
 
