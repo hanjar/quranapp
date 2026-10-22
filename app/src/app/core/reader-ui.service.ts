@@ -67,6 +67,13 @@ export class ReaderUiService {
     void this.router.navigate(['/hal', p], { replaceUrl: opts.replaceUrl ?? false });
   }
 
+  /** Opens the khatam supplication page (not a mushaf page: no position, bookmark or progress). */
+  openDoaKhatam(): void {
+    this.selectedVerse.set(null);
+    this.zoom.set(1);
+    void this.router.navigate(['/doa-khatam']);
+  }
+
   openSheet(name: SheetName, opts: { browseTab?: BrowseTab } = {}): void {
     if (opts.browseTab) this.browseTab.set(opts.browseTab);
     this.sheet.set(name);

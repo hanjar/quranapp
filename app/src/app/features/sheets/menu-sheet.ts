@@ -3,6 +3,7 @@ import { InstallService } from '../../core/install.service';
 import { OfflineApi, SyncApi } from '../../core/contracts';
 import { ReaderUiService, SheetName } from '../../core/reader-ui.service';
 import { UpdateService } from '../../core/update.service';
+import { SheetHistory } from './sheet-history';
 import { offlineNeedsAttention, syncNeedsAttention } from '../reader/attention';
 
 /** Body of the "Menu" sheet: a 3-column grid of large tiles, one per app area. */
@@ -140,6 +141,25 @@ import { offlineNeedsAttention, syncNeedsAttention } from '../reader/attention';
             <path d="M12 8v4l3 2" />
           </svg>
           <span class="label">Progres</span>
+        </button>
+      </li>
+      <li>
+        <button type="button" class="tile" data-tile="doa" (click)="openDoa()">
+          <svg
+            width="26"
+            height="26"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.6"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            aria-hidden="true"
+          >
+            <path d="M12 6.5C10 5 7 4.5 4.5 5v12c2.5-.5 5.5 0 7.5 1.5 2-1.5 5-2 7.5-1.5V5C17 4.5 14 5 12 6.5z" />
+            <path d="M12 6.5v12" />
+          </svg>
+          <span class="label">Doa khatam</span>
         </button>
       </li>
       <li>
@@ -347,6 +367,7 @@ export class MenuSheet {
   protected readonly install = inject(InstallService);
   protected readonly updates = inject(UpdateService);
   private readonly offline = inject(OfflineApi);
+  private readonly history = inject(SheetHistory);
 
   protected readonly initial = computed(() => {
     const a = this.sync.account();
@@ -388,6 +409,11 @@ export class MenuSheet {
   /** Swaps this sheet for another one (same mechanism as the search sheet). */
   protected open(sheet: SheetName): void {
     this.ui.openSheet(sheet);
+  }
+
+  /** The doa is a page of its own: replace the sheet's history entry like the search sheet does. */
+  protected openDoa(): void {
+    this.history.navigateUrl('/doa-khatam');
   }
 
   /** Reading without bars: the page margin brings them back. */

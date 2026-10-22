@@ -1,6 +1,6 @@
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
-import { provideRouter } from '@angular/router';
+import { Router, provideRouter } from '@angular/router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { OfflineApi, SyncApi } from '../../core/contracts';
 import { InstallService } from '../../core/install.service';
@@ -63,6 +63,7 @@ describe('MenuSheet', () => {
     expect(mount().tiles()).toEqual([
       'bookmarks',
       'progress',
+      'doa',
       'offline',
       'settings',
       'account',
@@ -105,6 +106,17 @@ describe('MenuSheet', () => {
       m.tile(tile)!.click();
       expect(ui.sheet()).toBe(sheet);
     }
+  });
+
+  it('Doa khatam tile closes the sheet and opens /doa-khatam', () => {
+    const router = TestBed.inject(Router);
+    const nav = vi.spyOn(router, 'navigateByUrl').mockResolvedValue(true);
+    const ui = TestBed.inject(ReaderUiService);
+    const m = mount();
+    ui.openSheet('menu');
+    m.tile('doa')!.click();
+    expect(ui.sheet()).toBeNull();
+    expect(nav).toHaveBeenCalledWith('/doa-khatam', { replaceUrl: false });
   });
 
   it('Layar penuh closes the sheet and hides the bars; Pasang opens the install modal', () => {

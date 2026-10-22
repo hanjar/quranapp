@@ -1051,7 +1051,14 @@ export class ProgressSheet {
   }
 
   protected async startNext(): Promise<void> {
-    await this.progress.startNextRound();
+    const next = await this.progress.startNextRound();
+    if (!next) return;
+    this.ui.showToast({
+      message: `Alhamdulillah, khatam ke-${next.n - 1}`,
+      actionLabel: 'Baca doa',
+      action: () => this.history.navigateUrl('/doa-khatam'),
+      duration: 10000,
+    });
   }
 }
 

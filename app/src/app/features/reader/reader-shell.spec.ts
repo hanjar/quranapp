@@ -344,6 +344,21 @@ describe('ReaderShell', () => {
     expect(goTo).toHaveBeenLastCalledWith(9);
   });
 
+  it('next past page 604 opens the khatam doa instead of a mushaf page', async () => {
+    const doa = vi.spyOn(ui, 'openDoaKhatam').mockImplementation(() => {});
+    const fixture = await mount('604');
+    const next = fixture.nativeElement.querySelector(
+      'mf-chrome-bottom button[aria-label="Halaman berikutnya"]',
+    ) as HTMLButtonElement;
+    expect(next.disabled).toBe(false);
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft', bubbles: true }));
+    expect(doa).toHaveBeenCalledTimes(1);
+    expect(goTo).not.toHaveBeenCalled();
+    next.click();
+    expect(doa).toHaveBeenCalledTimes(2);
+    expect(userData.saved).toEqual([604]);
+  });
+
   it('Escape chain: sheet, then zoom, then chrome', async () => {
     await mount('10');
     const esc = () =>

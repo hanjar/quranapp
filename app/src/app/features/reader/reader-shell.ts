@@ -105,7 +105,8 @@ export class ReaderShell {
     // Switching the active page inside a pair must not look like a page change.
     equal: (a, b) => a.length === b.length && a.every((v, i) => v === b[i]),
   });
-  protected readonly canNext = computed(() => nextTarget(this.visible(), this.spread()) !== null);
+  /** Always enabled: "next" on the last page opens the khatam doa instead of ending. */
+  protected readonly canNext = computed(() => true);
   protected readonly canPrev = computed(() => prevTarget(this.visible(), this.spread()) !== null);
 
   // --- verse states -------------------------------------------------------
@@ -312,6 +313,7 @@ export class ReaderShell {
   protected goNext(): void {
     const t = nextTarget(this.visible(), this.spread());
     if (t !== null) this.ui.goToPage(t);
+    else this.ui.openDoaKhatam();
   }
 
   protected goPrev(): void {

@@ -44,6 +44,11 @@ export const routes: Routes = [
     title: 'Buat tema sendiri · Mushaf Digital',
   },
   {
+    path: 'doa-khatam',
+    loadComponent: () => import('./features/doa/doa-khatam').then((m) => m.DoaKhatam),
+    title: 'Doa Khatam · Mushaf Digital',
+  },
+  {
     path: 'selamat-datang',
     loadComponent: () => import('./features/onboarding/welcome').then((m) => m.Welcome),
     title: 'Selamat datang · Mushaf Digital',

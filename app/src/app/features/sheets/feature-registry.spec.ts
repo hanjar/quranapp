@@ -50,6 +50,11 @@ describe('feature registry', () => {
     ['backup', 'export'],
     ['khatam', 'bookmarks-manage'],
     ['khatam', 'progress'],
+    ['khatam', 'doa-khatam'],
+    ['doa khatam', 'doa-khatam'],
+    ['khataman', 'doa-khatam'],
+    ['khotmil', 'doa-khatam'],
+    ['doa selesai baca quran', 'doa-khatam'],
     ['statistik', 'progress'],
     ['target', 'progress'],
     ['riwayat', 'progress'],
@@ -67,6 +72,11 @@ describe('feature registry', () => {
     ['ukuran', 'font-larger'],
   ])('"%s" finds %s', (q, id) => {
     expect(ids(q)).toContain(id);
+  });
+
+  it('doa khatam opens its own page', () => {
+    const e = FEATURES.find((x) => x.id === 'doa-khatam');
+    expect(e?.action).toEqual({ type: 'url', url: '/doa-khatam' });
   });
 
   it('tolerates a typo on longer words', () => {
