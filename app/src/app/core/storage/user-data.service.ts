@@ -195,12 +195,12 @@ export class UserDataService extends UserDataApi {
   }
 
   /** Serializes all writes so read-modify-write sequences never interleave. */
-  private serial<T>(fn: () => Promise<T>, op = 'write'): Promise<T> {
+  private serial<T>(fn: () => Promise<T>, op = 'write', lane: 'main' | 'position' = 'main'): Promise<T> {
     const t0 = Date.now();
     let tQueued = 0;
     let tOpen = 0;
     let before = '';
-    const run = this.chain
+    const run = (lane === 'main' ? this.chain : this.posChain)
       .then(() => {
         tQueued = Date.now();
         before = this.lastOp;
@@ -228,10 +228,16 @@ export class UserDataService extends UserDataApi {
         recordStorageError(op, e);
         throw e;
       });
-    this.chain = run.catch(() => undefined);
+    if (lane === 'main') this.chain = run.catch(() => undefined);
+    else this.posChain = run.catch(() => undefined);
     return run;
   }
   private lastOp = '';
+  /**
+   * Reading-position writes run in their own lane: they are a single transaction that
+   * only touches positions/outbox/sync, so a bookmark toggle never waits behind one.
+   */
+  private posChain: Promise<unknown> = Promise.resolve();
 
   init(): Promise<void> {
     this.initPromise ??= this.doInit();
@@ -388,7 +394,7 @@ export class UserDataService extends UserDataApi {
 
   /** Resolves when all queued writes have finished (tests / teardown). */
   idle(): Promise<void> {
-    return this.chain.then(() => undefined);
+    return Promise.all([this.chain, this.posChain]).then(() => undefined);
   }
 
   flushPosition(): Promise<void> {
@@ -397,11 +403,11 @@ export class UserDataService extends UserDataApi {
       this.posTimer = null;
     }
     const pending = this.pendingPos;
-    if (!pending) return this.chain.then(() => undefined);
+    if (!pending) return this.posChain.then(() => undefined);
     this.pendingPos = null;
     this.lastPosWrite = Date.now();
     return this.serial(async () => {
-      const next = await this.db.transaction('rw', this.tables, async () => {
+      const next = await this.db.transaction('rw', [this.db.positions, this.db.outbox, this.db.sync], async () => {
         const existing = await this.db.positions.get(EDITION);
         const row: ReadingPosition = {
           editionId: EDITION,
@@ -428,7 +434,7 @@ export class UserDataService extends UserDataApi {
         return row;
       });
       this._position.set(next);
-    }, 'position');
+    }, 'position', 'position');
   }
 
   // ---- bookmarks -----------------------------------------------------------

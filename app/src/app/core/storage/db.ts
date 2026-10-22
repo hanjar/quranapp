@@ -49,7 +49,9 @@ export class MushafDb extends Dexie {
   onIssue?: (kind: 'blocked' | 'versionchange') => void;
 
   constructor(name = 'mushaf-digital') {
-    super(name);
+    // relaxed: commits don't wait for a disk flush. On slow tablet storage a strict commit
+    // took 20-50 s and every later write queued behind it; a crash can lose only the last write.
+    super(name, { chromeTransactionDurability: 'relaxed' });
     // Never let this connection block another tab's schema upgrade: close it and tell the UI.
     this.on('versionchange', () => {
       this.outdated = true;
