@@ -1,6 +1,9 @@
 <div class="page">
   <span class="frame frame--outer" aria-hidden="true"></span>
   <span class="frame frame--inner" aria-hidden="true"></span>
+  @if (pageMarked()) {
+    <span class="ribbon" aria-hidden="true"></span>
+  }
 
   <div
     #art

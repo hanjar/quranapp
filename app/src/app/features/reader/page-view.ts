@@ -12,6 +12,7 @@ import {
   untracked,
   viewChild,
 } from '@angular/core';
+import { BookmarkToggleService } from '../../core/bookmark-toggle.service';
 import { ContentApi, OfflineApi, UserDataApi } from '../../core/contracts';
 import { AyahRef, PageLoadError, PageLoadErrorKind } from '../../core/models';
 import { ReaderUiService } from '../../core/reader-ui.service';
@@ -58,6 +59,9 @@ export class PageView implements OnDestroy {
   private readonly audio = inject(AudioService);
   private readonly qcf = inject(QcfService);
   private readonly renderers = inject(PageRendererService);
+  private readonly marks = inject(BookmarkToggleService);
+  /** Page bookmark shown as a ribbon hanging over the top of the page, like a printed mushaf. */
+  protected readonly pageMarked = computed(() => !this.preview() && this.marks.isPageBookmarked(this.page()));
 
   readonly page = input.required<number>();
   /** True for the active page of a spread pair. */
