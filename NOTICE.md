@@ -28,7 +28,9 @@ remains under its original terms:
 
 ## Efek suara balik halaman
 
-`app/public/sfx/flip1–3.wav` berasal dari **RPG Audio** oleh Kenney Vleugels ([kenney.nl](https://kenney.nl/assets/rpg-audio)), lisensi **CC0 1.0**. Hening di awal/akhir dipotong dan diubah ke WAV mono 22 kHz.
+`app/public/sfx/paper.wav` dan `paper-short.wav` berasal dari **"Aggressively turning paper pages #5"** oleh Vvix di Freesound (<https://freesound.org/people/Vvix/sounds/751980/>), lisensi **CC0 1.0**. Dipotong (0,78 dtk dan 0,4 dtk), hening dibuang, diubah ke WAV mono 22 kHz.
+
+`app/public/sfx/grab.wav` dan `grab-short.wav` berasal dari **"Paper Grab"** oleh Geoff Bremner (<https://freesound.org/people/Geoff-Bremner-Audio/sounds/866344/>, <https://linktr.ee/gbaudio>), lisensi **CC BY-NC 4.0** (wajib atribusi, non-komersial). Dipotong (0,52 dtk dan 0,28 dtk), volume diturunkan 6 dB, diubah ke WAV mono 22 kHz.
 
 ## Font doa khatam
 

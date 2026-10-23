@@ -1,14 +1,21 @@
-import { Injectable, inject, signal } from '@angular/core';
+import { Injectable, computed, inject, signal } from '@angular/core';
 import { AudioService } from './audio/audio.service';
 
 /**
- * A short paper sound when the reader turns a page (Kenney "RPG Audio", CC0; silence
- * trimmed, see public/sfx). Per-device setting, on by default, quiet, and never over a
- * recitation. Rapid page turns stay calm: taps closer than MIN_GAP_MS share one sound,
- * at most two sounds overlap (the older one fades out), and the variants rotate.
+ * A paper sound when the reader turns a page. Two choices (Freesound, silence trimmed,
+ * see public/sfx and NOTICE.md): "Kertas" = "Aggressively turning paper pages #5" by Vvix
+ * (CC0), "Ambil kertas" = "Paper Grab" by Geoff Bremner (CC BY-NC 4.0). Per-device
+ * setting, "Kertas" by default, quiet, and never over a recitation. Rapid page turns
+ * stay calm: taps closer than MIN_GAP_MS share one sound, at most two sounds overlap
+ * (the older one fades out), and turns in a burst use the short cut of the sound.
  */
+export type PageSoundChoice = 'off' | 'paper' | 'grab';
 const KEY = 'mf-page-sound';
-const FILES = ['/sfx/flip1.wav', '/sfx/flip2.wav', '/sfx/flip3.wav'];
+/** [normal turn, burst turn] per sound. */
+const FILES: Record<Exclude<PageSoundChoice, 'off'>, string[]> = {
+  paper: ['/sfx/paper.wav', '/sfx/paper-short.wav'],
+  grab: ['/sfx/grab.wav', '/sfx/grab-short.wav'],
+};
 const VOLUME = 0.35;
 /** Turns faster than this play no new sound. */
 const MIN_GAP_MS = 120;
@@ -27,14 +34,14 @@ interface Voice {
 export class PageTurnSoundService {
   private readonly audio = inject(AudioService);
 
-  readonly enabled = signal(readEnabled());
+  readonly choice = signal<PageSoundChoice>(readChoice());
+  readonly enabled = computed(() => this.choice() !== 'off');
 
   private ctx: AudioContext | null = null;
-  private buffers: AudioBuffer[] = [];
-  private loading: Promise<void> | null = null;
+  private buffers = new Map<PageSoundChoice, AudioBuffer[]>();
+  private loading = new Map<PageSoundChoice, Promise<void>>();
   private voices: Voice[] = [];
   private last = 0;
-  private next = 0;
 
   constructor() {
     // Browsers only start audio from a tap, click or key press, and a swipe does not
@@ -56,14 +63,22 @@ export class PageTurnSoundService {
   }
 
   set(on: boolean): void {
-    this.enabled.set(on);
+    this.choose(on ? 'paper' : 'off');
+  }
+
+  /** Picks the sound (or off) and plays a sample so the choice can be heard. */
+  choose(choice: PageSoundChoice): void {
+    this.choice.set(choice);
     try {
-      if (on) localStorage.removeItem(KEY);
-      else localStorage.setItem(KEY, 'off');
+      if (choice === 'paper') localStorage.removeItem(KEY);
+      else localStorage.setItem(KEY, choice);
     } catch {
       /* storage blocked: lasts for this page load */
     }
-    if (on) this.play();
+    if (choice === 'off') return;
+    this.last = 0;
+    const ctx = this.context();
+    if (ctx) void this.load(ctx).then(() => this.play());
   }
 
   /** Called on a user page turn (not on the first load or a jump from a list). */
@@ -76,15 +91,17 @@ export class PageTurnSoundService {
     const ctx = this.context();
     if (!ctx) return;
     if (ctx.state === 'suspended') void ctx.resume().catch(() => undefined);
-    if (!this.buffers.length) {
+    const buffers = this.buffers.get(this.choice());
+    if (!buffers?.length) {
       // First turn only warms up; sounds are ready from the next one.
       void this.load(ctx);
       return;
     }
     while (this.voices.length >= MAX_VOICES) this.stop(this.voices.shift()!, ctx);
-    const buffer = this.buffers[this.next++ % this.buffers.length]!;
+    const burst = gap < BURST_MS;
+    const buffer = buffers[burst ? 1 : 0] ?? buffers[0]!;
     const gain = ctx.createGain();
-    gain.gain.value = gap < BURST_MS ? VOLUME * 0.6 : VOLUME;
+    gain.gain.value = burst ? VOLUME * 0.6 : VOLUME;
     const src = ctx.createBufferSource();
     src.buffer = buffer;
     src.connect(gain).connect(ctx.destination);
@@ -119,23 +136,30 @@ export class PageTurnSoundService {
   }
 
   private load(ctx: AudioContext): Promise<void> {
-    this.loading ??= Promise.all(
-      FILES.map((f) =>
-        fetch(f)
-          .then((r) => r.arrayBuffer())
-          .then((b) => ctx.decodeAudioData(b)),
-      ),
-    )
-      .then((b) => void (this.buffers = b))
-      .catch(() => void (this.loading = null));
-    return this.loading;
+    const choice = this.choice();
+    if (choice === 'off') return Promise.resolve();
+    let p = this.loading.get(choice);
+    if (!p) {
+      p = Promise.all(
+        FILES[choice].map((f) =>
+          fetch(f)
+            .then((r) => r.arrayBuffer())
+            .then((b) => ctx.decodeAudioData(b)),
+        ),
+      )
+        .then((b) => void this.buffers.set(choice, b))
+        .catch(() => void this.loading.delete(choice));
+      this.loading.set(choice, p);
+    }
+    return p;
   }
 }
 
-function readEnabled(): boolean {
+function readChoice(): PageSoundChoice {
   try {
-    return localStorage.getItem(KEY) !== 'off';
+    const v = localStorage.getItem(KEY);
+    return v === 'off' || v === 'grab' ? v : 'paper';
   } catch {
-    return true;
+    return 'paper';
   }
 }

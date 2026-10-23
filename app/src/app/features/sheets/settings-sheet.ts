@@ -1,5 +1,5 @@
 import { buildLabel } from '../../core/build-info';
-import { PageTurnSoundService } from '../../core/page-turn-sound';
+import { PageSoundChoice, PageTurnSoundService } from '../../core/page-turn-sound';
 import { errorReportEnabled, setErrorReportEnabled } from '../../core/storage/error-reporter';
 import { AudioService } from '../../core/audio/audio.service';
 import { AudioOfflineApi } from '../../core/audio/audio-offline.api';
@@ -384,18 +384,15 @@ const SYNC_LABEL: Record<string, string> = {
           ></button
         ></span>
       </div>
-      <div class="switch-row" data-search-id="page-sound">
-        <span id="sw-page-sound">Suara balik halaman (perangkat ini)</span>
-        <span class="hit"
-          ><button
-            type="button"
-            class="switch"
-            role="switch"
-            aria-labelledby="sw-page-sound"
-            [attr.aria-checked]="pageSound.enabled()"
-            (click)="pageSound.set(!pageSound.enabled())"
-          ></button
-        ></span>
+      <div class="row" style="cursor: default">
+        <span id="page-sound-label">Suara balik halaman (perangkat ini)</span>
+      </div>
+      <div class="mf-segmented" role="group" aria-labelledby="page-sound-label" data-search-id="page-sound">
+        @for (o of pageSoundOptions; track o.id) {
+          <button type="button" [attr.aria-pressed]="pageSound.choice() === o.id" (click)="pageSound.choose(o.id)">
+            {{ o.label }}
+          </button>
+        }
       </div>
       <div class="row" style="cursor: default">
         <span id="wake-label">Layar tetap menyala (perangkat ini)</span>
@@ -583,6 +580,11 @@ export class SettingsSheet {
   protected readonly install = inject(InstallService);
   protected readonly wake = inject(WakeLockService);
   protected readonly pageSound = inject(PageTurnSoundService);
+  protected readonly pageSoundOptions: { id: PageSoundChoice; label: string }[] = [
+    { id: 'off', label: 'Mati' },
+    { id: 'paper', label: 'Kertas' },
+    { id: 'grab', label: 'Ambil kertas' },
+  ];
   protected readonly lineRules = inject(LineRulesService);
   protected readonly wakeOptions = WAKE_OPTIONS;
   protected readonly progress = inject(ProgressService);
