@@ -188,27 +188,6 @@ import { latinCopyText, shareText, translationCopyText, verseReference, verseUrl
         <button
           type="button"
           class="act"
-          [class.on]="v.bookmarked"
-          [attr.aria-pressed]="v.bookmarked"
-          (click)="toggleBookmark()"
-        >
-          <svg
-            width="22"
-            height="22"
-            viewBox="0 0 24 24"
-            [attr.fill]="v.bookmarked ? 'currentColor' : 'none'"
-            stroke="currentColor"
-            stroke-width="1.6"
-            stroke-linejoin="round"
-            aria-hidden="true"
-          >
-            <path d="M6.5 4h11v16l-5.5-4-5.5 4z" />
-          </svg>
-          {{ v.bookmarked ? 'Ditandai' : 'Tandai' }}
-        </button>
-        <button
-          type="button"
-          class="act"
           data-testid="favorite-btn"
           [class.on]="v.favorite"
           [attr.aria-pressed]="v.favorite"
@@ -227,7 +206,28 @@ import { latinCopyText, shareText, translationCopyText, verseReference, verseUrl
           >
             <path d="M12 3.6l2.5 5.2 5.7.8-4.1 4 1 5.7-5.1-2.7-5.1 2.7 1-5.7-4.1-4 5.7-.8z" />
           </svg>
-          {{ v.favorite ? 'Favorit' : '★ Favorit' }}
+          Favorit
+        </button>
+        <button
+          type="button"
+          class="act"
+          [class.on]="v.bookmarked"
+          [attr.aria-pressed]="v.bookmarked"
+          (click)="toggleBookmark()"
+        >
+          <svg
+            width="22"
+            height="22"
+            viewBox="0 0 24 24"
+            [attr.fill]="v.bookmarked ? 'currentColor' : 'none'"
+            stroke="currentColor"
+            stroke-width="1.6"
+            stroke-linejoin="round"
+            aria-hidden="true"
+          >
+            <path d="M6.5 4h11v16l-5.5-4-5.5 4z" />
+          </svg>
+          {{ v.bookmarked ? 'Ditandai' : 'Tandai' }}
         </button>
       </div>
     }
