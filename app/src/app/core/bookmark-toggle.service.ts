@@ -1,6 +1,7 @@
-import { Injectable, inject, signal } from '@angular/core';
+import { Injectable, Injector, inject, signal } from '@angular/core';
+import { KhatamService } from './khatam.service';
 import { UserDataApi } from './contracts';
-import { AyahRef, DEFAULT_EDITION, bookmarkKey } from './models';
+import { AyahRef, DEFAULT_EDITION, PAGE_COUNT, bookmarkKey } from './models';
 import { ReaderUiService } from './reader-ui.service';
 import { recordStorageError } from './storage/storage-diagnostics';
 import { StorageUnavailableError } from './storage/user-data.service';
@@ -25,6 +26,7 @@ interface Labels {
 export class BookmarkToggleService {
   private readonly userData = inject(UserDataApi);
   private readonly ui = inject(ReaderUiService);
+  private readonly injector = inject(Injector);
   /** key -> desired state while a toggle is in flight. */
   private readonly overlay = signal<ReadonlyMap<string, boolean>>(new Map());
 
@@ -59,6 +61,7 @@ export class BookmarkToggleService {
       () => this.userData.toggleVerseBookmark(ref, page),
       { added: 'Ayat ditandai', removed: 'Penanda dihapus' },
       () => this.toggleVerse(ref, page),
+      page,
     );
   }
 
@@ -70,6 +73,7 @@ export class BookmarkToggleService {
       () => this.userData.togglePageBookmark(page),
       { added: `Halaman ${page} ditandai`, removed: 'Penanda halaman dihapus' },
       () => this.togglePage(page),
+      page,
     );
   }
 
@@ -91,6 +95,7 @@ export class BookmarkToggleService {
     write: () => Promise<'added' | 'removed'>,
     labels: Labels,
     again: () => Promise<void>,
+    page: number | null = null,
   ): Promise<void> {
     if (this.overlay().has(key)) return; // double tap while in flight
     this.setOverlay(key, !stored());
@@ -103,6 +108,11 @@ export class BookmarkToggleService {
       }, SLOW_SAVE_NOTICE_MS);
       giveUp = setTimeout(() => this.setOverlay(key, null), SAVE_GIVE_UP_MS);
       const result = await pending;
+      // Marking the last page means the reader has finished: offer the khatam step.
+      if (result === 'added' && page === PAGE_COUNT) {
+        this.injector.get(KhatamService).open();
+        return;
+      }
       this.ui.showToast({
         message: result === 'added' ? labels.added : labels.removed,
         actionLabel: 'Urungkan',

@@ -16,6 +16,7 @@ const MIN_GAP_MS = 120;
 const BURST_MS = 400;
 const MAX_VOICES = 2;
 const FADE_S = 0.03;
+const UNLOCK_EVENTS = ['pointerdown', 'touchend', 'keydown'] as const;
 
 interface Voice {
   src: AudioBufferSourceNode;
@@ -34,6 +35,25 @@ export class PageTurnSoundService {
   private voices: Voice[] = [];
   private last = 0;
   private next = 0;
+
+  constructor() {
+    // Browsers only start audio from a tap, click or key press, and a swipe does not
+    // count. So the first tap anywhere unlocks and preloads the sounds; page turns by
+    // swipe can then play. Listeners stay until the context is actually running.
+    if (typeof document === 'undefined') return;
+    const unlock = () => {
+      if (!this.enabled()) return;
+      const ctx = this.context();
+      if (!ctx) return;
+      void ctx
+        .resume()
+        .then(() => {
+          if (ctx.state === 'running') for (const t of UNLOCK_EVENTS) document.removeEventListener(t, unlock, true);
+        })
+        .catch(() => undefined);
+    };
+    for (const t of UNLOCK_EVENTS) document.addEventListener(t, unlock, { capture: true, passive: true });
+  }
 
   set(on: boolean): void {
     this.enabled.set(on);

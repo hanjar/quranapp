@@ -35,7 +35,10 @@ describe('BookmarksSheet tabs', () => {
           },
         },
         { provide: ProgressService, useValue: { days: () => [], recent: () => [] } },
-        { provide: SyncApi, useValue: { account: signal(null), status: signal('off'), syncNow: async () => {} } },
+        {
+          provide: SyncApi,
+          useValue: { account: signal(null), status: signal('off'), syncNow: async () => {} },
+        },
       ],
     });
     data = TestBed.inject(UserDataService);
@@ -51,8 +54,13 @@ describe('BookmarksSheet tabs', () => {
       el,
       tabs: () => Array.from(el.querySelectorAll('[role="tab"]')).map((t) => t.textContent!.trim()),
       tab: (name: string) =>
-        Array.from(el.querySelectorAll<HTMLElement>('[role="tab"]')).find((t) => t.textContent!.trim() === name)!,
-      titles: () => Array.from(el.querySelectorAll('.item .title')).map((t) => t.textContent!.replace(/\s+/g, ' ').trim()),
+        Array.from(el.querySelectorAll<HTMLElement>('[role="tab"]')).find(
+          (t) => t.textContent!.trim() === name,
+        )!,
+      titles: () =>
+        Array.from(el.querySelectorAll('.item .title')).map((t) =>
+          t.textContent!.replace(/\s+/g, ' ').trim(),
+        ),
     };
   }
 

@@ -91,7 +91,11 @@ describe('UserDataService favorites and khatam archive', () => {
       await svc.toggleFavorite({ surah: 3, ayah: 4 }, 50);
       const ops = await db.outbox.toArray();
       expect(ops).toHaveLength(1);
-      expect(ops[0].payload).toMatchObject({ kind: 'favorite', key: 'hafs-kfqc|favorite|3:4', archivedAt: null });
+      expect(ops[0].payload).toMatchObject({
+        kind: 'favorite',
+        key: 'hafs-kfqc|favorite|3:4',
+        archivedAt: null,
+      });
     });
 
     it('convertToFavorites moves verse bookmarks to favorites and undo restores them', async () => {
@@ -147,7 +151,9 @@ describe('UserDataService favorites and khatam archive', () => {
       const bmOps = ops.filter((o) => o.entity === 'bookmark');
       expect(bmOps).toHaveLength(2);
       for (const o of bmOps) {
-        expect((o.payload as { archivedAt: number; folderId: string }).archivedAt).toBe(res.folder!.archivedAt);
+        expect((o.payload as { archivedAt: number; folderId: string }).archivedAt).toBe(
+          res.folder!.archivedAt,
+        );
         expect((o.payload as { folderId: string }).folderId).toBe(res.folder!.id);
       }
     });
@@ -197,7 +203,10 @@ describe('UserDataService favorites and khatam archive', () => {
       await svc.togglePageBookmark(7);
       const res = await svc.archiveCurrentBookmarks('Khatam ke-1');
       const f = await svc.createFolder('Lain');
-      await svc.moveBookmarks(svc.archivedBookmarks().map((b) => b.id), f.id);
+      await svc.moveBookmarks(
+        svc.archivedBookmarks().map((b) => b.id),
+        f.id,
+      );
       expect(svc.archivedBookmarks()[0].folderId).toBe(res.folder!.id);
     });
   });
@@ -215,8 +224,14 @@ describe('UserDataService favorites and khatam archive', () => {
       expect(svc.archivedFolders()).toHaveLength(0);
       expect(svc.folders().map((f) => f.name)).toEqual(['Khatam ke-1']);
       const ops = await db.outbox.toArray();
-      expect(ops.filter((o) => o.entity === 'bookmark').every((o) => (o.payload as { archivedAt: null }).archivedAt === null)).toBe(true);
-      expect((ops.find((o) => o.entity === 'folder')!.payload as { archivedAt: null }).archivedAt).toBeNull();
+      expect(
+        ops
+          .filter((o) => o.entity === 'bookmark')
+          .every((o) => (o.payload as { archivedAt: null }).archivedAt === null),
+      ).toBe(true);
+      expect(
+        (ops.find((o) => o.entity === 'folder')!.payload as { archivedAt: null }).archivedAt,
+      ).toBeNull();
     });
 
     it('keeps a bookmark archived when its key is taken again, and reports it', async () => {
@@ -226,7 +241,12 @@ describe('UserDataService favorites and khatam archive', () => {
       await svc.togglePageBookmark(10); // new round bookmark with the same key
       const out = await svc.unarchiveFolder(res.folder!.id);
       expect(out).toEqual({ restored: 1, skipped: 1 });
-      expect(svc.bookmarks().map((b) => b.page).sort()).toEqual([10, 11]);
+      expect(
+        svc
+          .bookmarks()
+          .map((b) => b.page)
+          .sort(),
+      ).toEqual([10, 11]);
       expect(svc.archivedBookmarks()).toHaveLength(1);
       // the folder stays archived while something is left in it
       expect(svc.archivedFolders()).toHaveLength(1);
@@ -266,12 +286,23 @@ describe('UserDataService favorites and khatam archive', () => {
         folderId: 'f1',
         note: 'x',
       });
-      await old.table('folders').add({ id: 'f1', name: 'A', createdAt: 1, updatedAt: 1, deletedAt: null, rev: 2 });
+      await old
+        .table('folders')
+        .add({ id: 'f1', name: 'A', createdAt: 1, updatedAt: 1, deletedAt: null, rev: 2 });
       old.close();
 
       const upgraded = new MushafDb(name);
-      expect(await upgraded.bookmarks.get('b1')).toMatchObject({ page: 5, note: 'x', rev: 3, archivedAt: null });
-      expect(await upgraded.folders.get('f1')).toMatchObject({ name: 'A', rev: 2, archivedAt: null });
+      expect(await upgraded.bookmarks.get('b1')).toMatchObject({
+        page: 5,
+        note: 'x',
+        rev: 3,
+        archivedAt: null,
+      });
+      expect(await upgraded.folders.get('f1')).toMatchObject({
+        name: 'A',
+        rev: 2,
+        archivedAt: null,
+      });
       upgraded.close();
     });
   });
@@ -285,7 +316,10 @@ describe('UserDataService favorites and khatam archive', () => {
       const parsed = JSON.parse(text);
       expect(parsed.version).toBe(3);
       expect(parsed.bookmarks).toHaveLength(2);
-      expect(parsed.folders[0]).toMatchObject({ name: 'Khatam ke-1', archivedAt: res.folder!.archivedAt });
+      expect(parsed.folders[0]).toMatchObject({
+        name: 'Khatam ke-1',
+        archivedAt: res.folder!.archivedAt,
+      });
       const pageRow = parsed.bookmarks.find((b: { kind: string }) => b.kind === 'page');
       expect(pageRow.archivedAt).toBe(res.folder!.archivedAt);
 
@@ -306,13 +340,23 @@ describe('UserDataService favorites and khatam archive', () => {
         format: 'mushaf-digital-export',
         editionId: 'hafs-kfqc',
         position: null,
-        preferences: { ...JSON.parse('{"paperTheme":"sepia","uiTheme":"segar","layoutMode":"auto","controlsAlwaysVisible":true,"motion":"system","highContrast":false}') },
+        preferences: {
+          ...JSON.parse(
+            '{"paperTheme":"sepia","uiTheme":"segar","layoutMode":"auto","controlsAlwaysVisible":true,"motion":"system","highContrast":false}',
+          ),
+        },
         folders: [],
       };
       const fav = { kind: 'favorite', page: 3, surah: 2, ayah: 5, createdAt: 1, archivedAt: 99 };
-      expect(() => parseExportText(JSON.stringify({ ...base, version: 2, bookmarks: [fav] }))).toThrow(/jenis/);
+      expect(() =>
+        parseExportText(JSON.stringify({ ...base, version: 2, bookmarks: [fav] })),
+      ).toThrow(/jenis/);
       const ok = parseExportText(JSON.stringify({ ...base, version: 3, bookmarks: [fav] }));
-      expect(ok.bookmarks[0]).toMatchObject({ kind: 'favorite', archivedAt: null, key: 'hafs-kfqc|favorite|2:5' });
+      expect(ok.bookmarks[0]).toMatchObject({
+        kind: 'favorite',
+        archivedAt: null,
+        key: 'hafs-kfqc|favorite|2:5',
+      });
     });
   });
 });

@@ -46,7 +46,11 @@ export class KhatamService {
 
   open(): void {
     const n = this.nextNumber();
-    this.dialog.set({ n, count: this.userData.bookmarks().length, folderName: khatamFolderName(n) });
+    this.dialog.set({
+      n,
+      count: this.userData.bookmarks().length,
+      folderName: khatamFolderName(n),
+    });
   }
 
   close(): void {
@@ -70,7 +74,10 @@ export class KhatamService {
       }
       this.dialog.set(null);
       if (roundFailed) {
-        this.ui.showToast({ message: 'Penanda diarsipkan, tetapi putaran baru gagal dimulai.', duration: 8000 });
+        this.ui.showToast({
+          message: 'Penanda diarsipkan, tetapi putaran baru gagal dimulai.',
+          duration: 8000,
+        });
       } else if (res.count > 0) {
         this.ui.showToast({
           message: `${res.count} penanda diarsipkan`,
@@ -83,7 +90,8 @@ export class KhatamService {
       }
     } catch (e) {
       this.ui.showToast({
-        message: e instanceof Error && e.message ? e.message : 'Penanda gagal diarsipkan. Coba lagi.',
+        message:
+          e instanceof Error && e.message ? e.message : 'Penanda gagal diarsipkan. Coba lagi.',
         duration: 8000,
       });
     } finally {

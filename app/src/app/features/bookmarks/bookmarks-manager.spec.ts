@@ -11,7 +11,12 @@ import { BookmarksManager } from './bookmarks-manager';
 
 installFakeIndexedDb();
 
-const surah = (n: number) => ({ number: n, nameLatin: 'Surah' + n, nameEnglish: 'S' + n, nameArabic: 'س' });
+const surah = (n: number) => ({
+  number: n,
+  nameLatin: 'Surah' + n,
+  nameEnglish: 'S' + n,
+  nameArabic: 'س',
+});
 
 describe('BookmarksManager favorites and archive', () => {
   let data: UserDataService;
@@ -48,8 +53,14 @@ describe('BookmarksManager favorites and archive', () => {
       f,
       el,
       q: (sel: string) => el.querySelector<HTMLElement>(sel),
-      titles: () => Array.from(el.querySelectorAll('main > ul.list .item .title')).map((t) => t.textContent!.replace(/\s+/g, ' ').trim()),
-      archiveTitles: () => Array.from(el.querySelectorAll('.archive .item .title')).map((t) => t.textContent!.replace(/\s+/g, ' ').trim()),
+      titles: () =>
+        Array.from(el.querySelectorAll('main > ul.list .item .title')).map((t) =>
+          t.textContent!.replace(/\s+/g, ' ').trim(),
+        ),
+      archiveTitles: () =>
+        Array.from(el.querySelectorAll('.archive .item .title')).map((t) =>
+          t.textContent!.replace(/\s+/g, ' ').trim(),
+        ),
     };
   }
 
@@ -71,7 +82,7 @@ describe('BookmarksManager favorites and archive', () => {
     expect(m.archiveTitles()).toHaveLength(2);
   });
 
-  it('Pulihkan brings the folder\'s bookmarks back and reports clashes', async () => {
+  it("Pulihkan brings the folder's bookmarks back and reports clashes", async () => {
     await data.togglePageBookmark(10);
     await data.togglePageBookmark(11);
     await data.archiveCurrentBookmarks('Khatam ke-1');
@@ -81,7 +92,12 @@ describe('BookmarksManager favorites and archive', () => {
     m.f.detectChanges();
     m.q('[data-testid="restore-btn"]')!.click();
     await vi.waitFor(() => expect(data.archivedBookmarks()).toHaveLength(1));
-    expect(data.bookmarks().map((b) => b.page).sort()).toEqual([10, 11]);
+    expect(
+      data
+        .bookmarks()
+        .map((b) => b.page)
+        .sort(),
+    ).toEqual([10, 11]);
     expect(TestBed.inject(ReaderUiService).toast()!.message).toBe(
       '1 penanda dipulihkan · 1 penanda tidak dapat dipulihkan karena sudah ada penanda yang sama',
     );
@@ -121,7 +137,9 @@ describe('BookmarksManager favorites and archive', () => {
     m.f.detectChanges();
     const make = () => m.q('[data-testid="make-favorite"]') as HTMLButtonElement;
     expect(make().disabled).toBe(true);
-    m.el.querySelectorAll<HTMLInputElement>('.item input[type="checkbox"]').forEach((c) => c.click());
+    m.el
+      .querySelectorAll<HTMLInputElement>('.item input[type="checkbox"]')
+      .forEach((c) => c.click());
     m.f.detectChanges();
     expect(make().disabled).toBe(false);
     make().click();

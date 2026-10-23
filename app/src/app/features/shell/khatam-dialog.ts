@@ -131,7 +131,9 @@ export class KhatamDialog {
       if (!this.khatam.dialog()) return;
       untracked(() =>
         queueMicrotask(() =>
-          this.host.nativeElement.querySelector<HTMLElement>('[data-testid="khatam-confirm"]')?.focus(),
+          this.host.nativeElement
+            .querySelector<HTMLElement>('[data-testid="khatam-confirm"]')
+            ?.focus(),
         ),
       );
     });

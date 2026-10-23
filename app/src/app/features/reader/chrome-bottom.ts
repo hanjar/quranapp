@@ -313,7 +313,7 @@ export class ChromeBottom implements OnDestroy {
   });
 
   /** The last mushaf page: its bookmark button becomes "Khatam". */
-  protected readonly isLastPage = computed(() => this.ui.currentPage() === PAGE_COUNT);
+  protected readonly isLastPage = computed(() => this.ui.visiblePages().includes(PAGE_COUNT));
 
   protected readonly pillText = computed(() => {
     return `${this.ui.currentPage()} / 604`;

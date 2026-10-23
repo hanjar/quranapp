@@ -70,7 +70,9 @@ describe('KhatamDialog + KhatamService', () => {
     const m = mount();
     m.f.detectChanges();
     expect(m.text()).toContain('Alhamdulillah, khatam ke-3');
-    expect(m.text()).toMatch(/Arsipkan 2 penanda putaran ini ke folder 'Khatam ke-3 · \w{3} \d{4}' dan mulai putaran baru\?/);
+    expect(m.text()).toMatch(
+      /Arsipkan 2 penanda putaran ini ke folder 'Khatam ke-3 · \w{3} \d{4}' dan mulai putaran baru\?/,
+    );
     expect(m.btn('khatam-confirm')!.textContent!.trim()).toBe('Arsipkan & mulai baru');
     expect(m.btn('khatam-doa')!.textContent!.trim()).toBe('Baca doa khatam');
     expect(m.btn('khatam-later')!.textContent!.trim()).toBe('Nanti');
