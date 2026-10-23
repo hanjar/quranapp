@@ -27,7 +27,7 @@ import { lastLine, parseRects } from './verse-ribbon';
 import { VerseStateContext, isCoverPage, paddedViewBox, verseKey, verseStateFlags } from './reader-logic';
 
 /** How far the verse ribbon reaches past the right page edge, % of the page width. */
-const RIBBON_OUT = 3.5;
+const RIBBON_OUT = 5.25;
 /** How far it overlaps the text (translucent, it marks the line as read), % of the page width. */
 const RIBBON_IN = 3;
 

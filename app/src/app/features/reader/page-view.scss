@@ -56,7 +56,8 @@
    with the line where the last bookmarked ayah ends; swallowtail on the outer end. */
 .vribbon {
   position: absolute;
-  right: -3.5%;
+  /* keep equal to RIBBON_OUT in page-view.ts */
+  right: -5.25%;
   /* width is set inline: from the text block's right edge to here */
   min-width: 26px;
   background: var(--mf-ribbon, #b3261e);
