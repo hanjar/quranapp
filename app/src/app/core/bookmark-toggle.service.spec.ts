@@ -140,7 +140,7 @@ describe('BookmarkToggleService', () => {
     t.fail(new StorageUnavailableError(DB_BLOCKED_MESSAGE, 'blocked'));
     await p;
     expect(t.svc.isVerseBookmarked(ref)).toBe(false);
-    expect(t.ui.toast()?.message).toBe('Tutup tab Mushaf Digital lain lalu muat ulang.');
+    expect(t.ui.toast()?.message).toBe(DB_BLOCKED_MESSAGE);
     expect(t.ui.toast()?.actionLabel).toBe('Muat ulang');
   });
 

@@ -32,7 +32,8 @@ const UNDO_WINDOW_MS = 6000;
 const EDITION: EditionId = APP_CONFIG.editionId;
 /** A database that is not open after this long is held up by another tab; fail instead of hanging. */
 export const DB_OPEN_TIMEOUT_MS = 8000;
-export const DB_BLOCKED_MESSAGE = 'Tutup tab Mushaf Digital lain lalu muat ulang.';
+export const DB_BLOCKED_MESSAGE =
+  'Mushaf Digital masih terbuka di tempat lain (tab lain atau aplikasi terpasang). Tutup sepenuhnya, lalu muat ulang.';
 export const DB_OUTDATED_MESSAGE = 'Versi baru siap di tab lain. Muat ulang halaman ini.';
 
 export class StorageUnavailableError extends Error {
