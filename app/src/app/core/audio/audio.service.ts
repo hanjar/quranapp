@@ -1,4 +1,5 @@
 import { DestroyRef, Injectable, computed, inject, signal } from '@angular/core';
+import { reportError } from '../storage/error-reporter';
 import { Router } from '@angular/router';
 import { ContentApi, UserDataApi } from '../contracts';
 import { AyahRef } from '../models';
@@ -53,6 +54,8 @@ export class AudioService {
   private preloader: HTMLAudioElement | null = null;
   private start: { ref: AyahRef; page: number } | null = null;
   private triedFallback = false;
+  /** First source that failed for the current file, for the error report. */
+  private firstFailure: string | null = null;
   private token = 0;
 
   constructor() {
@@ -137,6 +140,7 @@ export class AudioService {
     this.current.set(ref);
     this.basmalah.set(basmalah);
     this.triedFallback = false;
+    this.firstFailure = null;
     this.state.set('loading');
     this.followPage(ref);
     this.setMediaSession(ref);
@@ -174,12 +178,20 @@ export class AudioService {
     };
     a.onerror = () => {
       if (token !== this.token) return;
+      const failed = `${describeSrc(a.src)} (kode ${a.error?.code ?? '?'})`;
       if (!this.triedFallback && a.dataset['fallback']) {
         this.triedFallback = true;
+        this.firstFailure = failed;
         a.src = a.dataset['fallback'];
         void a.play().catch(() => undefined);
         return;
       }
+      reportError({
+        op: 'audio',
+        name: 'MediaError',
+        message: `${ref.surah}:${ref.ayah}${basmalah ? ' basmalah' : ''} · ${this.firstFailure ?? '-'} → ${failed} · online=${navigator.onLine}`,
+        at: Date.now(),
+      });
       this.fail();
     };
     void a
@@ -190,7 +202,10 @@ export class AudioService {
       .catch((e: unknown) => {
         // Autoplay blocked or aborted by a newer request: let the user resume.
         if (token !== this.token) return;
-        if ((e as { name?: string })?.name === 'NotAllowedError') this.state.set('paused');
+        const name = (e as { name?: string })?.name;
+        if (name === 'NotAllowedError') this.state.set('paused');
+        else if (name && name !== 'AbortError')
+          reportError({ op: 'audio-play', name, message: `${ref.surah}:${ref.ayah} · ${describeSrc(src)}`, at: Date.now() });
       });
     this.preloadAfter(ref);
   }
@@ -270,4 +285,15 @@ export class AudioService {
 
 function isOffline(): boolean {
   return typeof navigator !== 'undefined' && navigator.onLine === false;
+}
+
+/** "local" for stored files, else host + file name (no query). */
+function describeSrc(src: string): string {
+  if (src.startsWith('blob:')) return 'local';
+  try {
+    const u = new URL(src);
+    return `${u.host}${u.pathname.slice(u.pathname.lastIndexOf('/'))}`;
+  } catch {
+    return src.slice(0, 60);
+  }
 }
