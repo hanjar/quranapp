@@ -28,6 +28,8 @@ import { VerseStateContext, isCoverPage, paddedViewBox, verseKey, verseStateFlag
 
 /** How far the verse ribbon reaches past the right page edge, % of the page width. */
 const RIBBON_OUT = 3.5;
+/** How far it overlaps the text (translucent, it marks the line as read), % of the page width. */
+const RIBBON_IN = 3;
 
 export type PageState = 'loading' | 'ready' | 'offline' | 'error';
 
@@ -206,12 +208,12 @@ export class PageView implements OnDestroy {
     const at = (x: number, y: number) => new DOMPoint(x, y).matrixTransform(ctm);
     const top = at(blockRight, last.y1);
     const bottom = at(blockRight, last.y2);
-    // From the right edge of the text block out past the page edge (RIBBON_OUT % beyond it).
+    // From a little inside the text block (RIBBON_IN) out past the page edge (RIBBON_OUT).
     const inner = ((box.right - top.x) / box.width) * 100;
     this.sideRibbon.set({
       top: ((top.y - box.top) / box.height) * 100,
       height: ((bottom.y - top.y) / box.height) * 100,
-      width: Math.max(inner, 0) + RIBBON_OUT,
+      width: Math.max(inner, 0) + RIBBON_IN + RIBBON_OUT,
     });
   }
 
