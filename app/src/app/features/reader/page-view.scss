@@ -52,12 +52,13 @@
   pointer-events: none;
   z-index: 2;
 }
-/* Verse bookmark: a tab from the outer frame out past the page edge on the right, level
+/* Verse bookmark: a tab from just inside the frame out past the page edge on the right, level
    with the line where the last bookmarked ayah ends; swallowtail on the outer end. */
 .vribbon {
   position: absolute;
-  right: -2%;
-  width: max(18px, 4.4%);
+  right: -3.5%;
+  /* inner end stops just inside the inner frame (3.4%), before the text (~4.2%) */
+  width: max(24px, 7.1%);
   background: var(--mf-ribbon, #b3261e);
   opacity: 0.75;
   clip-path: polygon(0 0, 100% 0, 72% 50%, 100% 100%, 0 100%);
