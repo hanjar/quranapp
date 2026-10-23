@@ -195,9 +195,13 @@ export class PageView implements OnDestroy {
     let last: ReturnType<typeof lastLine> = null;
     // Right edge of the text block: a short ayah may start mid-line, so not its own edge.
     let blockRight = -Infinity;
+    let minLine = Infinity;
     for (const el of svg.querySelectorAll<SVGPathElement>('.ayahPolygon')) {
       const rects = parseRects(el.getAttribute('d') ?? '');
-      for (const r of rects) blockRight = Math.max(blockRight, r.x2);
+      for (const r of rects) {
+        blockRight = Math.max(blockRight, r.x2);
+        if (r.y2 - r.y1 > 10) minLine = Math.min(minLine, r.y2 - r.y1);
+      }
       const k = verseKey(Number(el.getAttribute('surah')), Number(el.getAttribute('ayah')));
       if (keys.has(k)) last = lastLine(rects) ?? last;
     }
@@ -206,7 +210,10 @@ export class PageView implements OnDestroy {
       return;
     }
     const at = (x: number, y: number) => new DOMPoint(x, y).matrixTransform(ctm);
-    const top = at(blockRight, last.y1);
+    // A rectangle can cover several full lines: keep only the last one. Lines differ a
+    // little in height, so allow 30% over the shortest line (two lines are about 2x).
+    const lineH = minLine * 1.3;
+    const top = at(blockRight, Math.max(last.y1, last.y2 - lineH));
     const bottom = at(blockRight, last.y2);
     // From a little inside the text block (RIBBON_IN) out past the page edge (RIBBON_OUT).
     const inner = ((box.right - top.x) / box.width) * 100;
