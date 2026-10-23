@@ -51,7 +51,6 @@ export class AudioService {
   readonly active = computed(() => this.state() !== 'idle');
 
   private audio: HTMLAudioElement | null = null;
-  private preloader: HTMLAudioElement | null = null;
   private start: { ref: AyahRef; page: number } | null = null;
   private triedFallback = false;
   /** First source that failed for the current file, for the error report. */
@@ -156,10 +155,20 @@ export class AudioService {
         if (!local && isOffline()) {
           // Surah packages don't carry the Al-Fatihah file used for the basmalah.
           if (basmalah) this.playFile(ref, false);
-          else this.fail('Ayat ini belum disimpan untuk offline. Sambungkan internet atau simpan surahnya.');
+          else
+            this.fail(
+              'Ayat ini belum disimpan untuk offline. Sambungkan internet atau simpan surahnya.',
+            );
           return;
         }
-        this.startFile(a, token, ref, basmalah, local ?? stream, local ? stream : QARI.fallback(target));
+        this.startFile(
+          a,
+          token,
+          ref,
+          basmalah,
+          local ?? stream,
+          local ? stream : QARI.fallback(target),
+        );
       });
   }
 
@@ -171,11 +180,6 @@ export class AudioService {
     src: string,
     fallback: string,
   ): void {
-    // The preloader only warms the HTTP cache: let go of the file before playing it.
-    if (this.preloader?.src === src) {
-      this.preloader.removeAttribute('src');
-      this.preloader.load();
-    }
     a.src = src;
     a.dataset['fallback'] = fallback;
     a.onended = () => {
@@ -198,7 +202,12 @@ export class AudioService {
       // reused element can get stuck. Retry this ayah once on a fresh element.
       if (!this.freshRetried) {
         this.freshRetried = true;
-        reportError({ op: 'audio-retry', name: 'MediaError', message: `${ref.surah}:${ref.ayah} · ${failed}`, at: Date.now() });
+        reportError({
+          op: 'audio-retry',
+          name: 'MediaError',
+          message: `${ref.surah}:${ref.ayah} · ${failed}`,
+          at: Date.now(),
+        });
         this.audio = this.replaceAudio(a);
         // Give a page change or a busy network a moment before trying again.
         setTimeout(() => {
@@ -230,9 +239,13 @@ export class AudioService {
         const name = (e as { name?: string })?.name;
         if (name === 'NotAllowedError') this.state.set('paused');
         else if (name && name !== 'AbortError')
-          reportError({ op: 'audio-play', name, message: `${ref.surah}:${ref.ayah} · ${describeSrc(src)}`, at: Date.now() });
+          reportError({
+            op: 'audio-play',
+            name,
+            message: `${ref.surah}:${ref.ayah} · ${describeSrc(src)}`,
+            at: Date.now(),
+          });
       });
-    this.preloadAfter(ref);
   }
 
   private advance(done: AyahRef): void {
@@ -244,24 +257,6 @@ export class AudioService {
     }
   }
 
-  private preloadAfter(ref: AyahRef): void {
-    const n = nextAyah(ref, this.counts());
-    if (
-      !n ||
-      !this.start ||
-      !shouldContinue(this.mode(), this.start, n, (r) => this.content.pageOf(r))
-    )
-      return;
-    void this.offline
-      .localUrl(n)
-      .catch(() => null)
-      .then((local) => {
-        if (local || isOffline()) return; // stored files need no warm-up
-        const pre = (this.preloader ??= this.createAudio());
-        pre.preload = 'auto';
-        pre.src = QARI.primary(globalAyahNumber(n, this.counts()));
-      });
-  }
 
   /** Keep the recited ayah on screen — only while the user is in the reader. */
   private followPage(ref: AyahRef): void {
