@@ -56,6 +56,8 @@ export class AudioService {
   private triedFallback = false;
   /** First source that failed for the current file, for the error report. */
   private firstFailure: string | null = null;
+  /** The current ayah was already retried on a fresh element. */
+  private freshRetried = false;
   private token = 0;
 
   constructor() {
@@ -67,6 +69,7 @@ export class AudioService {
     const p = page ?? this.content.pageOf(ref) ?? this.ui.currentPage();
     this.start = { ref, page: p };
     this.error.set(null);
+    this.freshRetried = false;
     this.begin(ref);
   }
 
@@ -169,6 +172,11 @@ export class AudioService {
     src: string,
     fallback: string,
   ): void {
+    // The preloader only warms the HTTP cache: let go of the file before playing it.
+    if (this.preloader?.src === src) {
+      this.preloader.removeAttribute('src');
+      this.preloader.load();
+    }
     a.src = src;
     a.dataset['fallback'] = fallback;
     a.onended = () => {
@@ -186,6 +194,15 @@ export class AudioService {
         void a.play().catch(() => undefined);
         return;
       }
+      // Both sources failing together points at the element, not the servers: on Android a
+      // reused element can get stuck. Retry this ayah once on a fresh element.
+      if (!this.freshRetried) {
+        this.freshRetried = true;
+        reportError({ op: 'audio-retry', name: 'MediaError', message: `${ref.surah}:${ref.ayah} · ${failed}`, at: Date.now() });
+        this.audio = this.replaceAudio(a);
+        this.playFile(ref, basmalah);
+        return;
+      }
       reportError({
         op: 'audio',
         name: 'MediaError',
@@ -197,7 +214,9 @@ export class AudioService {
     void a
       .play()
       .then(() => {
-        if (token === this.token) this.state.set('playing');
+        if (token !== this.token) return;
+        this.state.set('playing');
+        this.freshRetried = false;
       })
       .catch((e: unknown) => {
         // Autoplay blocked or aborted by a newer request: let the user resume.
@@ -250,6 +269,16 @@ export class AudioService {
   private fail(msg = 'Audio tidak dapat diputar. Periksa koneksi lalu coba lagi.'): void {
     this.state.set('error');
     this.error.set(msg);
+  }
+
+  /** Drops a stuck element and returns a new one. */
+  private replaceAudio(old: HTMLAudioElement): HTMLAudioElement {
+    old.onended = null;
+    old.onerror = null;
+    old.pause();
+    old.removeAttribute('src');
+    old.load();
+    return this.createAudio();
   }
 
   private createAudio(): HTMLAudioElement {
