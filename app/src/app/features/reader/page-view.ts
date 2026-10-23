@@ -26,6 +26,9 @@ import { decorateSurahHeaders } from './surah-header';
 import { lastLine, parseRects } from './verse-ribbon';
 import { VerseStateContext, isCoverPage, paddedViewBox, verseKey, verseStateFlags } from './reader-logic';
 
+/** How far the verse ribbon reaches past the right page edge, % of the page width. */
+const RIBBON_OUT = 3.5;
+
 export type PageState = 'loading' | 'ready' | 'offline' | 'error';
 
 export interface PageLoadResult {
@@ -67,7 +70,7 @@ export class PageView implements OnDestroy {
    * Margin tab for the last bookmarked verse on the page (only when the page itself has no
    * ribbon). Percent of the page box; null = none.
    */
-  protected readonly sideRibbon = signal<{ top: number; height: number } | null>(null);
+  protected readonly sideRibbon = signal<{ top: number; height: number; width: number } | null>(null);
 
   readonly page = input.required<number>();
   /** True for the active page of a spread pair. */
@@ -188,18 +191,27 @@ export class PageView implements OnDestroy {
     if (!ctm || box.height <= 0) return;
     // Polygons come in reading order, so the last match is the furthest bookmark.
     let last: ReturnType<typeof lastLine> = null;
+    // Right edge of the text block: a short ayah may start mid-line, so not its own edge.
+    let blockRight = -Infinity;
     for (const el of svg.querySelectorAll<SVGPathElement>('.ayahPolygon')) {
+      const rects = parseRects(el.getAttribute('d') ?? '');
+      for (const r of rects) blockRight = Math.max(blockRight, r.x2);
       const k = verseKey(Number(el.getAttribute('surah')), Number(el.getAttribute('ayah')));
-      if (keys.has(k)) last = lastLine(parseRects(el.getAttribute('d') ?? '')) ?? last;
+      if (keys.has(k)) last = lastLine(rects) ?? last;
     }
     if (!last) {
       this.sideRibbon.set(null);
       return;
     }
-    const y = (v: number) => new DOMPoint(0, v).matrixTransform(ctm).y;
+    const at = (x: number, y: number) => new DOMPoint(x, y).matrixTransform(ctm);
+    const top = at(blockRight, last.y1);
+    const bottom = at(blockRight, last.y2);
+    // From the right edge of the text block out past the page edge (RIBBON_OUT % beyond it).
+    const inner = ((box.right - top.x) / box.width) * 100;
     this.sideRibbon.set({
-      top: ((y(last.y1) - box.top) / box.height) * 100,
-      height: ((y(last.y2) - y(last.y1)) / box.height) * 100,
+      top: ((top.y - box.top) / box.height) * 100,
+      height: ((bottom.y - top.y) / box.height) * 100,
+      width: Math.max(inner, 0) + RIBBON_OUT,
     });
   }
 

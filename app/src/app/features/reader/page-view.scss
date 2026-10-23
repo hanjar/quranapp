@@ -57,10 +57,11 @@
 .vribbon {
   position: absolute;
   right: -3.5%;
-  /* inner end stops just inside the inner frame (3.4%), before the text (~4.2%) */
-  width: max(24px, 7.1%);
+  /* width is set inline: from the text block's right edge to here */
+  min-width: 26px;
   background: var(--mf-ribbon, #b3261e);
-  opacity: 0.75;
+  /* same translucency as the page ribbon */
+  opacity: 0.55;
   clip-path: polygon(0 0, 100% 0, 72% 50%, 100% 100%, 0 100%);
   box-shadow: 0 1px 2px rgb(0 0 0 / 0.2);
   pointer-events: none;
