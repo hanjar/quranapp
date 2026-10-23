@@ -55,8 +55,13 @@ export class AudioService {
   private triedFallback = false;
   /** First source that failed for the current file, for the error report. */
   private firstFailure: string | null = null;
-  /** The current ayah already tried our own copy on R2. */
+  /** The current file already tried our own copy on R2. */
   private freshRetried = false;
+  /**
+   * This device can't play the CDN files but plays our R2 copy (an Android 10 tablet:
+   * "Format error" on every CDN file). Then R2 goes first. Remembered per device.
+   */
+  private preferOwn = readPreferOwn();
   private token = 0;
 
   constructor() {
@@ -142,6 +147,7 @@ export class AudioService {
     this.current.set(ref);
     this.basmalah.set(basmalah);
     this.triedFallback = false;
+    this.freshRetried = false;
     this.firstFailure = null;
     this.state.set('loading');
     this.setMediaSession(ref);
@@ -159,6 +165,10 @@ export class AudioService {
             this.fail(
               'Ayat ini belum disimpan untuk offline. Sambungkan internet atau simpan surahnya.',
             );
+          return;
+        }
+        if (!local && this.preferOwn) {
+          this.startFile(a, token, ref, basmalah, ownCopyUrl(a, target), stream);
           return;
         }
         this.startFile(
@@ -208,11 +218,7 @@ export class AudioService {
           message: `${ref.surah}:${ref.ayah} · ${failed}`,
           at: Date.now(),
         });
-        const target = basmalah ? { surah: 1, ayah: 1 } : ref;
-        a.src =
-          a.canPlayType('audio/webm; codecs=opus') !== ''
-            ? audioFileUrl('opus32', 'webm', target)
-            : audioFileUrl('mp364', 'mp3', target);
+        a.src = ownCopyUrl(a, basmalah ? { surah: 1, ayah: 1 } : ref);
         void a.play().catch(() => undefined);
         return;
       }
@@ -224,19 +230,21 @@ export class AudioService {
       });
       this.fail();
     };
+    // "playing" comes from the element itself: a source that only works after a fallback
+    // never resolves the first play() call, which left the player on "loading".
+    a.onplaying = () => {
+      if (token !== this.token) return;
+      this.state.set('playing');
+      if (this.freshRetried && !this.preferOwn) {
+        // Our copy rescued a file the CDNs failed on: use it first from now on.
+        this.preferOwn = true;
+        writePreferOwn();
+        reportError({ op: 'audio-recovered', name: 'R2', message: `${ref.surah}:${ref.ayah}`, at: Date.now() });
+      }
+      this.followPage(ref);
+    };
     void a
       .play()
-      .then(() => {
-        if (token !== this.token) return;
-        this.state.set('playing');
-        // Tells us whether the R2 copy rescued a file the CDNs failed on.
-        if (this.freshRetried)
-          reportError({ op: 'audio-recovered', name: 'R2', message: `${ref.surah}:${ref.ayah}`, at: Date.now() });
-        this.freshRetried = false;
-        // Turn the page only once the file plays: on the installed Android app, loading a
-        // file while the reader navigated to the next page failed every source (2:58, 2:62).
-        this.followPage(ref);
-      })
       .catch((e: unknown) => {
         // Autoplay blocked or aborted by a newer request: let the user resume.
         if (token !== this.token) return;
@@ -260,7 +268,6 @@ export class AudioService {
       this.stop();
     }
   }
-
 
   /** Keep the recited ayah on screen — only while the user is in the reader. */
   private followPage(ref: AyahRef): void {
@@ -319,5 +326,30 @@ function describeSrc(src: string): string {
     return `${u.host}${u.pathname.slice(u.pathname.lastIndexOf('/'))}`;
   } catch {
     return src.slice(0, 60);
+  }
+}
+
+/** Our own re-encoded copy on R2: Opus 32 where supported, else MP3 64. */
+function ownCopyUrl(a: HTMLAudioElement, ref: AyahRef): string {
+  return a.canPlayType('audio/webm; codecs=opus') !== ''
+    ? audioFileUrl('opus32', 'webm', ref)
+    : audioFileUrl('mp364', 'mp3', ref);
+}
+
+const PREFER_OWN_KEY = 'mf-audio-own';
+
+function readPreferOwn(): boolean {
+  try {
+    return localStorage.getItem(PREFER_OWN_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
+function writePreferOwn(): void {
+  try {
+    localStorage.setItem(PREFER_OWN_KEY, '1');
+  } catch {
+    /* storage blocked: lasts for this page load */
   }
 }
