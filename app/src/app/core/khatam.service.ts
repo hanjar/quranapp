@@ -31,6 +31,11 @@ export class KhatamService {
 
   /** Dialog content while it is open, else null (rendered by KhatamDialog). */
   readonly dialog = signal<KhatamDialogState | null>(null);
+  /**
+   * A khatam waiting to be confirmed from the doa page: set when the reader goes to the doa
+   * from the khatam dialog or by turning past page 604, cleared once the new round starts.
+   */
+  readonly pending = signal<KhatamDialogState | null>(null);
   readonly busy = signal(false);
 
   /**
@@ -45,21 +50,29 @@ export class KhatamService {
   }
 
   open(): void {
+    this.dialog.set(this.state());
+  }
+
+  /** The doa is about to be read after finishing: offer the new round there. */
+  markPending(): void {
+    this.pending.set(this.dialog() ?? this.state());
+  }
+
+  private state(): KhatamDialogState {
     const n = this.nextNumber();
-    this.dialog.set({
-      n,
-      count: this.userData.bookmarks().length,
-      folderName: khatamFolderName(n),
-    });
+    return { n, count: this.userData.bookmarks().length, folderName: khatamFolderName(n) };
   }
 
   close(): void {
     if (!this.busy()) this.dialog.set(null);
   }
 
-  /** "Arsipkan & mulai baru": archives the current bookmarks, finishes the round when tracking. */
+  /**
+   * "Arsipkan & mulai baru": archives the current bookmarks, finishes the round when tracking,
+   * and opens Al-Fatihah so the new round starts right away.
+   */
   async confirm(): Promise<void> {
-    const st = this.dialog();
+    const st = this.dialog() ?? this.pending();
     if (!st || this.busy()) return;
     this.busy.set(true);
     try {
@@ -73,6 +86,8 @@ export class KhatamService {
         }
       }
       this.dialog.set(null);
+      this.pending.set(null);
+      this.ui.goToPage(1);
       if (roundFailed) {
         this.ui.showToast({
           message: 'Penanda diarsipkan, tetapi putaran baru gagal dimulai.',

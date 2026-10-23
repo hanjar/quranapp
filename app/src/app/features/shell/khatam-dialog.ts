@@ -140,6 +140,7 @@ export class KhatamDialog {
   }
 
   protected readDoa(): void {
+    this.khatam.markPending();
     this.khatam.close();
     this.history.navigateUrl('/doa-khatam');
   }

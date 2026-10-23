@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/c
 import { Router } from '@angular/router';
 import { UserDataApi } from '../../core/contracts';
 import { ReaderUiService } from '../../core/reader-ui.service';
+import { KhatamService } from '../../core/khatam.service';
 import { DOA_KHATAM, DOA_KHATAM_SOURCE, DOA_KHATAM_TITLE } from './doa-khatam.content';
 
 /** Text copied by "Salin": the title, then Arabic, Latin and translation of every line. */
@@ -46,6 +47,27 @@ export function doaCopyText(): string {
           <p class="ar" lang="ar" dir="rtl">{{ line.arabic }}</p>
           <p class="lat">{{ line.latin }}</p>
           <p class="tr">{{ line.translation }}</p>
+        </section>
+      }
+      @if (khatam.pending(); as k) {
+        <section class="next" data-testid="doa-next-round">
+          <p class="next__title">Sudah selesai berdoa?</p>
+          <p class="next__body">
+            @if (k.count > 0) {
+              {{ k.count }} penanda putaran ini diarsipkan ke "{{ k.folderName }}", lalu bacaan
+              dimulai lagi dari Al-Fatihah.
+            } @else {
+              Putaran baru dimulai dan bacaan dibuka di Al-Fatihah.
+            }
+          </p>
+          <button
+            type="button"
+            class="mf-btn mf-btn--primary"
+            [disabled]="khatam.busy()"
+            (click)="khatam.confirm()"
+          >
+            Mulai putaran baru
+          </button>
         </section>
       }
       <p class="src">{{ source }}</p>
@@ -143,6 +165,24 @@ export function doaCopyText(): string {
       line-height: 1.6;
       color: var(--ui-ink2);
     }
+    .next {
+      margin: 8px 0 20px;
+      padding: 16px;
+      border-radius: 14px;
+      background: var(--ui-surface);
+      border: 1px solid var(--ui-primary);
+      display: grid;
+      gap: 8px;
+    }
+    .next__title {
+      margin: 0;
+      font-weight: 600;
+    }
+    .next__body {
+      margin: 0;
+      color: var(--ui-muted);
+      font-size: 14px;
+    }
     .switch-row {
       display: flex;
       justify-content: space-between;
@@ -204,6 +244,7 @@ export class DoaKhatam {
   private readonly router = inject(Router);
   private readonly userData = inject(UserDataApi);
   private readonly ui = inject(ReaderUiService);
+  protected readonly khatam = inject(KhatamService);
 
   protected readonly title = DOA_KHATAM_TITLE;
   protected readonly lines = DOA_KHATAM;

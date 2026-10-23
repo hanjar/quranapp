@@ -132,6 +132,30 @@ describe('KhatamDialog + KhatamService', () => {
     expect(ui.toast()!.message).toBe('Alhamdulillah, khatam ke-3');
   });
 
+  it('starting the new round opens Al-Fatihah', async () => {
+    const go = vi.spyOn(ui, 'goToPage');
+    khatam.open();
+    const m = mount();
+    m.btn('khatam-confirm')!.click();
+    await vi.waitFor(() => expect(khatam.dialog()).toBeNull());
+    expect(go).toHaveBeenCalledWith(1);
+  });
+
+  it('Baca doa khatam keeps the khatam pending; confirming from the doa page clears it', async () => {
+    vi.spyOn(TestBed.inject(Router), 'navigateByUrl').mockResolvedValue(true);
+    const go = vi.spyOn(ui, 'goToPage');
+    await data.togglePageBookmark(5);
+    khatam.open();
+    const m = mount();
+    m.btn('khatam-doa')!.click();
+    expect(khatam.pending()?.count).toBe(1);
+    await khatam.confirm();
+    expect(khatam.pending()).toBeNull();
+    expect(data.archivedBookmarks()).toHaveLength(1);
+    expect(startNextRound).toHaveBeenCalledTimes(1);
+    expect(go).toHaveBeenCalledWith(1);
+  });
+
   it('Baca doa khatam goes to /doa-khatam; Nanti just closes', () => {
     const nav = vi.spyOn(TestBed.inject(Router), 'navigateByUrl').mockResolvedValue(true);
     khatam.open();

@@ -13,6 +13,7 @@ import {
   untracked,
 } from '@angular/core';
 import { PageTurnSoundService } from '../../core/page-turn-sound';
+import { KhatamService } from '../../core/khatam.service';
 import { APP_CONFIG } from '../../core/config';
 import { ContentApi, UserDataApi } from '../../core/contracts';
 import { AyahRef } from '../../core/models';
@@ -64,6 +65,7 @@ export class ReaderShell {
   protected readonly content = inject(ContentApi);
   protected readonly ui = inject(ReaderUiService);
   private readonly pageSound = inject(PageTurnSoundService);
+  private readonly khatam = inject(KhatamService);
   protected readonly rv = inject(ReadingViewService);
   private readonly userData = inject(UserDataApi);
   private readonly tracker = inject(ProgressService).createTracker();
@@ -316,7 +318,10 @@ export class ReaderShell {
     const t = nextTarget(this.visible(), this.spread());
     this.pageSound.play();
     if (t !== null) this.ui.goToPage(t);
-    else if (this.userData.prefs().showDoaKhatam) this.ui.openDoaKhatam();
+    else if (this.userData.prefs().showDoaKhatam) {
+      this.khatam.markPending();
+      this.ui.openDoaKhatam();
+    }
   }
 
   protected goPrev(): void {
