@@ -6,7 +6,8 @@ import { UpdateService } from '../../core/update.service';
 import { menuNeedsAttention, offlineNeedsAttention, syncNeedsAttention } from './attention';
 
 /**
- * Top bar (fits a 320px portrait phone): [title ▾ → browse sheet] … [search] [night] [menu].
+ * Top bar (fits a 320px portrait phone): [surah title ▾ / "Hal. · Juz" → browse sheet] …
+ * [search] [night] [menu]. The title opens the surah tab, the page line the page tab.
  * Everything else (bookmarks, progress, offline, settings, account, fullscreen, install,
  * feedback, about) lives in the Menu sheet. The menu button shows a dot when sync failed
  * or conflicts, an app update is ready, or the offline download is paused/failed.
@@ -16,31 +17,40 @@ import { menuNeedsAttention, offlineNeedsAttention, syncNeedsAttention } from '.
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { '[class.is-hidden]': '!shown()' },
   template: `
-    <button
-      type="button"
-      class="title"
-      [attr.aria-label]="'Daftar surah, juz, halaman. ' + titleText() + ', ' + subText()"
-      (click)="ui.openSheet('browse', { browseTab: 'surah' })"
-    >
-      <span class="title__text">
-        <span class="title__name mf-display">{{ titleText() }}</span>
-        <span class="title__sub">{{ subText() }}</span>
-      </span>
-      <svg
-        class="title__chev"
-        width="16"
-        height="16"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        stroke-width="2"
-        stroke-linecap="round"
-        stroke-linejoin="round"
-        aria-hidden="true"
+    <div class="title-wrap">
+      <button
+        type="button"
+        class="title"
+        [attr.aria-label]="'Daftar surah, juz, halaman. ' + titleText()"
+        (click)="ui.openSheet('browse', { browseTab: 'surah' })"
       >
-        <path d="M6 9l6 6 6-6" />
-      </svg>
-    </button>
+        <span class="title__name mf-display">{{ titleText() }}</span>
+        <svg
+          class="title__chev"
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          aria-hidden="true"
+        >
+          <path d="M6 9l6 6 6-6" />
+        </svg>
+      </button>
+      <!-- The page jump (was the bottom-bar pill, rarely used) -->
+      <button
+        type="button"
+        class="page-btn"
+        data-testid="page-btn"
+        [attr.aria-label]="'Pilih halaman. ' + subText()"
+        (click)="ui.openSheet('browse', { browseTab: 'page' })"
+      >
+        {{ subText() }}
+      </button>
+    </div>
 
     <button type="button" class="mf-icon-btn" aria-label="Cari" (click)="ui.openSheet('search')">
       <svg
@@ -146,24 +156,27 @@ import { menuNeedsAttention, offlineNeedsAttention, syncNeedsAttention } from '.
         transform var(--mf-dur-base) var(--mf-ease),
         visibility 0s linear var(--mf-dur-base);
     }
-    .title {
+    .title-wrap {
       flex: 1;
-      min-width: 0;
-      min-height: var(--mf-tap);
-      display: flex;
-      align-items: center;
-      gap: 4px;
-      border: none;
-      background: transparent;
-      color: var(--ui-ink);
-      text-align: left;
-      padding: 0;
-    }
-    .title__text {
       min-width: 0;
       display: flex;
       flex-direction: column;
       align-items: flex-start;
+    }
+    .title,
+    .page-btn {
+      max-width: 100%;
+      border: none;
+      background: transparent;
+      text-align: left;
+    }
+    .title {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      min-width: 0;
+      padding: 4px 0 1px;
+      color: var(--ui-ink);
     }
     .title__name {
       font-size: 19px;
@@ -172,18 +185,20 @@ import { menuNeedsAttention, offlineNeedsAttention, syncNeedsAttention } from '.
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
-      max-width: 100%;
-    }
-    .title__sub {
-      font-size: 12.5px;
-      color: var(--ui-muted);
-      white-space: nowrap;
+      min-width: 0;
     }
     .title__chev {
       flex: none;
       color: var(--ui-muted);
     }
-    .title:focus-visible {
+    .page-btn {
+      padding: 1px 12px 5px 0;
+      font-size: 12.5px;
+      color: var(--ui-muted);
+      white-space: nowrap;
+    }
+    .title:focus-visible,
+    .page-btn:focus-visible {
       outline: 2px solid var(--ui-primary);
       outline-offset: 2px;
       border-radius: var(--mf-radius-sm, 6px);

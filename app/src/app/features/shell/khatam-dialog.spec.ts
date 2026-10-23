@@ -31,7 +31,8 @@ describe('KhatamDialog + KhatamService', () => {
     TestBed.resetTestingModule();
     TestBed.configureTestingModule({
       providers: [
-        provideRouter([]),
+        // confirm() navigates to /hal/1
+        provideRouter([{ path: 'hal/:page', children: [] }]),
         { provide: MUSHAF_DB, useValue: db },
         { provide: UserDataApi, useExisting: UserDataService },
         { provide: ProgressService, useValue: { enabled, currentRound: round, startNextRound } },

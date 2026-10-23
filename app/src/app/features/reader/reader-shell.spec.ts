@@ -251,12 +251,13 @@ describe('ReaderShell', () => {
         b.getAttribute('aria-label'),
       );
 
-    it('top bar: title button + search, night, menu only', async () => {
+    it('top bar: title + page line, search, night, menu only', async () => {
       const f = await mount('5');
       const top = labels(f, 'mf-chrome-top');
-      expect(top).toHaveLength(4);
+      expect(top).toHaveLength(5);
       expect(top[0]).toContain('Daftar surah, juz, halaman');
-      expect(top.slice(1)).toEqual(['Cari', 'Nyalakan mode malam', 'Menu']);
+      expect(top[1]).toBe('Pilih halaman. Hal. 5 · Juz 1');
+      expect(top.slice(2)).toEqual(['Cari', 'Nyalakan mode malam', 'Menu']);
       for (const gone of ['Penanda', 'Progres membaca', 'Pengaturan', 'Sembunyikan menu (layar penuh)']) {
         expect(top).not.toContain(gone);
       }
@@ -283,6 +284,11 @@ describe('ReaderShell', () => {
       const f = await mount('5');
       q(f, 'mf-chrome-top .title')!.click();
       expect(ui.sheet()).toBe('browse');
+      expect(ui.browseTab()).toBe('surah');
+      q(f, '[data-testid="page-btn"]')!.click();
+      expect(ui.browseTab()).toBe('page');
+      q(f, '[data-testid="settings-btn"]')!.click();
+      expect(ui.sheet()).toBe('settings');
       q(f, 'mf-chrome-top .menu-btn')!.click();
       expect(ui.sheet()).toBe('menu');
     });
@@ -314,7 +320,7 @@ describe('ReaderShell', () => {
       expect(bottom).toContain('Tandai halaman 5');
       expect(bottom).not.toContain('Daftar isi');
       expect(bottom.some((l) => l?.includes('Perbesar halaman'))).toBe(false);
-      expect(q(f, 'mf-chrome-bottom .pill')!.textContent).toContain('5 / 604');
+      expect(bottom).toContain('Pengaturan');
     });
 
     it('play starts at the first ayah of the page', async () => {

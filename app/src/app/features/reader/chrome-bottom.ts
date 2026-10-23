@@ -19,8 +19,8 @@ export const BOOKMARK_LONG_PRESS_MS = 500;
 
 /**
  * Bottom bar (visual order, left to right; paging keeps the RTL book semantics):
- * next | play from this page | page pill | translation/mushaf | bookmark this page | prev.
- * The contents list moved to the title in the top bar; zoom is pinch / double-tap
+ * next | play from this page | settings | translation/mushaf | bookmark this page | prev.
+ * The contents list and the page jump live in the top bar title; zoom is pinch / double-tap
  * (+/- and reset appear while zoomed).
  */
 @Component({
@@ -76,11 +76,26 @@ export const BOOKMARK_LONG_PRESS_MS = 500;
 
     <button
       type="button"
-      class="pill"
-      aria-label="Pilih halaman"
-      (click)="ui.openSheet('browse', { browseTab: 'page' })"
+      class="mode-btn"
+      data-testid="settings-btn"
+      aria-label="Pengaturan"
+      (click)="ui.openSheet('settings')"
     >
-      {{ pillText() }}
+      <svg
+        width="20"
+        height="20"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="1.6"
+        stroke-linecap="round"
+        aria-hidden="true"
+      >
+        <path d="M4 8h10M18 8h2M4 16h3M11 16h9" />
+        <circle cx="16" cy="8" r="2" />
+        <circle cx="9" cy="16" r="2" />
+      </svg>
+      <span class="mode-btn__label" aria-hidden="true">Pengaturan</span>
     </button>
 
     <button
@@ -275,19 +290,6 @@ export const BOOKMARK_LONG_PRESS_MS = 500;
         display: none;
       }
     }
-    .pill {
-      flex: none;
-      min-width: 64px;
-      min-height: var(--mf-tap);
-      padding: 0 10px;
-      border-radius: var(--mf-radius-pill);
-      border: 1px solid var(--ui-hair);
-      background: var(--ui-surface);
-      color: var(--ui-ink);
-      font-size: 14px;
-      font-weight: 500;
-      white-space: nowrap;
-    }
   `,
 })
 export class ChromeBottom implements OnDestroy {
@@ -314,10 +316,6 @@ export class ChromeBottom implements OnDestroy {
 
   /** The last mushaf page: its bookmark button becomes "Khatam". */
   protected readonly isLastPage = computed(() => this.ui.visiblePages().includes(PAGE_COUNT));
-
-  protected readonly pillText = computed(() => {
-    return `${this.ui.currentPage()} / 604`;
-  });
 
   // --- audio -----------------------------------------------------------------
   protected readonly playReady = computed(() => this.audio.active() || !!this.content.index());
