@@ -4,7 +4,7 @@ import { Router } from '@angular/router';
 import { ContentApi, UserDataApi } from '../contracts';
 import { AyahRef } from '../models';
 import { ReaderUiService } from '../reader-ui.service';
-import { AudioOfflineApi } from './audio-offline.api';
+import { AudioOfflineApi, audioFileUrl } from './audio-offline.api';
 import {
   AudioMode,
   QARI,
@@ -55,7 +55,7 @@ export class AudioService {
   private triedFallback = false;
   /** First source that failed for the current file, for the error report. */
   private firstFailure: string | null = null;
-  /** The current ayah was already retried on a fresh element. */
+  /** The current ayah already tried our own copy on R2. */
   private freshRetried = false;
   private token = 0;
 
@@ -198,8 +198,8 @@ export class AudioService {
         void a.play().catch(() => undefined);
         return;
       }
-      // Both sources failing together points at the element, not the servers: on Android a
-      // reused element can get stuck. Retry this ayah once on a fresh element.
+      // An Android 10 tablet failed the same (longer) files on both CDNs with "Format error",
+      // though they decode fine elsewhere: try our own re-encoded copy on R2 last.
       if (!this.freshRetried) {
         this.freshRetried = true;
         reportError({
@@ -208,11 +208,12 @@ export class AudioService {
           message: `${ref.surah}:${ref.ayah} · ${failed}`,
           at: Date.now(),
         });
-        this.audio = this.replaceAudio(a);
-        // Give a page change or a busy network a moment before trying again.
-        setTimeout(() => {
-          if (token === this.token) this.playFile(ref, basmalah);
-        }, 1200);
+        const target = basmalah ? { surah: 1, ayah: 1 } : ref;
+        a.src =
+          a.canPlayType('audio/webm; codecs=opus') !== ''
+            ? audioFileUrl('opus32', 'webm', target)
+            : audioFileUrl('mp364', 'mp3', target);
+        void a.play().catch(() => undefined);
         return;
       }
       reportError({
@@ -228,6 +229,9 @@ export class AudioService {
       .then(() => {
         if (token !== this.token) return;
         this.state.set('playing');
+        // Tells us whether the R2 copy rescued a file the CDNs failed on.
+        if (this.freshRetried)
+          reportError({ op: 'audio-recovered', name: 'R2', message: `${ref.surah}:${ref.ayah}`, at: Date.now() });
         this.freshRetried = false;
         // Turn the page only once the file plays: on the installed Android app, loading a
         // file while the reader navigated to the next page failed every source (2:58, 2:62).
@@ -270,16 +274,6 @@ export class AudioService {
   private fail(msg = 'Audio tidak dapat diputar. Periksa koneksi lalu coba lagi.'): void {
     this.state.set('error');
     this.error.set(msg);
-  }
-
-  /** Drops a stuck element and returns a new one. */
-  private replaceAudio(old: HTMLAudioElement): HTMLAudioElement {
-    old.onended = null;
-    old.onerror = null;
-    old.pause();
-    old.removeAttribute('src');
-    old.load();
-    return this.createAudio();
   }
 
   private createAudio(): HTMLAudioElement {

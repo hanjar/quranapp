@@ -1,6 +1,6 @@
 {
   "name": "mushaf",
-  "version": "0.18.17",
+  "version": "0.18.18",
   "scripts": {
     "ng": "ng",
     "start": "ng serve",
