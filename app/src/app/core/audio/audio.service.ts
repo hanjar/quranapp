@@ -145,7 +145,6 @@ export class AudioService {
     this.triedFallback = false;
     this.firstFailure = null;
     this.state.set('loading');
-    this.followPage(ref);
     this.setMediaSession(ref);
     // Stored recitation first (offline packages), otherwise stream.
     void this.offline
@@ -186,7 +185,8 @@ export class AudioService {
     };
     a.onerror = () => {
       if (token !== this.token) return;
-      const failed = `${describeSrc(a.src)} (kode ${a.error?.code ?? '?'})`;
+      const detail = a.error?.message ? ` ${a.error.message.slice(0, 60)}` : '';
+      const failed = `${describeSrc(a.src)} (kode ${a.error?.code ?? '?'}${detail})`;
       if (!this.triedFallback && a.dataset['fallback']) {
         this.triedFallback = true;
         this.firstFailure = failed;
@@ -200,7 +200,10 @@ export class AudioService {
         this.freshRetried = true;
         reportError({ op: 'audio-retry', name: 'MediaError', message: `${ref.surah}:${ref.ayah} · ${failed}`, at: Date.now() });
         this.audio = this.replaceAudio(a);
-        this.playFile(ref, basmalah);
+        // Give a page change or a busy network a moment before trying again.
+        setTimeout(() => {
+          if (token === this.token) this.playFile(ref, basmalah);
+        }, 1200);
         return;
       }
       reportError({
@@ -217,6 +220,9 @@ export class AudioService {
         if (token !== this.token) return;
         this.state.set('playing');
         this.freshRetried = false;
+        // Turn the page only once the file plays: on the installed Android app, loading a
+        // file while the reader navigated to the next page failed every source (2:58, 2:62).
+        this.followPage(ref);
       })
       .catch((e: unknown) => {
         // Autoplay blocked or aborted by a newer request: let the user resume.
