@@ -21,7 +21,12 @@ export function parseRects(d: string): LineRect[] {
     if (nums.length < 8) continue;
     const xs = nums.filter((_, i) => i % 2 === 0);
     const ys = nums.filter((_, i) => i % 2 === 1);
-    out.push({ x1: Math.min(...xs), y1: Math.min(...ys), x2: Math.max(...xs), y2: Math.max(...ys) });
+    out.push({
+      x1: Math.min(...xs),
+      y1: Math.min(...ys),
+      x2: Math.max(...xs),
+      y2: Math.max(...ys),
+    });
   }
   return out;
 }

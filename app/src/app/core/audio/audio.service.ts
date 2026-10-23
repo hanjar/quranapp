@@ -239,25 +239,28 @@ export class AudioService {
         // Our copy rescued a file the CDNs failed on: use it first from now on.
         this.preferOwn = true;
         writePreferOwn();
-        reportError({ op: 'audio-recovered', name: 'R2', message: `${ref.surah}:${ref.ayah}`, at: Date.now() });
+        reportError({
+          op: 'audio-recovered',
+          name: 'R2',
+          message: `${ref.surah}:${ref.ayah}`,
+          at: Date.now(),
+        });
       }
       this.followPage(ref);
     };
-    void a
-      .play()
-      .catch((e: unknown) => {
-        // Autoplay blocked or aborted by a newer request: let the user resume.
-        if (token !== this.token) return;
-        const name = (e as { name?: string })?.name;
-        if (name === 'NotAllowedError') this.state.set('paused');
-        else if (name && name !== 'AbortError')
-          reportError({
-            op: 'audio-play',
-            name,
-            message: `${ref.surah}:${ref.ayah} · ${describeSrc(src)}`,
-            at: Date.now(),
-          });
-      });
+    void a.play().catch((e: unknown) => {
+      // Autoplay blocked or aborted by a newer request: let the user resume.
+      if (token !== this.token) return;
+      const name = (e as { name?: string })?.name;
+      if (name === 'NotAllowedError') this.state.set('paused');
+      else if (name && name !== 'AbortError')
+        reportError({
+          op: 'audio-play',
+          name,
+          message: `${ref.surah}:${ref.ayah} · ${describeSrc(src)}`,
+          at: Date.now(),
+        });
+    });
   }
 
   private advance(done: AyahRef): void {

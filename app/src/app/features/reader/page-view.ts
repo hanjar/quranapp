@@ -24,7 +24,13 @@ import { QcfPage } from './qcf-page';
 import { decorateLineRules } from './line-rules';
 import { decorateSurahHeaders } from './surah-header';
 import { lastLine, parseRects } from './verse-ribbon';
-import { VerseStateContext, isCoverPage, paddedViewBox, verseKey, verseStateFlags } from './reader-logic';
+import {
+  VerseStateContext,
+  isCoverPage,
+  paddedViewBox,
+  verseKey,
+  verseStateFlags,
+} from './reader-logic';
 
 /** How far the verse ribbon reaches past the right page edge, % of the page width. */
 const RIBBON_OUT = 5.25;
@@ -67,12 +73,16 @@ export class PageView implements OnDestroy {
   private readonly renderers = inject(PageRendererService);
   private readonly marks = inject(BookmarkToggleService);
   /** Page bookmark shown as a ribbon hanging over the top of the page, like a printed mushaf. */
-  protected readonly pageMarked = computed(() => !this.preview() && this.marks.isPageBookmarked(this.page()));
+  protected readonly pageMarked = computed(
+    () => !this.preview() && this.marks.isPageBookmarked(this.page()),
+  );
   /**
    * Margin tab for the last bookmarked verse on the page (only when the page itself has no
    * ribbon). Percent of the page box; null = none.
    */
-  protected readonly sideRibbon = signal<{ top: number; height: number; width: number } | null>(null);
+  protected readonly sideRibbon = signal<{ top: number; height: number; width: number } | null>(
+    null,
+  );
 
   readonly page = input.required<number>();
   /** True for the active page of a spread pair. */
@@ -135,9 +145,7 @@ export class PageView implements OnDestroy {
     const p = this.page();
     if (!this.content.index()) return null;
     const meta = this.content.pageMeta(p);
-    const surahs = meta.surahs
-      .map((n) => `${n} · ${this.content.surah(n).nameLatin}`)
-      .join(' – ');
+    const surahs = meta.surahs.map((n) => `${n} · ${this.content.surah(n).nameLatin}`).join(' – ');
     return { surahs, juz: `Juz ${meta.juz}` };
   });
 
@@ -154,7 +162,10 @@ export class PageView implements OnDestroy {
       if (!svg || !page || typeof ResizeObserver === 'undefined') return;
       // The page box can change shape (rotation, bars): re-measure the tabs.
       const ro = new ResizeObserver(() =>
-        this.layoutSideRibbons(svg, this.pageMarked() || this.preview() ? new Set() : this.bookmarked()),
+        this.layoutSideRibbons(
+          svg,
+          this.pageMarked() || this.preview() ? new Set() : this.bookmarked(),
+        ),
       );
       ro.observe(page);
       onCleanup(() => ro.disconnect());
