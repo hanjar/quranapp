@@ -23,7 +23,7 @@ import { QCF_ATTRIBUTION, layoutVerses } from './qcf-logic';
 import { QcfPage } from './qcf-page';
 import { decorateLineRules } from './line-rules';
 import { decorateSurahHeaders } from './surah-header';
-import { RibbonSide, lastLine, parseRects, ribbonSide } from './verse-ribbon';
+import { lastLine, parseRects } from './verse-ribbon';
 import { VerseStateContext, isCoverPage, paddedViewBox, verseKey, verseStateFlags } from './reader-logic';
 
 export type PageState = 'loading' | 'ready' | 'offline' | 'error';
@@ -63,8 +63,11 @@ export class PageView implements OnDestroy {
   private readonly marks = inject(BookmarkToggleService);
   /** Page bookmark shown as a ribbon hanging over the top of the page, like a printed mushaf. */
   protected readonly pageMarked = computed(() => !this.preview() && this.marks.isPageBookmarked(this.page()));
-  /** Margin tabs for bookmarked verses, only when the page itself has no ribbon. Percent of the page box. */
-  protected readonly sideRibbons = signal<{ key: string; side: RibbonSide; top: number; height: number }[]>([]);
+  /**
+   * Margin tab for the last bookmarked verse on the page (only when the page itself has no
+   * ribbon). Percent of the page box; null = none.
+   */
+  protected readonly sideRibbon = signal<{ top: number; height: number } | null>(null);
 
   readonly page = input.required<number>();
   /** True for the active page of a spread pair. */
@@ -173,38 +176,31 @@ export class PageView implements OnDestroy {
     });
   }
 
-  /** Places a tab level with the line where each bookmarked ayah ends (see verse-ribbon.ts). */
+  /** Places the tab level with the line where the last bookmarked ayah on the page ends. */
   private layoutSideRibbons(svg: SVGSVGElement | null, keys: ReadonlySet<string>): void {
     const page = this.art().nativeElement.parentElement;
     if (!svg || !page || !keys.size) {
-      if (this.sideRibbons().length) this.sideRibbons.set([]);
+      if (this.sideRibbon()) this.sideRibbon.set(null);
       return;
     }
     const box = page.getBoundingClientRect();
     const ctm = svg.getScreenCTM?.();
     if (!ctm || box.height <= 0) return;
-    const polys = [...svg.querySelectorAll<SVGPathElement>('.ayahPolygon')];
-    let minX = Infinity;
-    let maxX = -Infinity;
-    const ends = new Map<string, ReturnType<typeof lastLine>>();
-    for (const el of polys) {
-      const rects = parseRects(el.getAttribute('d') ?? '');
-      for (const r of rects) {
-        minX = Math.min(minX, r.x1);
-        maxX = Math.max(maxX, r.x2);
-      }
+    // Polygons come in reading order, so the last match is the furthest bookmark.
+    let last: ReturnType<typeof lastLine> = null;
+    for (const el of svg.querySelectorAll<SVGPathElement>('.ayahPolygon')) {
       const k = verseKey(Number(el.getAttribute('surah')), Number(el.getAttribute('ayah')));
-      if (keys.has(k)) ends.set(k, lastLine(rects));
+      if (keys.has(k)) last = lastLine(parseRects(el.getAttribute('d') ?? '')) ?? last;
+    }
+    if (!last) {
+      this.sideRibbon.set(null);
+      return;
     }
     const y = (v: number) => new DOMPoint(0, v).matrixTransform(ctm).y;
-    const out: { key: string; side: RibbonSide; top: number; height: number }[] = [];
-    for (const [key, line] of ends) {
-      if (!line) continue;
-      const top = ((y(line.y1) - box.top) / box.height) * 100;
-      const height = ((y(line.y2) - y(line.y1)) / box.height) * 100;
-      out.push({ key, side: ribbonSide(line, minX, maxX), top, height });
-    }
-    this.sideRibbons.set(out);
+    this.sideRibbon.set({
+      top: ((y(last.y1) - box.top) / box.height) * 100,
+      height: ((y(last.y2) - y(last.y1)) / box.height) * 100,
+    });
   }
 
   ngOnDestroy(): void {

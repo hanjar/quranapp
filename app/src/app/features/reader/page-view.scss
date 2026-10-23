@@ -52,22 +52,18 @@
   pointer-events: none;
   z-index: 2;
 }
-/* Verse bookmark: a small tab in the side margin (outside the frame), level with the line
-   where the ayah ends, notch pointing at the text. */
+/* Verse bookmark: a tab from the outer frame out past the page edge on the right, level
+   with the line where the last bookmarked ayah ends; swallowtail on the outer end. */
 .vribbon {
   position: absolute;
-  right: 0.3%;
-  width: max(10px, 1.9%);
+  right: -2%;
+  width: max(18px, 4.4%);
   background: var(--mf-ribbon, #b3261e);
-  opacity: 0.5;
-  clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%, 35% 50%);
+  opacity: 0.75;
+  clip-path: polygon(0 0, 100% 0, 72% 50%, 100% 100%, 0 100%);
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.2);
   pointer-events: none;
   z-index: 2;
-}
-.vribbon--left {
-  right: auto;
-  left: 0.3%;
-  clip-path: polygon(0 0, 100% 0, 65% 50%, 100% 100%, 0 100%);
 }
 :host(.is-bare) .ribbon {
   height: 6.2%;
