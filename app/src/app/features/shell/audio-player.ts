@@ -9,6 +9,7 @@ import {
   viewChild,
 } from '@angular/core';
 import { AudioService } from '../../core/audio/audio.service';
+import { BookmarkToggleService } from '../../core/bookmark-toggle.service';
 import { ContentApi } from '../../core/contracts';
 import { ReaderUiService } from '../../core/reader-ui.service';
 import { AudioOfflineApi, AudioScope } from '../../core/audio/audio-offline.api';
@@ -308,7 +309,7 @@ function setPlayerHeight(px: number): void {
             </button>
           }
         }
-        <button type="button" class="btn" aria-label="Hentikan audio" (click)="audio.stop()">
+        <button type="button" class="btn" aria-label="Hentikan audio" (click)="stop()">
           <svg viewBox="0 0 24 24" aria-hidden="true">
             <path
               d="M6.4 5 5 6.4 10.6 12 5 17.6 6.4 19 12 13.4 17.6 19 19 17.6 13.4 12 19 6.4 17.6 5 12 10.6z"
@@ -323,12 +324,28 @@ export class AudioPlayer {
   protected readonly audio = inject(AudioService);
   protected readonly ui = inject(ReaderUiService);
   private readonly content = inject(ContentApi);
+  private readonly marks = inject(BookmarkToggleService);
   private readonly offlineAudio = inject(AudioOfflineApi);
   private readonly pill = viewChild<ElementRef<HTMLElement>>('pill');
 
   protected readonly mode = computed(() => modeLabel(this.audio.mode()));
   protected readonly modeShort = computed(() => modeShortLabel(this.audio.mode()));
   protected readonly next = computed(() => nextMode(this.audio.mode()));
+
+  /** Stops, then offers to keep the ayah where listening stopped as a bookmark. */
+  protected stop(): void {
+    const cur = this.audio.current();
+    this.audio.stop();
+    if (!cur || this.marks.isVerseBookmarked(cur)) return;
+    const name = this.content.index() ? this.content.surah(cur.surah).nameLatin : `Surah ${cur.surah}`;
+    const page = this.content.pageOf(cur) ?? this.ui.currentPage();
+    this.ui.showToast({
+      message: `Berhenti di ${name} · Ayat ${cur.ayah}. Jadikan penanda?`,
+      actionLabel: 'Tandai',
+      action: () => void this.marks.toggleVerse(cur, page),
+      duration: 8000,
+    });
+  }
 
   protected readonly title = computed(() => {
     const cur = this.audio.current();
