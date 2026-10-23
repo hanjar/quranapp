@@ -4,6 +4,15 @@
   @if (pageMarked()) {
     <span class="ribbon" aria-hidden="true"></span>
   }
+  @for (r of sideRibbons(); track r.key) {
+    <span
+      class="vribbon"
+      [class.vribbon--left]="r.side === 'left'"
+      [style.top.%]="r.top + r.height * 0.2"
+      [style.height.%]="r.height * 0.6"
+      aria-hidden="true"
+    ></span>
+  }
 
   <div
     #art

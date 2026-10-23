@@ -23,6 +23,7 @@ import { QCF_ATTRIBUTION, layoutVerses } from './qcf-logic';
 import { QcfPage } from './qcf-page';
 import { decorateLineRules } from './line-rules';
 import { decorateSurahHeaders } from './surah-header';
+import { RibbonSide, lastLine, parseRects, ribbonSide } from './verse-ribbon';
 import { VerseStateContext, isCoverPage, paddedViewBox, verseKey, verseStateFlags } from './reader-logic';
 
 export type PageState = 'loading' | 'ready' | 'offline' | 'error';
@@ -62,6 +63,8 @@ export class PageView implements OnDestroy {
   private readonly marks = inject(BookmarkToggleService);
   /** Page bookmark shown as a ribbon hanging over the top of the page, like a printed mushaf. */
   protected readonly pageMarked = computed(() => !this.preview() && this.marks.isPageBookmarked(this.page()));
+  /** Margin tabs for bookmarked verses, only when the page itself has no ribbon. Percent of the page box. */
+  protected readonly sideRibbons = signal<{ key: string; side: RibbonSide; top: number; height: number }[]>([]);
 
   readonly page = input.required<number>();
   /** True for the active page of a spread pair. */
@@ -132,6 +135,23 @@ export class PageView implements OnDestroy {
 
   constructor() {
     effect(() => {
+      const svg = this.svgEl();
+      const bm = this.bookmarked();
+      const show = !this.pageMarked() && !this.preview();
+      untracked(() => this.layoutSideRibbons(svg, show ? bm : new Set()));
+    });
+    effect((onCleanup) => {
+      const svg = this.svgEl();
+      const page = this.art().nativeElement.parentElement;
+      if (!svg || !page || typeof ResizeObserver === 'undefined') return;
+      // The page box can change shape (rotation, bars): re-measure the tabs.
+      const ro = new ResizeObserver(() =>
+        this.layoutSideRibbons(svg, this.pageMarked() || this.preview() ? new Set() : this.bookmarked()),
+      );
+      ro.observe(page);
+      onCleanup(() => ro.disconnect());
+    });
+    effect(() => {
       const p = this.page();
       this.retryTick();
       this.mode();
@@ -151,6 +171,40 @@ export class PageView implements OnDestroy {
         playingKey: playing ? verseKey(playing.surah, playing.ayah) : null,
       });
     });
+  }
+
+  /** Places a tab level with the line where each bookmarked ayah ends (see verse-ribbon.ts). */
+  private layoutSideRibbons(svg: SVGSVGElement | null, keys: ReadonlySet<string>): void {
+    const page = this.art().nativeElement.parentElement;
+    if (!svg || !page || !keys.size) {
+      if (this.sideRibbons().length) this.sideRibbons.set([]);
+      return;
+    }
+    const box = page.getBoundingClientRect();
+    const ctm = svg.getScreenCTM?.();
+    if (!ctm || box.height <= 0) return;
+    const polys = [...svg.querySelectorAll<SVGPathElement>('.ayahPolygon')];
+    let minX = Infinity;
+    let maxX = -Infinity;
+    const ends = new Map<string, ReturnType<typeof lastLine>>();
+    for (const el of polys) {
+      const rects = parseRects(el.getAttribute('d') ?? '');
+      for (const r of rects) {
+        minX = Math.min(minX, r.x1);
+        maxX = Math.max(maxX, r.x2);
+      }
+      const k = verseKey(Number(el.getAttribute('surah')), Number(el.getAttribute('ayah')));
+      if (keys.has(k)) ends.set(k, lastLine(rects));
+    }
+    const y = (v: number) => new DOMPoint(0, v).matrixTransform(ctm).y;
+    const out: { key: string; side: RibbonSide; top: number; height: number }[] = [];
+    for (const [key, line] of ends) {
+      if (!line) continue;
+      const top = ((y(line.y1) - box.top) / box.height) * 100;
+      const height = ((y(line.y2) - y(line.y1)) / box.height) * 100;
+      out.push({ key, side: ribbonSide(line, minX, maxX), top, height });
+    }
+    this.sideRibbons.set(out);
   }
 
   ngOnDestroy(): void {
