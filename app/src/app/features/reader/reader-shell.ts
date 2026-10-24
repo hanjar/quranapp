@@ -196,8 +196,8 @@ export class ReaderShell {
       });
     });
 
-    // A layout change resets the zoom. Turning the page keeps it and starts the new page at its
-    // top-right corner, where an Arabic page begins; the fit-width scroll goes back to the top.
+    // A layout change resets the zoom. Turning the page keeps the zoom and the position on the
+    // page (same spot on the next page); the fit-width scroll goes back to the top.
     let layoutKey = '';
     effect(() => {
       this.visible();
@@ -210,7 +210,7 @@ export class ReaderShell {
           this.ui.zoom.set(1);
           this.pan.set({ x: 0, y: 0 });
         } else {
-          this.pan.set(clampPan({ x: -Infinity, y: 0 }, z, this.stageSize()));
+          this.pan.set(clampPan(this.pan(), z, this.stageSize()));
         }
         layoutKey = key;
         this.gestures.dispose();
