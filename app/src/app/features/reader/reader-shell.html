@@ -71,9 +71,10 @@
       type="button"
       class="zoom-pill"
       [class.is-low]="!chromeShown()"
+      [attr.aria-label]="zoomLabel() + ', atur ulang zoom'"
       (click)="resetZoom()"
     >
-      {{ zoomLabel() }} · Atur ulang zoom
+      {{ zoomLabel() }} · Atur ulang
     </button>
   }
 

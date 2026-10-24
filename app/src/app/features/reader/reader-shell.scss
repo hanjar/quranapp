@@ -106,19 +106,21 @@
   right: calc(var(--mf-safe-right) + 5px);
 }
 
+/* Sits in the lower half of the top bar (between title and icons), off the ayat. */
 .zoom-pill {
   position: absolute;
-  top: calc(var(--mf-safe-top) + 62px);
+  top: calc(var(--mf-safe-top) + 30px);
   left: 50%;
   transform: translateX(-50%);
-  z-index: 5;
-  min-height: 36px;
-  padding: 0 14px;
+  /* above the top bar it overlaps */
+  z-index: calc(var(--mf-z-chrome) + 1);
+  min-height: 28px;
+  padding: 0 12px;
   border-radius: var(--mf-radius-pill);
   border: 1px solid color-mix(in srgb, var(--ui-ink) 18%, transparent);
   background: color-mix(in srgb, var(--ui-surface) 55%, transparent);
   color: var(--ui-ink);
-  font-size: 13.5px;
+  font-size: 12.5px;
   transition: top var(--mf-dur-base) var(--mf-ease);
 }
 .zoom-pill.is-low {
@@ -151,9 +153,9 @@
   width: var(--mf-tap);
   height: var(--mf-tap);
   border-radius: 50%;
-  border: 1px solid color-mix(in srgb, var(--ui-ink) 22%, transparent);
-  background: color-mix(in srgb, var(--ui-surface) 28%, transparent);
-  color: color-mix(in srgb, var(--ui-ink) 70%, transparent);
+  border: 1px solid color-mix(in srgb, var(--ui-ink) 10%, transparent);
+  background: color-mix(in srgb, var(--ui-surface) 12%, transparent);
+  color: color-mix(in srgb, var(--ui-ink) 42%, transparent);
   font-size: 20px;
   line-height: 1;
   transition:
