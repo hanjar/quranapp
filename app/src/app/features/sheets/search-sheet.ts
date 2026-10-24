@@ -16,6 +16,7 @@ import { ContentApi, SyncApi, UserDataApi } from '../../core/contracts';
 import { InstallService } from '../../core/install.service';
 import { ReaderUiService } from '../../core/reader-ui.service';
 import { ReadingViewService } from '../../core/reading-view.service';
+import { TafsirIkService } from '../../core/tafsir/tafsir-ik.service';
 import { WakeLockService } from '../../core/wake-lock.service';
 import {
   FeatureAction,
@@ -228,6 +229,7 @@ export class SearchSheet {
   private readonly sync = inject(SyncApi);
   private readonly wake = inject(WakeLockService);
   private readonly rv = inject(ReadingViewService);
+  private readonly tafsir = inject(TafsirIkService);
   private readonly box = viewChild<ElementRef<HTMLInputElement>>('box');
 
   protected readonly hints = ['Yasin', '2:255', 'hal 50', 'juz 30'];
@@ -257,6 +259,7 @@ export class SearchSheet {
     sync: this.sync.available,
     wakeLock: this.wake.supported,
     doa: this.userData.prefs().showDoaKhatam,
+    tafsirIk: this.tafsir.allowed(),
   }));
 
   private readonly refResults = computed<SearchResult[]>(() => {
@@ -470,6 +473,18 @@ export class SearchSheet {
           duration: 3000,
         });
         break;
+      case 'verse': {
+        const p = this.ui.currentPage();
+        const first = this.content.index() ? this.content.pageMeta(p).first : null;
+        if (first) this.ui.selectVerse({ surah: first.surah, ayah: first.ayah, page: p });
+        else this.ui.closeSheet();
+        break;
+      }
+      case 'tafsir-ik': {
+        const first = this.content.index() ? this.content.pageMeta(this.ui.currentPage()).first : null;
+        this.history.navigateUrl(first ? `/tafsir/${first.surah}?ayat=${first.ayah}` : '/tafsir/1');
+        break;
+      }
       case 'font': {
         const ok = a.dir === 1 ? this.rv.canLarger() : this.rv.canSmaller();
         if (ok) {

@@ -63,7 +63,9 @@ export class ReaderUiService {
   goToPage(page: number, opts: { highlight?: AyahRef | null; replaceUrl?: boolean } = {}): void {
     const p = Math.max(1, Math.min(PAGE_COUNT, Math.trunc(page)));
     this.selectedVerse.set(opts.highlight ? { ...opts.highlight, page: p } : null);
-    this.zoom.set(1);
+    // Turning pages keeps the zoom (the reader starts the new page at its top-right corner);
+    // a jump to one ayah resets it so the highlighted ayah is on screen.
+    if (opts.highlight) this.zoom.set(1);
     void this.router.navigate(['/hal', p], { replaceUrl: opts.replaceUrl ?? false });
   }
 

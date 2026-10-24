@@ -13,6 +13,7 @@ const ALL: FeatureEnv = {
   sync: true,
   wakeLock: true,
   doa: true,
+  tafsirIk: true,
 };
 const NONE: FeatureEnv = {
   installable: false,
@@ -20,6 +21,7 @@ const NONE: FeatureEnv = {
   sync: false,
   wakeLock: false,
   doa: false,
+  tafsirIk: false,
 };
 const ids = (q: string, env: FeatureEnv = ALL) => searchFeatures(q, env).map((f) => f.id);
 
@@ -101,13 +103,18 @@ describe('feature registry', () => {
     expect(ids('audio offline', NONE)).not.toContain('offline-audio');
     expect(ids('login', NONE)).not.toContain('account');
     expect(ids('layar menyala', NONE)).not.toContain('wake');
-    expect(availableFeatures(NONE).length).toBe(FEATURES.length - 6);
+    expect(availableFeatures(NONE).length).toBe(FEATURES.length - 7);
+    expect(ids('ibnu katsir', NONE)).not.toContain('tafsir-ibnu-katsir');
     expect(ids('doa khatam', NONE)).not.toContain('doa-khatam');
     expect(ids('sembunyikan doa', NONE)).toContain('doa-khatam-show');
   });
 
   it('finds favorites and the khatam archive', () => {
     expect(ids('favorit')).toContain('favorites');
+    expect(ids('tafsir')).toEqual(expect.arrayContaining(['tafsir-ibnu-katsir', 'tafsir-kemenag', 'offline-tafsir']));
+    expect(ids('ibnu katsir')[0]).toBe('tafsir-ibnu-katsir');
+    expect(ids('pengaturan')[0]).toBe('settings');
+    expect(ids('zoom')).toContain('zoom');
     expect(ids('arsipkan penanda')).toContain('archive-bookmarks');
     expect(ids('selesai khatam')).toContain('archive-bookmarks');
   });

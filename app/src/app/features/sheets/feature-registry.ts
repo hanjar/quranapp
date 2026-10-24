@@ -13,7 +13,11 @@ export type FeatureAction =
   | { type: 'install' }
   | { type: 'toggle-translation' }
   | { type: 'toggle-latin' }
-  | { type: 'font'; dir: 1 | -1 };
+  | { type: 'font'; dir: 1 | -1 }
+  /** Verse sheet of the first ayah on the current page (Baca tafsir, Bagikan, Favorit…). */
+  | { type: 'verse' }
+  /** Private Tafsir Ibnu Katsir at the current page. */
+  | { type: 'tafsir-ik' };
 
 /** Device/app capabilities that gate some features. */
 export interface FeatureEnv {
@@ -27,6 +31,8 @@ export interface FeatureEnv {
   wakeLock: boolean;
   /** The user has not hidden the khatam supplication (Pengaturan). */
   doa: boolean;
+  /** The signed-in account may read the private Tafsir Ibnu Katsir. */
+  tafsirIk: boolean;
 }
 
 export type FeatureNeeds = keyof FeatureEnv;
@@ -128,6 +134,44 @@ export const FEATURES: readonly FeatureEntry[] = [
       'penjelasan',
       'kemenag',
       'hapus tafsir',
+    ],
+  ),
+  f(
+    'tafsir-ibnu-katsir',
+    'Tafsir Ibnu Katsir',
+    'Halaman baca Tafsir Ibnu Katsir (terjemahan AI, belum ditashih) mulai dari ayat di halaman ini.',
+    'Baca',
+    { type: 'tafsir-ik' },
+    [
+      'tafsir',
+      'tafsir ibnu katsir',
+      'ibnu katsir',
+      'ibn katsir',
+      'ibnu kasir',
+      'ibn kathir',
+      'katsir',
+      'kathir',
+      'penjelasan ayat',
+      'baca tafsir',
+    ],
+    'tafsirIk',
+  ),
+  f(
+    'tafsir-kemenag',
+    'Tafsir Kemenag per ayat',
+    'Ketuk sebuah ayat lalu pilih "Baca tafsir". Dibuka untuk ayat pertama di halaman ini.',
+    'Baca',
+    { type: 'verse' },
+    [
+      'tafsir',
+      'tafsir kemenag',
+      'tafsir ayat',
+      'kemenag',
+      'penjelasan',
+      'penjelasan ayat',
+      'makna ayat',
+      'baca tafsir',
+      'tafsir per ayat',
     ],
   ),
   f(
@@ -704,6 +748,22 @@ export const FEATURES: readonly FeatureEntry[] = [
       'pulihkan penanda',
       'bersihkan penanda',
     ],
+  ),
+  f(
+    'settings',
+    'Pengaturan',
+    'Semua pengaturan tampilan, audio, layar, dan data. Juga lewat tombol Pengaturan di bar bawah.',
+    'Aplikasi',
+    { type: 'sheet', sheet: 'settings' },
+    ['pengaturan', 'setting', 'settings', 'atur', 'setelan', 'preferensi', 'opsi', 'konfigurasi'],
+  ),
+  f(
+    'zoom',
+    'Perbesar halaman mushaf',
+    'Cubit dengan dua jari atau ketuk dua kali pada halaman; tombol + dan − muncul saat diperbesar dan zoom tetap saat pindah halaman.',
+    'Baca',
+    { type: 'tour' },
+    ['zoom', 'perbesar', 'perkecil', 'besarkan', 'huruf besar', 'cubit', 'pinch', 'ketuk dua kali', 'kaca pembesar'],
   ),
   f(
     'menu',

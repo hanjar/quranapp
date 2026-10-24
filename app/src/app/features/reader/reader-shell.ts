@@ -192,17 +192,23 @@ export class ReaderShell {
       });
     });
 
-    // Reset zoom (and the fit-width scroll position) when the shown pages or layout change.
+    // A layout change resets the zoom. Turning the page keeps it and starts the new page at its
+    // top-right corner, where an Arabic page begins; the fit-width scroll goes back to the top.
+    let layoutKey = '';
     effect(() => {
       this.visible();
-      this.spread();
-      this.fitWidth();
-      this.textMode();
+      const key = `${this.spread()}|${this.fitWidth()}|${this.textMode()}`;
       const stage = this.stageEl()?.nativeElement;
       untracked(() => {
         if (stage) stage.scrollTop = 0;
-        this.ui.zoom.set(1);
-        this.pan.set({ x: 0, y: 0 });
+        const z = this.ui.zoom();
+        if (key !== layoutKey || z <= 1) {
+          this.ui.zoom.set(1);
+          this.pan.set({ x: 0, y: 0 });
+        } else {
+          this.pan.set(clampPan({ x: -Infinity, y: 0 }, z, this.stageSize()));
+        }
+        layoutKey = key;
         this.gestures.dispose();
       });
     });

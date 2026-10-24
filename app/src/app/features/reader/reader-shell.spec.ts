@@ -434,6 +434,19 @@ describe('ReaderShell', () => {
     expect(ui.chromeVisible()).toBe(false);
   });
 
+  it('turning the page keeps the zoom; changing the layout resets it', async () => {
+    const fixture = await mount('10');
+    ui.zoom.set(2);
+    fixture.componentRef.setInput('page', '11');
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect(ui.zoom()).toBe(2);
+    userData.prefs.set({ ...DEFAULT_PREFERENCES, layoutMode: 'spread' });
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect(ui.zoom()).toBe(1);
+  });
+
   it('spread mode shows the pair but keeps the even route page active', async () => {
     userData.prefs.set({ ...DEFAULT_PREFERENCES, layoutMode: 'spread' });
     const fixture = await mount('4');
