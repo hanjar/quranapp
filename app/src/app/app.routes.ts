@@ -61,6 +61,11 @@ export const routes: Routes = [
     title: 'Statistik · Mushaf Digital',
   },
   {
+    path: 'kartu/:surah/:ayah',
+    loadComponent: () => import('./features/verse-card/verse-card').then((m) => m.VerseCard),
+    title: 'Gambar ayat · Mushaf Digital',
+  },
+  {
     path: 'selamat-datang',
     loadComponent: () => import('./features/onboarding/welcome').then((m) => m.Welcome),
     title: 'Selamat datang · Mushaf Digital',

@@ -175,6 +175,14 @@ export const FEATURES: readonly FeatureEntry[] = [
     ],
   ),
   f(
+    'verse-card',
+    'Bagikan ayat sebagai gambar',
+    'Ketuk sebuah ayat lalu pilih "Gambar": teks mushaf, terjemahan, dan bingkai tema Anda, siap untuk WhatsApp atau Instagram.',
+    'Baca',
+    { type: 'verse' },
+    ['gambar', 'gambar ayat', 'kartu ayat', 'bagikan gambar', 'share gambar', 'status', 'story', 'instagram', 'whatsapp', 'poster', 'quote'],
+  ),
+  f(
     'paper-theme',
     'Warna kertas',
     'Pilih warna latar halaman mushaf.',

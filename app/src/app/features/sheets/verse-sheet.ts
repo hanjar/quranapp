@@ -185,6 +185,23 @@ import { latinCopyText, shareText, translationCopyText, verseReference, verseUrl
           </svg>
           Bagikan
         </button>
+        <button type="button" class="act" data-testid="card-btn" aria-label="Bagikan sebagai gambar" (click)="openCard()">
+          <svg
+            width="22"
+            height="22"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.6"
+            stroke-linejoin="round"
+            aria-hidden="true"
+          >
+            <rect x="4" y="4" width="16" height="16" rx="2.5" />
+            <circle cx="9" cy="9.5" r="1.6" />
+            <path d="M4.5 17l4.5-4.5 3.5 3.5 2.5-2.5 4.5 4.5" stroke-linecap="round" />
+          </svg>
+          Gambar
+        </button>
         <button
           type="button"
           class="act"
@@ -355,7 +372,7 @@ import { latinCopyText, shareText, translationCopyText, verseReference, verseUrl
       border-top: 1px solid var(--ui-hair);
       padding-top: var(--mf-space-1);
       display: grid;
-      grid-template-columns: repeat(5, minmax(0, 1fr));
+      grid-template-columns: repeat(6, minmax(0, 1fr));
       gap: var(--mf-space-1);
     }
     .act {
@@ -608,6 +625,12 @@ export class VerseSheet {
     this.ui.showToast({
       message: (await copyText(text)) ? 'Ayat disalin' : 'Ayat gagal disalin',
     });
+  }
+
+  /** A page of its own (like the doa): replaces the sheet's history entry. */
+  protected openCard(): void {
+    const v = this.ui.selectedVerse();
+    if (v) this.history.navigateUrl(`/kartu/${v.surah}/${v.ayah}`);
   }
 
   protected async share(): Promise<void> {
