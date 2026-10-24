@@ -18,6 +18,8 @@ import {
   validateThemeDraft,
 } from '../../core/custom-theme';
 import { CUSTOM_THEME_LIMIT, CUSTOM_THEME_NAME_MAX } from '../../core/models';
+import { NamedColor, findColors, parseColorWords } from '../../core/color-names';
+import { ThemeSuggestion, suggestThemes } from '../../core/theme-wizard';
 import { ReaderUiService } from '../../core/reader-ui.service';
 import { ThemeService } from '../../core/theme.service';
 import { PageView } from '../reader/page-view';
@@ -37,6 +39,11 @@ const FIELDS: readonly FieldDef[] = [
   { key: 'ayahOrnament', label: 'Ornamen nomor ayat', hint: 'Lingkaran di sekitar nomor ayat.' },
   { key: 'textInk', label: 'Warna teks', hint: 'Tinta huruf Al-Qur’an (opsional).' },
 ];
+
+/** Shown before anything is typed. */
+const WIZ_EXAMPLES = ['Krem', 'Beige', 'Marun', 'Hijau sage', 'Biru dongker', 'Tosca', 'Lavender', 'Terracotta', 'Abu-abu', 'Emas']
+  .map((n) => findColors(n, 1)[0])
+  .filter((c): c is NamedColor => !!c);
 
 const fmtRatio = (n: number) => n.toFixed(1).replace('.', ',');
 
@@ -80,6 +87,21 @@ export class ThemeEditor {
   protected readonly nameError = signal<string | null>(null);
 
   protected readonly isEdit = this.editing !== null;
+
+  // --- wizard: favourite colour names → three themes -------------------------
+  protected readonly wizExamples = WIZ_EXAMPLES;
+  protected readonly wizText = signal('');
+  protected readonly wizPicked = signal<NamedColor[]>([]);
+  protected readonly wizUnknown = signal<string[]>([]);
+  /** Live matches for the part being typed (after the last "dan" / comma). */
+  protected readonly wizMatches = computed(() => {
+    const last = this.wizText().split(/,|\+|&|\/|\bdan\b|\band\b/i).pop() ?? '';
+    return last.trim() ? findColors(last, 8).filter((c) => !this.wizPicked().includes(c)) : [];
+  });
+  protected readonly wizThemes = computed<ThemeSuggestion[]>(() =>
+    suggestThemes(this.wizPicked().map((c) => c.hex)),
+  );
+  private nameTouched = this.editing !== null;
   protected readonly full = computed(
     () => !this.isEdit && this.prefs().customThemes.length >= CUSTOM_THEME_LIMIT,
   );
@@ -101,6 +123,52 @@ export class ThemeEditor {
   protected readonly dayOnlyNote = computed(
     () => this.theme.nightActive() || this.prefs().highContrast,
   );
+
+  protected wizAdd(c: NamedColor): void {
+    this.wizPicked.update((p) => (p.includes(c) ? p : [...p, c].slice(-2)));
+    this.wizText.set('');
+    this.wizUnknown.set([]);
+    this.wizApplyMiddle();
+  }
+
+  protected wizRemove(c: NamedColor): void {
+    this.wizPicked.update((p) => p.filter((x) => x !== c));
+    this.wizApplyMiddle();
+  }
+
+  /** Enter / Pakai: every recognised name in the text; unknown words are reported. */
+  protected wizSubmit(): void {
+    const { found, unknown } = parseColorWords(this.wizText());
+    this.wizUnknown.set(unknown);
+    if (!found.length) return;
+    this.wizPicked.update((p) => [...p.filter((x) => !found.includes(x)), ...found].slice(-2));
+    this.wizText.set('');
+    this.wizApplyMiddle();
+  }
+
+  /** "Seimbang" goes to the preview right away. */
+  private wizApplyMiddle(): void {
+    const t = this.wizThemes()[1];
+    if (t) this.wizApply(t);
+  }
+
+  protected wizApply(t: ThemeSuggestion): void {
+    this.applyStarter(t.colors);
+    if (!this.nameTouched) {
+      const n = `Tema ${this.wizPicked().map((c) => c.names[0]).join(' & ')}`;
+      this.name.set(n.slice(0, CUSTOM_THEME_NAME_MAX));
+    }
+  }
+
+  protected isApplied(c: ThemeColors): boolean {
+    return sameColors(this.colors(), c);
+  }
+
+  protected setName(v: string): void {
+    this.nameTouched = true;
+    this.name.set(v);
+    this.nameError.set(null);
+  }
 
   protected hexInvalid(key: ThemeColorKey): boolean {
     return normalizeHex(this.hexText()[key]) === null;

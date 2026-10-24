@@ -217,3 +217,98 @@ h1 {
     border-right: 1px solid var(--ui-hair);
   }
 }
+
+/* Wizard: favourite colours → three ready themes. */
+.wiz {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid var(--ui-hair);
+  border-radius: var(--mf-radius-md);
+  background: color-mix(in srgb, var(--ui-primary) 5%, var(--ui-surface));
+}
+.wiz__row {
+  display: flex;
+  gap: 8px;
+}
+.wiz__row .mf-input {
+  flex: 1;
+  min-width: 0;
+}
+.chip--on {
+  border-color: var(--ui-primary);
+  padding-right: 4px;
+}
+.chip__x {
+  border: none;
+  background: none;
+  color: var(--ui-muted);
+  font-size: 18px;
+  line-height: 1;
+  min-width: 28px;
+  min-height: 28px;
+  cursor: pointer;
+}
+.wiz__results {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+.wiz__card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 8px;
+  border: 1px solid var(--ui-hair);
+  border-radius: var(--mf-radius-md);
+  background: var(--ui-surface);
+  color: var(--ui-ink);
+  cursor: pointer;
+}
+.wiz__card[aria-pressed='true'] {
+  border-color: var(--ui-primary);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--ui-primary) 35%, transparent);
+}
+.wiz__swatch {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  border-radius: 8px;
+}
+.wiz__paper {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 5px;
+  width: 62%;
+  height: 74%;
+  padding: 0 8px;
+  box-sizing: border-box;
+  border: 2px solid;
+  outline: 1px solid;
+  outline-offset: -5px;
+}
+.wiz__line {
+  height: 3px;
+  border-radius: 2px;
+  opacity: 0.85;
+}
+.wiz__line--short {
+  width: 60%;
+}
+.wiz__dot {
+  position: absolute;
+  right: 8px;
+  bottom: 7px;
+  width: 7px;
+  height: 7px;
+  border: 1.5px solid;
+  border-radius: 50%;
+}
+.wiz__label {
+  font-size: 13px;
+}

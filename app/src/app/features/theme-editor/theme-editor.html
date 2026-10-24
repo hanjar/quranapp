@@ -27,6 +27,72 @@
       </p>
     }
 
+    <section class="wiz" aria-labelledby="te-wiz" data-testid="theme-wizard">
+      <h2 id="te-wiz" class="sec">Warna favorit Anda?</h2>
+      <p class="muted">Ketik satu atau dua warna, mis. "beige dan marun", "hijau sage", "biru dongker". Kami buatkan temanya.</p>
+      <div class="wiz__row">
+        <input
+          class="mf-input"
+          type="text"
+          autocomplete="off"
+          spellcheck="false"
+          placeholder="mis. krem dan hijau zamrud"
+          aria-label="Warna favorit"
+          [value]="wizText()"
+          (input)="wizText.set($any($event.target).value); wizUnknown.set([])"
+          (keydown.enter)="wizSubmit()"
+        />
+        <button type="button" class="mf-btn mf-btn--primary" [disabled]="!wizText().trim()" (click)="wizSubmit()">Pakai</button>
+      </div>
+      @if (wizMatches().length) {
+        <div class="chips" role="group" aria-label="Warna yang cocok">
+          @for (c of wizMatches(); track c.names[0]) {
+            <button type="button" class="chip" (click)="wizAdd(c)">
+              <span class="chip__dot" [style.background]="c.hex" aria-hidden="true"></span>{{ c.names[0] }}
+            </button>
+          }
+        </div>
+      } @else if (!wizPicked().length && !wizText().trim()) {
+        <div class="chips" role="group" aria-label="Contoh warna">
+          @for (c of wizExamples; track c.names[0]) {
+            <button type="button" class="chip" (click)="wizAdd(c)">
+              <span class="chip__dot" [style.background]="c.hex" aria-hidden="true"></span>{{ c.names[0] }}
+            </button>
+          }
+        </div>
+      }
+      @if (wizUnknown().length) {
+        <p class="err" role="alert">
+          "{{ wizUnknown().join(', ') }}" belum ada di daftar warna. Coba nama lain, mis. krem, marun, tosca.
+        </p>
+      }
+      @if (wizPicked().length) {
+        <div class="chips" role="group" aria-label="Warna dipilih">
+          @for (c of wizPicked(); track c.names[0]) {
+            <span class="chip chip--on">
+              <span class="chip__dot" [style.background]="c.hex" aria-hidden="true"></span>{{ c.names[0] }}
+              <button type="button" class="chip__x" [attr.aria-label]="'Hapus ' + c.names[0]" (click)="wizRemove(c)">×</button>
+            </span>
+          }
+        </div>
+        <div class="wiz__results" role="group" aria-label="Pilihan tema">
+          @for (t of wizThemes(); track t.id) {
+            <button type="button" class="wiz__card" [attr.aria-pressed]="isApplied(t.colors)" (click)="wizApply(t)">
+              <span class="wiz__swatch" [style.background]="t.colors.surround" aria-hidden="true">
+                <span class="wiz__paper" [style.background]="t.colors.paper" [style.border-color]="t.colors.frameInk" [style.outline-color]="t.colors.frameInkInner">
+                  <span class="wiz__line" [style.background]="t.colors.textInk"></span>
+                  <span class="wiz__line wiz__line--short" [style.background]="t.colors.textInk"></span>
+                  <span class="wiz__dot" [style.border-color]="t.colors.ayahOrnament"></span>
+                </span>
+              </span>
+              <span class="wiz__label">{{ t.label }}</span>
+            </button>
+          }
+        </div>
+        <p class="muted">Ketuk salah satu untuk melihatnya di pratinjau. Warna masih bisa diatur satu per satu di bawah.</p>
+      }
+    </section>
+
     <section aria-labelledby="te-start">
       <h2 id="te-start" class="sec">Mulai dari</h2>
       <div class="chips">
@@ -119,7 +185,7 @@
         [value]="name()"
         [attr.maxlength]="nameMax"
         autocomplete="off"
-        (input)="name.set($any($event.target).value); nameError.set(null)"
+        (input)="setName($any($event.target).value)"
         (keydown.enter)="save()"
         [attr.aria-invalid]="nameError() ? true : null"
         [attr.aria-describedby]="nameError() ? 'te-name-err' : null"

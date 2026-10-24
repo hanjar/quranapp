@@ -199,7 +199,7 @@ export const FEATURES: readonly FeatureEntry[] = [
   f(
     'custom-theme',
     'Buat tema sendiri',
-    'Atur warna kertas, latar, border, dan ornamen, lalu simpan sebagai tema Anda.',
+    'Ketik warna favorit (mis. beige dan marun) untuk dibuatkan tema, atau atur kertas, latar, border, dan ornamen sendiri.',
     'Tampilan',
     { type: 'url', url: '/tema' },
     [
@@ -215,6 +215,11 @@ export const FEATURES: readonly FeatureEntry[] = [
       'bingkai',
       'ornamen',
       'latar',
+      'warna favorit',
+      'wizard',
+      'palet',
+      'palette',
+      'warna kesukaan',
     ],
   ),
   f(
