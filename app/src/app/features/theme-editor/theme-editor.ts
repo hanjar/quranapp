@@ -227,8 +227,37 @@ export class ThemeEditor {
     const customThemes = this.editing
       ? list.map((t) => (t.id === id ? theme : t))
       : [...list, theme];
-    await this.data.setPrefs({ customThemes, paperTheme: customPaperId(id) });
-    this.ui.showToast({ message: `Tema "${name}" disimpan dan dipakai` });
+    // "Simpan & pakai" must show the theme: High contrast and a manual night mode replace the
+    // paper colours, so they are switched off (with a way back). Automatic night mode stays.
+    const before = this.prefs();
+    const hc = before.highContrast;
+    const night = before.nightMode === 'on' && this.theme.nightActive();
+    await this.data.setPrefs({
+      customThemes,
+      paperTheme: customPaperId(id),
+      ...(hc ? { highContrast: false } : {}),
+      ...(night ? { nightMode: 'off' as const } : {}),
+    });
+    const off = [hc ? 'Kontras tinggi' : '', night ? 'Mode malam' : ''].filter(Boolean).join(' dan ');
+    const autoNight = !night && this.theme.nightActive();
+    this.ui.showToast({
+      message: off
+        ? `Tema "${name}" dipakai. ${off} dimatikan.`
+        : autoNight
+          ? `Tema "${name}" disimpan; tampil setelah mode malam otomatis selesai.`
+          : `Tema "${name}" disimpan dan dipakai`,
+      ...(off
+        ? {
+            actionLabel: 'Urungkan',
+            action: () =>
+              void this.data.setPrefs({
+                ...(hc ? { highContrast: true } : {}),
+                ...(night ? { nightMode: 'on' as const } : {}),
+              }),
+            duration: 8000,
+          }
+        : {}),
+    });
     this.back();
   }
 
