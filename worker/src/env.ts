@@ -10,4 +10,8 @@ export interface Env {
   GITHUB_REPO?: string;
   /** Secret: fine-grained PAT with Issues read/write on GITHUB_REPO only. */
   GITHUB_TOKEN?: string;
+  /** Private R2 bucket (tafsir files). */
+  TAFSIR?: R2Bucket;
+  /** Secret: comma-separated emails allowed to read the private tafsir. */
+  TAFSIR_EMAILS?: string;
 }

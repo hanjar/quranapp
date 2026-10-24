@@ -2,7 +2,8 @@ import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { Router, provideRouter } from '@angular/router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { OfflineApi, SyncApi, UserDataApi } from '../../core/contracts';
+import { ContentApi, OfflineApi, SyncApi, UserDataApi } from '../../core/contracts';
+import { TafsirIkService } from '../../core/tafsir/tafsir-ik.service';
 import { InstallService } from '../../core/install.service';
 import { Account, DEFAULT_PREFERENCES, Preferences, SyncStatus } from '../../core/models';
 import { ReaderUiService } from '../../core/reader-ui.service';
@@ -16,6 +17,7 @@ describe('MenuSheet', () => {
   const update = signal(false);
   const prefs = signal<Preferences>({ ...DEFAULT_PREFERENCES });
   const install = signal('manual');
+  const tafsirAllowed = signal(false);
   let syncAvailable = true;
   const openModal = vi.fn();
 
@@ -38,6 +40,7 @@ describe('MenuSheet', () => {
     update.set(false);
     prefs.set({ ...DEFAULT_PREFERENCES });
     install.set('manual');
+    tafsirAllowed.set(false);
     syncAvailable = true;
     openModal.mockClear();
     TestBed.configureTestingModule({
@@ -58,6 +61,11 @@ describe('MenuSheet', () => {
         { provide: UserDataApi, useValue: { prefs } },
         { provide: UpdateService, useValue: { available: update } },
         { provide: InstallService, useValue: { state: install, openModal } },
+        { provide: TafsirIkService, useValue: { allowed: tafsirAllowed } },
+        {
+          provide: ContentApi,
+          useValue: { index: signal({}), pageMeta: () => ({ first: { surah: 78, ayah: 1 } }) },
+        },
       ],
     });
   });
@@ -67,6 +75,16 @@ describe('MenuSheet', () => {
     const m = mount();
     expect(m.tile('doa')).toBeNull();
     expect(m.tiles()).toContain('progress');
+  });
+
+  it('Tafsir tile only for allowed accounts; opens the tafsir of the current page', () => {
+    expect(mount().tile('tafsir')).toBeNull();
+    tafsirAllowed.set(true);
+    const m = mount();
+    const nav = vi.spyOn(TestBed.inject(Router), 'navigateByUrl').mockResolvedValue(true);
+    m.tile('tafsir')!.click();
+    expect(nav).toHaveBeenCalledWith('/tafsir/78?ayat=1', expect.anything());
+    expect(TestBed.inject(ReaderUiService).sheet()).toBeNull();
   });
 
   it('lists the tiles in order', () => {

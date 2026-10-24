@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { InstallService } from '../../core/install.service';
-import { OfflineApi, SyncApi, UserDataApi } from '../../core/contracts';
+import { ContentApi, OfflineApi, SyncApi, UserDataApi } from '../../core/contracts';
+import { TafsirIkService } from '../../core/tafsir/tafsir-ik.service';
 import { ReaderUiService, SheetName } from '../../core/reader-ui.service';
 import { UpdateService } from '../../core/update.service';
 import { SheetHistory } from './sheet-history';
@@ -143,6 +144,27 @@ import { offlineNeedsAttention, syncNeedsAttention } from '../reader/attention';
           <span class="label">Progres</span>
         </button>
       </li>
+      @if (tafsir.allowed()) {
+      <li>
+        <button type="button" class="tile" data-tile="tafsir" (click)="openTafsir()">
+          <svg
+            width="26"
+            height="26"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.6"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            aria-hidden="true"
+          >
+            <path d="M6 3.5h10.5L19 6v14.5H6z" />
+            <path d="M9 8.5h7M9 12h7M9 15.5h4.5" />
+          </svg>
+          <span class="label">Tafsir</span>
+        </button>
+      </li>
+      }
       @if (userData.prefs().showDoaKhatam) {
       <li>
         <button type="button" class="tile" data-tile="doa" (click)="openDoa()">
@@ -371,6 +393,8 @@ export class MenuSheet {
   protected readonly updates = inject(UpdateService);
   private readonly offline = inject(OfflineApi);
   private readonly history = inject(SheetHistory);
+  protected readonly tafsir = inject(TafsirIkService);
+  private readonly content = inject(ContentApi);
 
   protected readonly initial = computed(() => {
     const a = this.sync.account();
@@ -412,6 +436,12 @@ export class MenuSheet {
   /** Swaps this sheet for another one (same mechanism as the search sheet). */
   protected open(sheet: SheetName): void {
     this.ui.openSheet(sheet);
+  }
+
+  /** Tafsir Ibnu Katsir of the first ayah on the current page (a page of its own, like the doa). */
+  protected openTafsir(): void {
+    const first = this.content.index() ? this.content.pageMeta(this.ui.currentPage()).first : null;
+    this.history.navigateUrl(first ? `/tafsir/${first.surah}?ayat=${first.ayah}` : '/tafsir/1');
   }
 
   /** The doa is a page of its own: replace the sheet's history entry like the search sheet does. */

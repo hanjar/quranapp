@@ -12,6 +12,11 @@ APP_ORIGIN = "https://quran.hanjar.net"
 DEV_AUTH = "0"
 GITHUB_REPO = "hanjar/quranapp"
 
+# Private: never give this bucket a public domain.
+[[r2_buckets]]
+binding = "TAFSIR"
+bucket_name = "mushaf-private"
+
 [[d1_databases]]
 binding = "DB"
 database_name = "mushaf"

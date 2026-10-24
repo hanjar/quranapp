@@ -35,3 +35,7 @@ remains under its original terms:
 ## Font doa khatam
 
 `app/public/fonts/noto-naskh-arabic-doa.woff2` adalah potongan (subset) **Noto Naskh Arabic** (Google), lisensi **SIL Open Font License 1.1**, hanya berisi huruf teks doa khatam.
+
+## Huruf baca tafsir
+
+`app/public/fonts/reading/poppins-*.woff2` (**Poppins**, Indian Type Foundry) dan `source-serif-4-*.woff2` (**Source Serif 4**, Adobe), keduanya lisensi **SIL Open Font License 1.1**, subset latin dari paket Fontsource.

@@ -10,6 +10,8 @@ declare global {
       GOOGLE_CLIENT_SECRET?: string;
       GITHUB_REPO?: string;
       GITHUB_TOKEN?: string;
+      TAFSIR?: R2Bucket;
+      TAFSIR_EMAILS?: string;
       TEST_MIGRATIONS: D1Migration[];
     }
   }

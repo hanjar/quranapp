@@ -25,6 +25,14 @@
       }
     },
     {
+      "name": "reading-fonts",
+      "installMode": "lazy",
+      "updateMode": "lazy",
+      "resources": {
+        "files": ["/fonts/reading/*.woff2"]
+      }
+    },
+    {
       "name": "content-metadata",
       "installMode": "prefetch",
       "updateMode": "prefetch",

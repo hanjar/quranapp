@@ -49,6 +49,7 @@ import {
   withSyncParam,
 } from './util';
 import { MAX_OPS, parseEmail } from './validate';
+import { parseSurahParam, tafsirAllowed, tafsirKey } from './tafsir';
 
 const API = '/api/v1';
 const SESSION_COOKIE = 'mf_session';
@@ -318,6 +319,24 @@ export function createApp(overrides: Partial<Deps> = {}): Hono<AppBindings> {
   });
 
   // ---- feedback -> GitHub issue (anonymous allowed) ----
+  // ---- private tafsir (allow-listed accounts only) ----
+  app.get('/tafsir/access', (c) => {
+    const a = c.get('auth');
+    return ok(c, { allowed: !!c.env.TAFSIR && tafsirAllowed(c.env.TAFSIR_EMAILS, a?.email) });
+  });
+
+  app.get('/tafsir/ik/:surah', async (c) => {
+    const a = requireAuth(c);
+    if (!c.env.TAFSIR || !tafsirAllowed(c.env.TAFSIR_EMAILS, a.email)) {
+      throw new ApiError(403, 'forbidden', 'Not available for this account.');
+    }
+    const surah = parseSurahParam(c.req.param('surah'));
+    if (!surah) throw new ApiError(404, 'not_found', 'Not found.');
+    const obj = await c.env.TAFSIR.get(tafsirKey(surah));
+    if (!obj) throw new ApiError(404, 'not_found', 'Not found.');
+    return new Response(obj.body, { headers: { 'Content-Type': 'application/json; charset=utf-8' } });
+  });
+
   app.post('/feedback', async (c) => {
     const body = await readJsonBody(c, FEEDBACK_MAX_BODY);
     // Honeypot: bots fill hidden fields. Pretend success, create nothing, count nothing.
