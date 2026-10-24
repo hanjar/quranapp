@@ -178,6 +178,7 @@ class FakeSync extends SyncApi {
   override readonly account = signal(null);
   override readonly lastSuccessAt = signal(null);
   override readonly conflict = signal(null);
+  override readonly remotePosition = signal(null);
   override async init() {}
   override signIn() {}
   override async signInDev() {}

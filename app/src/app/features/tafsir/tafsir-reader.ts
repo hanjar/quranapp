@@ -232,9 +232,9 @@ export function readView(raw: string | null): ReadView {
       font-family: var(--ui-font);
       -webkit-text-size-adjust: 100%;
     }
+    /* Scrolls away with the text: the whole screen is for reading. */
     .bar {
-      position: sticky;
-      top: 0;
+      position: relative;
       z-index: 3;
     }
     .top {
@@ -242,8 +242,6 @@ export function readView(raw: string | null): ReadView {
       align-items: center;
       gap: 4px;
       padding: calc(var(--mf-safe-top) + 4px) 8px 4px;
-      background: color-mix(in srgb, var(--ui-surface) 94%, transparent);
-      backdrop-filter: blur(8px);
       border-bottom: 1px solid var(--ui-hair);
     }
     .pick {
@@ -406,7 +404,7 @@ export function readView(raw: string | null): ReadView {
       font-weight: 600;
       letter-spacing: 0.02em;
       color: var(--ui-primary);
-      scroll-margin-top: calc(var(--mf-safe-top) + 72px);
+      scroll-margin-top: calc(var(--mf-safe-top) + 12px);
     }
     .verses {
       margin: 0 0 1.2em;

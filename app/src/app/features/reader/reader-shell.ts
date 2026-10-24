@@ -13,6 +13,7 @@ import {
   untracked,
 } from '@angular/core';
 import { PageTurnSoundService } from '../../core/page-turn-sound';
+import { ResumeFollowService } from '../../core/sync/resume-follow.service';
 import { KhatamService } from '../../core/khatam.service';
 import { APP_CONFIG } from '../../core/config';
 import { ContentApi, UserDataApi } from '../../core/contracts';
@@ -66,6 +67,8 @@ export class ReaderShell {
   protected readonly ui = inject(ReaderUiService);
   private readonly pageSound = inject(PageTurnSoundService);
   private readonly khatam = inject(KhatamService);
+  /** Follows a newer reading position from another device (see the service). */
+  private readonly resume = inject(ResumeFollowService);
   protected readonly rv = inject(ReadingViewService);
   private readonly userData = inject(UserDataApi);
   private readonly tracker = inject(ProgressService).createTracker();
@@ -189,6 +192,7 @@ export class ReaderShell {
         // The route page stays the ACTIVE page even when its spread pair is shown.
         this.ui.currentPage.set(num);
         this.ui.visiblePages.set(visible);
+        this.resume.markOpened();
       });
     });
 

@@ -67,6 +67,8 @@ export class SyncService extends SyncApi {
   readonly account = this._account.asReadonly();
   readonly lastSuccessAt = this._lastSuccessAt.asReadonly();
   readonly conflict = this._conflict.asReadonly();
+  /** Last newer reading position received from another device (a new object each time). */
+  readonly remotePosition = signal<ReadingPosition | null>(null);
 
   private initialised = false;
   private inflight: Promise<void> | null = null;
@@ -420,6 +422,7 @@ export class SyncService extends SyncApi {
       }
       const res = await applyChanges(this.db, accountId, page.changes, this.applyOpts(detect));
       await this.noteConflict(res.conflict);
+      if (res.remotePosition) this.remotePosition.set({ ...res.remotePosition });
       changed = changed || res.changed;
       const advanced = page.cursor > cursor;
       cursor = page.cursor;
@@ -440,6 +443,7 @@ export class SyncService extends SyncApi {
     }
     const res = await reconcileReset(this.db, accountId, all, this.applyOpts(detect));
     await this.noteConflict(res.conflict);
+    if (res.remotePosition) this.remotePosition.set({ ...res.remotePosition });
     await this.patchState({ cursor });
   }
 

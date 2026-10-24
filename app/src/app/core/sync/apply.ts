@@ -51,6 +51,8 @@ export interface ApplyOptions {
 export interface ApplyResult {
   conflict: PositionConflict | null;
   changed: boolean;
+  /** A newer reading position from another device was stored (absent when none). */
+  remotePosition?: ReadingPosition;
 }
 
 interface Ctx extends ApplyResult {
@@ -362,9 +364,10 @@ async function applyPosition(ctx: Ctx, ch: Change): Promise<void> {
     return;
   }
   if (pendingFor(ctx, 'position', editionId).length) return;
-  // Active session: store silently; the reader is never moved by sync.
+  // Store it; the app decides whether to follow it (see ResumeFollowService).
   await db.positions.put(remote);
   ctx.changed = true;
+  ctx.remotePosition = remote;
 }
 
 /** Parses a wire `pages` object; malformed entries are dropped. */
@@ -577,6 +580,7 @@ export async function applyChanges(
 ): Promise<ApplyResult> {
   let conflict: PositionConflict | null = null;
   let changed = false;
+  let remotePosition: ReadingPosition | undefined;
   if (!changes.length) return { conflict, changed };
   for (let i = 0; i < changes.length; i += APPLY_CHUNK) {
     const chunk = changes.slice(i, i + APPLY_CHUNK);
@@ -587,12 +591,13 @@ export async function applyChanges(
         holdPosition: opts.holdPosition || conflict !== null,
       });
       for (const ch of chunk) await applyOne(ctx, ch);
-      return { conflict: ctx.conflict, changed: ctx.changed };
+      return { conflict: ctx.conflict, changed: ctx.changed, remotePosition: ctx.remotePosition };
     });
     conflict ??= res.conflict;
     changed = changed || res.changed;
+    remotePosition = res.remotePosition ?? remotePosition;
   }
-  return { conflict, changed };
+  return remotePosition ? { conflict, changed, remotePosition } : { conflict, changed };
 }
 
 export interface PushOutcome {
@@ -812,6 +817,8 @@ export function reconcileReset(
         ctx.pending.push(op);
       }
     }
-    return { conflict: ctx.conflict, changed: ctx.changed };
+    return ctx.remotePosition
+      ? { conflict: ctx.conflict, changed: ctx.changed, remotePosition: ctx.remotePosition }
+      : { conflict: ctx.conflict, changed: ctx.changed };
   });
 }

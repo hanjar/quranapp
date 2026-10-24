@@ -181,6 +181,8 @@ export abstract class SyncApi {
   abstract readonly account: Signal<Account | null>;
   abstract readonly lastSuccessAt: Signal<number | null>;
   abstract readonly conflict: Signal<PositionConflict | null>;
+  /** Newer reading position received from another device (new object each time). */
+  abstract readonly remotePosition: Signal<ReadingPosition | null>;
 
   abstract init(): Promise<void>;
   /** Full-page redirect to the provider. */
