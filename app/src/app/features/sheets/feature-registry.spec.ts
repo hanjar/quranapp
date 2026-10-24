@@ -103,7 +103,7 @@ describe('feature registry', () => {
     expect(ids('audio offline', NONE)).not.toContain('offline-audio');
     expect(ids('login', NONE)).not.toContain('account');
     expect(ids('layar menyala', NONE)).not.toContain('wake');
-    expect(availableFeatures(NONE).length).toBe(FEATURES.length - 7);
+    expect(availableFeatures(NONE).length).toBe(FEATURES.length - 8);
     expect(ids('ibnu katsir', NONE)).not.toContain('tafsir-ibnu-katsir');
     expect(ids('doa khatam', NONE)).not.toContain('doa-khatam');
     expect(ids('sembunyikan doa', NONE)).toContain('doa-khatam-show');

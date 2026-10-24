@@ -145,6 +145,28 @@ import { offlineNeedsAttention, syncNeedsAttention } from '../reader/attention';
           <span class="label">Progres</span>
         </button>
       </li>
+      @if (sync.available) {
+      <li>
+        <button type="button" class="tile" data-tile="groups" (click)="openGroups()">
+          <svg
+            width="26"
+            height="26"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.6"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            aria-hidden="true"
+          >
+            <circle cx="8" cy="8" r="2.6" />
+            <circle cx="16.5" cy="9" r="2.2" />
+            <path d="M3.5 18.5c.6-3 2.4-4.6 4.5-4.6s3.9 1.6 4.5 4.6M13 14.6c.9-.7 2-1 3.2-1 2 0 3.4 1.4 3.9 4.4" />
+          </svg>
+          <span class="label">Khatam bersama</span>
+        </button>
+      </li>
+      }
       @if (tafsir.allowed()) {
       <li>
         <button type="button" class="tile" data-tile="tafsir" (click)="openTafsir()">
@@ -458,6 +480,10 @@ export class MenuSheet {
   /** Swaps this sheet for another one (same mechanism as the search sheet). */
   protected open(sheet: SheetName): void {
     this.ui.openSheet(sheet);
+  }
+
+  protected openGroups(): void {
+    this.history.navigateUrl('/grup');
   }
 
   /** Tafsir Ibnu Katsir of the first ayah on the current page (a page of its own, like the doa). */

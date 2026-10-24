@@ -93,6 +93,7 @@ describe('MenuSheet', () => {
     expect(mount().tiles()).toEqual([
       'bookmarks',
       'progress',
+      'groups',
       'doa',
       'offline',
       'settings',

@@ -9,6 +9,9 @@ beforeAll(async () => {
 // Tests share one D1; reset all data between tests (child tables first).
 beforeEach(async () => {
   for (const t of [
+    'group_juz',
+    'group_members',
+    'khatam_groups',
     'op_log',
     'feedback',
     'folders',

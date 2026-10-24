@@ -175,6 +175,15 @@ export const FEATURES: readonly FeatureEntry[] = [
     ],
   ),
   f(
+    'groups',
+    'Khatam bersama',
+    'Baca bersama keluarga atau komunitas: 30 juz dibagi ke anggota (seperti One Day One Juz), progres terlihat semua.',
+    'Baca',
+    { type: 'url', url: '/grup' },
+    ['khatam bersama', 'grup', 'group', 'odoj', 'one day one juz', 'satu hari satu juz', 'bagi juz', 'tilawah bersama', 'komunitas', 'keluarga', 'kantor', 'undang', 'teman'],
+    'sync',
+  ),
+  f(
     'verse-card',
     'Bagikan ayat sebagai gambar',
     'Ketuk sebuah ayat lalu pilih "Gambar": teks mushaf, terjemahan, dan bingkai tema Anda, siap untuk WhatsApp atau Instagram.',

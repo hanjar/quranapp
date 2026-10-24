@@ -61,6 +61,21 @@ export const routes: Routes = [
     title: 'Statistik · Mushaf Digital',
   },
   {
+    path: 'grup',
+    loadComponent: () => import('./features/groups/groups-page').then((m) => m.GroupsPage),
+    title: 'Khatam bersama · Mushaf Digital',
+  },
+  {
+    path: 'grup/gabung/:code',
+    loadComponent: () => import('./features/groups/group-join').then((m) => m.GroupJoin),
+    title: 'Undangan khatam bersama · Mushaf Digital',
+  },
+  {
+    path: 'grup/:id',
+    loadComponent: () => import('./features/groups/group-detail').then((m) => m.GroupDetail),
+    title: 'Khatam bersama · Mushaf Digital',
+  },
+  {
     path: 'kartu/:surah/:ayah',
     loadComponent: () => import('./features/verse-card/verse-card').then((m) => m.VerseCard),
     title: 'Gambar ayat · Mushaf Digital',

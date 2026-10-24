@@ -50,6 +50,7 @@ import {
 } from './util';
 import { MAX_OPS, parseEmail } from './validate';
 import { parseSurahParam, tafsirAllowed, tafsirKey } from './tafsir';
+import { leaveAllGroups, registerGroups } from './groups';
 import { USAGE_PER_HOUR, dayMinus, inList, jakartaDay, parseUsage } from './usage';
 
 const API = '/api/v1';
@@ -496,6 +497,9 @@ export function createApp(overrides: Partial<Deps> = {}): Hono<AppBindings> {
     });
   });
 
+  // ---- khatam bersama (groups) ----
+  registerGroups(app, { requireAuth, ok, now: deps.now });
+
   // ---- export / delete ----
   app.get('/export', async (c) => {
     const auth = requireAuth(c);
@@ -537,6 +541,7 @@ export function createApp(overrides: Partial<Deps> = {}): Hono<AppBindings> {
     const auth = requireAuth(c);
     const db = c.env.DB;
     const id = auth.userId;
+    await leaveAllGroups(db, id, deps.now());
     await db.batch([
       db.prepare('DELETE FROM op_log WHERE user_id = ?1').bind(id),
       db.prepare('DELETE FROM bookmarks WHERE user_id = ?1').bind(id),
