@@ -155,7 +155,7 @@ import { SHEET_STYLES } from './sheet-styles';
       <h3>Privasi</h3>
       <p>
         Posisi baca, penanda, dan preferensi disimpan di perangkat ini. Bila Anda mengaktifkan
-        sinkronisasi, hanya ketiganya yang dikirim ke cloud. Tanpa iklan, tanpa pelacakan.
+        sinkronisasi, hanya ketiganya yang dikirim ke cloud. Tanpa iklan, tanpa pelacakan; hanya hitungan anonim jumlah perangkat per hari.
         <a class="link" href="/privasi" target="_blank" rel="noopener">Kebijakan privasi lengkap</a>
       </p>
     </section>

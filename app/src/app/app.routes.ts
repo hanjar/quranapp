@@ -55,6 +55,12 @@ export const routes: Routes = [
     title: 'Tafsir Ibnu Katsir · Mushaf Digital',
   },
   {
+    // Owner-only usage dashboard (the API enforces it).
+    path: 'statistik',
+    loadComponent: () => import('./features/stats/stats-page').then((m) => m.StatsPage),
+    title: 'Statistik · Mushaf Digital',
+  },
+  {
     path: 'selamat-datang',
     loadComponent: () => import('./features/onboarding/welcome').then((m) => m.Welcome),
     title: 'Selamat datang · Mushaf Digital',

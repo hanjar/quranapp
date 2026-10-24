@@ -12,6 +12,7 @@ declare global {
       GITHUB_TOKEN?: string;
       TAFSIR?: R2Bucket;
       TAFSIR_EMAILS?: string;
+      ADMIN_EMAILS?: string;
       TEST_MIGRATIONS: D1Migration[];
     }
   }

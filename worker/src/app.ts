@@ -50,6 +50,7 @@ import {
 } from './util';
 import { MAX_OPS, parseEmail } from './validate';
 import { parseSurahParam, tafsirAllowed, tafsirKey } from './tafsir';
+import { USAGE_PER_HOUR, dayMinus, inList, jakartaDay, parseUsage } from './usage';
 
 const API = '/api/v1';
 const SESSION_COOKIE = 'mf_session';
@@ -430,6 +431,69 @@ export function createApp(overrides: Partial<Deps> = {}): Hono<AppBindings> {
       ),
     );
     return ok(c, { stored: d.entries.length });
+  });
+
+  // ---- anonymous usage (one row per device per day) and the owner's dashboard ----
+  app.post('/usage', async (c) => {
+    const now = deps.now();
+    const p = parseUsage(await readJsonBody(c, 2048));
+    if (!p) throw new ApiError(400, 'invalid_input', 'Data tidak valid.');
+    const ip = c.req.header('CF-Connecting-IP') ?? 'unknown';
+    const HOUR = 60 * 60 * 1000;
+    const hour = await windowCount(c.env.DB, `usage:${ip}`, HOUR, now);
+    if (hour.count >= USAGE_PER_HOUR) {
+      throw new ApiError(429, 'rate_limited', 'Too many requests.', { 'Retry-After': String(hour.retryAfter) });
+    }
+    await windowHit(c.env.DB, `usage:${ip}`, HOUR, now);
+    // Salted so the stored value cannot be matched to the device id kept elsewhere (errors, sync).
+    const device = (await sha256Hex(`usage:v1:${p.deviceId}`)).slice(0, 24);
+    await c.env.DB.prepare(
+      `INSERT INTO usage_days (day, device, standalone, signed_in, app_version) VALUES (?1, ?2, ?3, ?4, ?5)
+       ON CONFLICT (day, device) DO UPDATE SET standalone = MAX(standalone, excluded.standalone),
+         signed_in = MAX(signed_in, excluded.signed_in), app_version = excluded.app_version`,
+    )
+      .bind(jakartaDay(now), device, p.standalone ? 1 : 0, c.get('auth') ? 1 : 0, p.appVersion)
+      .run();
+    return ok(c, { ok: true });
+  });
+
+  app.get('/stats/access', (c) => ok(c, { allowed: inList(c.env.ADMIN_EMAILS, c.get('auth')?.email) }));
+
+  app.get('/stats', async (c) => {
+    const a = requireAuth(c);
+    if (!inList(c.env.ADMIN_EMAILS, a.email)) throw new ApiError(403, 'forbidden', 'Not available for this account.');
+    const now = deps.now();
+    const db = c.env.DB;
+    const [days, wau, mau, total, ver, users, khatam] = await db.batch([
+      db
+        .prepare(
+          `SELECT day, COUNT(*) AS active, SUM(standalone) AS installed, SUM(signed_in) AS signed_in
+           FROM usage_days WHERE day >= ?1 GROUP BY day ORDER BY day`,
+        )
+        .bind(dayMinus(now, 89)),
+      db.prepare('SELECT COUNT(DISTINCT device) AS n FROM usage_days WHERE day >= ?1').bind(dayMinus(now, 6)),
+      db.prepare('SELECT COUNT(DISTINCT device) AS n FROM usage_days WHERE day >= ?1').bind(dayMinus(now, 29)),
+      db.prepare('SELECT COUNT(DISTINCT device) AS n FROM usage_days'),
+      db
+        .prepare(
+          `SELECT app_version AS version, COUNT(*) AS n FROM usage_days WHERE day >= ?1
+           GROUP BY app_version ORDER BY n DESC LIMIT 8`,
+        )
+        .bind(dayMinus(now, 6)),
+      db.prepare('SELECT COUNT(*) AS n FROM users WHERE deleted_at IS NULL'),
+      db.prepare('SELECT COUNT(*) AS n FROM khatam_rounds WHERE deleted_at IS NULL AND finished_at IS NOT NULL'),
+    ]);
+    const n = (r: D1Result | undefined) => Number((r?.results?.[0] as { n?: number } | undefined)?.n ?? 0);
+    return ok(c, {
+      today: jakartaDay(now),
+      days: days?.results ?? [],
+      wau: n(wau),
+      mau: n(mau),
+      totalDevices: n(total),
+      versions: ver?.results ?? [],
+      accounts: n(users),
+      khatamFinished: n(khatam),
+    });
   });
 
   // ---- export / delete ----

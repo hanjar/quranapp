@@ -14,4 +14,6 @@ export interface Env {
   TAFSIR?: R2Bucket;
   /** Secret: comma-separated emails allowed to read the private tafsir. */
   TAFSIR_EMAILS?: string;
+  /** Secret: comma-separated emails that may read the usage dashboard. */
+  ADMIN_EMAILS?: string;
 }

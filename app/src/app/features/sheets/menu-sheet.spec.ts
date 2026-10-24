@@ -4,6 +4,7 @@ import { Router, provideRouter } from '@angular/router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ContentApi, OfflineApi, SyncApi, UserDataApi } from '../../core/contracts';
 import { TafsirIkService } from '../../core/tafsir/tafsir-ik.service';
+import { AdminService } from '../../core/admin.service';
 import { InstallService } from '../../core/install.service';
 import { Account, DEFAULT_PREFERENCES, Preferences, SyncStatus } from '../../core/models';
 import { ReaderUiService } from '../../core/reader-ui.service';
@@ -62,6 +63,7 @@ describe('MenuSheet', () => {
         { provide: UpdateService, useValue: { available: update } },
         { provide: InstallService, useValue: { state: install, openModal } },
         { provide: TafsirIkService, useValue: { allowed: tafsirAllowed } },
+        { provide: AdminService, useValue: { allowed: signal(false) } },
         {
           provide: ContentApi,
           useValue: { index: signal({}), pageMeta: () => ({ first: { surah: 78, ayah: 1 } }) },

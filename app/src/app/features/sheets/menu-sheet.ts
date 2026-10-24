@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@a
 import { InstallService } from '../../core/install.service';
 import { ContentApi, OfflineApi, SyncApi, UserDataApi } from '../../core/contracts';
 import { TafsirIkService } from '../../core/tafsir/tafsir-ik.service';
+import { AdminService } from '../../core/admin.service';
 import { ReaderUiService, SheetName } from '../../core/reader-ui.service';
 import { UpdateService } from '../../core/update.service';
 import { SheetHistory } from './sheet-history';
@@ -162,6 +163,26 @@ import { offlineNeedsAttention, syncNeedsAttention } from '../reader/attention';
             <path d="M9 8.5h7M9 12h7M9 15.5h4.5" />
           </svg>
           <span class="label">Tafsir</span>
+        </button>
+      </li>
+      }
+      @if (admin.allowed()) {
+      <li>
+        <button type="button" class="tile" data-tile="stats" (click)="openStats()">
+          <svg
+            width="26"
+            height="26"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.6"
+            stroke-linecap="round"
+            aria-hidden="true"
+          >
+            <path d="M4 20h16" />
+            <path d="M7 16v-5M12 16V6M17 16v-8" />
+          </svg>
+          <span class="label">Statistik</span>
         </button>
       </li>
       }
@@ -394,6 +415,7 @@ export class MenuSheet {
   private readonly offline = inject(OfflineApi);
   private readonly history = inject(SheetHistory);
   protected readonly tafsir = inject(TafsirIkService);
+  protected readonly admin = inject(AdminService);
   private readonly content = inject(ContentApi);
 
   protected readonly initial = computed(() => {
@@ -442,6 +464,10 @@ export class MenuSheet {
   protected openTafsir(): void {
     const first = this.content.index() ? this.content.pageMeta(this.ui.currentPage()).first : null;
     this.history.navigateUrl(first ? `/tafsir/${first.surah}?ayat=${first.ayah}` : '/tafsir/1');
+  }
+
+  protected openStats(): void {
+    this.history.navigateUrl('/statistik');
   }
 
   /** The doa is a page of its own: replace the sheet's history entry like the search sheet does. */
