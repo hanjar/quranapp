@@ -60,6 +60,9 @@ export interface PageLoadResult {
     '[attr.aria-current]': "active() ? 'page' : null",
     '[class.is-active]': 'active()',
     '[class.is-bare]': 'bare()',
+    // Odd pages are the right-hand page of the open mushaf, even pages the left.
+    '[class.is-right]': 'page() % 2 === 1',
+    '[class.is-left]': 'page() % 2 === 0',
     '[attr.data-preview]': "preview() ? '' : null",
   },
 })
@@ -77,8 +80,8 @@ export class PageView implements OnDestroy {
     () => !this.preview() && this.marks.isPageBookmarked(this.page()),
   );
   /**
-   * Margin tab for the last bookmarked verse on the page (only when the page itself has no
-   * ribbon). Percent of the page box; null = none.
+   * Margin tab for the last bookmarked verse on the page, shown with or without the page
+   * ribbon. Percent of the page box; null = none.
    */
   protected readonly sideRibbon = signal<{ top: number; height: number; width: number } | null>(
     null,
@@ -153,7 +156,7 @@ export class PageView implements OnDestroy {
     effect(() => {
       const svg = this.svgEl();
       const bm = this.bookmarked();
-      const show = !this.pageMarked() && !this.preview();
+      const show = !this.preview();
       untracked(() => this.layoutSideRibbons(svg, show ? bm : new Set()));
     });
     effect((onCleanup) => {
@@ -164,7 +167,7 @@ export class PageView implements OnDestroy {
       const ro = new ResizeObserver(() =>
         this.layoutSideRibbons(
           svg,
-          this.pageMarked() || this.preview() ? new Set() : this.bookmarked(),
+          this.preview() ? new Set() : this.bookmarked(),
         ),
       );
       ro.observe(page);

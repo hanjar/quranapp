@@ -27,6 +27,33 @@
   inset: 0;
 }
 
+/* Which side of the open mushaf this page is: odd pages are the right-hand page, even pages the
+   left. The spine side gets a soft fold shadow; the outer side a heavier frame rule, like the
+   outer edge of a printed copy. */
+.page::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 7%;
+  pointer-events: none;
+  z-index: 1;
+}
+:host(.is-right) .page::before {
+  left: 0;
+  background: linear-gradient(to right, rgb(0 0 0 / 0.11), rgb(0 0 0 / 0.03) 45%, transparent);
+}
+:host(.is-left) .page::before {
+  right: 0;
+  background: linear-gradient(to left, rgb(0 0 0 / 0.11), rgb(0 0 0 / 0.03) 45%, transparent);
+}
+:host(.is-right) .frame--outer {
+  border-right-width: calc(var(--mf-frame-outer-w, 1.5px) * 2.6);
+}
+:host(.is-left) .frame--outer {
+  border-left-width: calc(var(--mf-frame-outer-w, 1.5px) * 2.6);
+}
+
 .frame {
   position: absolute;
   border-style: solid;
