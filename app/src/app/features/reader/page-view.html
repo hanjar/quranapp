@@ -1,5 +1,13 @@
 <div class="page">
-  <span class="frame frame--outer" aria-hidden="true"></span>
+  <span class="frame frame--outer" aria-hidden="true">
+    @if (!cover()) {
+      <i class="band band--top"></i>
+      <i class="band band--bottom"></i>
+      <i class="band band--side"></i>
+      <i class="band band--corner band--c1"></i>
+      <i class="band band--corner band--c2"></i>
+    }
+  </span>
   <span class="frame frame--inner" aria-hidden="true"></span>
   @if (pageMarked()) {
     <span class="ribbon" aria-hidden="true"></span>
