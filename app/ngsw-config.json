@@ -25,6 +25,14 @@
       }
     },
     {
+      "name": "card-backgrounds",
+      "installMode": "lazy",
+      "updateMode": "lazy",
+      "resources": {
+        "files": ["/card-bg/*.webp"]
+      }
+    },
+    {
       "name": "reading-fonts",
       "installMode": "lazy",
       "updateMode": "lazy",

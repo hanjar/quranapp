@@ -6,3 +6,6 @@ node_modules/
 Thumbs.db
 .content-cache/
 *.stackdump
+
+# Original AI background images (large); the app uses compressed copies in app/public/card-bg
+desain/background/

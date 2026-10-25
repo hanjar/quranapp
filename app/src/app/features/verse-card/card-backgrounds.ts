@@ -291,3 +291,23 @@ export const CARD_BACKGROUNDS: readonly CardBackground[] = [
     },
   },
 ];
+
+/**
+ * Photo backgrounds (AI-generated for this app, see private/prompt-latar-gambar-ayat.md), served
+ * from /card-bg as WebP in both card shapes; loaded only when picked.
+ */
+export const PHOTO_BACKGROUNDS: readonly { id: string; label: string }[] = [
+  { id: 'daun-pagi', label: 'Daun' },
+  { id: 'dinding-minimalis', label: 'Dinding' },
+  { id: 'masjid-cahaya', label: 'Serambi' },
+  { id: 'bunga-putih', label: 'Bunga putih' },
+  { id: 'gurun-senja', label: 'Gurun' },
+  { id: 'langit-malam', label: 'Bulan sabit' },
+  { id: 'laut-pagi', label: 'Laut pagi' },
+  { id: 'hujan-jendela', label: 'Hujan' },
+  { id: 'kertas-tekstur', label: 'Kertas' },
+  { id: 'pola-geometri', label: 'Ornamen' },
+];
+
+export const photoBackgroundUrl = (id: string, format: 'post' | 'story' | 'thumb'): string =>
+  `card-bg/${id}-${format}.webp`;

@@ -18,7 +18,7 @@ import { luminance, normalizeHex } from '../../core/custom-theme';
 import { ReaderUiService } from '../../core/reader-ui.service';
 import { CardFormat, GlyphWord, cardFileName, wordsOnPage } from './verse-card-layout';
 import { CardBackdrop, CardColors, renderVerseCard } from './verse-card-render';
-import { CARD_BACKGROUNDS } from './card-backgrounds';
+import { CARD_BACKGROUNDS, PHOTO_BACKGROUNDS, photoBackgroundUrl } from './card-backgrounds';
 
 /** Day colours used when the app is in night mode (the glyph ink is dark). */
 const DAY_FALLBACK: CardColors = {
@@ -286,7 +286,12 @@ export class VerseCard {
   protected readonly failed = signal(false);
   /** 'theme' (paper + braided band), a drawn background id, or 'photo'. */
   protected readonly bg = signal<string>('theme');
-  protected readonly backgrounds = CARD_BACKGROUNDS.map((b) => ({ ...b, thumb: thumbnail(b.draw) }));
+  /** Photos first (`img:<id>`), then the drawn ones. */
+  protected readonly backgrounds = [
+    ...PHOTO_BACKGROUNDS.map((p) => ({ id: `img:${p.id}`, label: p.label, thumb: photoBackgroundUrl(p.id, 'thumb') })),
+    ...CARD_BACKGROUNDS.map((b) => ({ id: b.id, label: b.label, thumb: thumbnail(b.draw) })),
+  ];
+  private readonly photoCache = new Map<string, Promise<ImageBitmap>>();
   private readonly photo = signal<ImageBitmap | null>(null);
   protected readonly photoThumb = signal<string | null>(null);
 
@@ -345,7 +350,7 @@ export class VerseCard {
         },
         this.colors(),
         format,
-        this.backdrop(),
+        await this.backdropFor(format),
       );
       const blob = await new Promise<Blob | null>((res) => canvas.toBlob(res, 'image/png'));
       if (seq !== this.seq) return;
@@ -391,8 +396,23 @@ export class VerseCard {
     };
   }
 
-  private backdrop(): CardBackdrop | null {
+  private async backdropFor(format: CardFormat): Promise<CardBackdrop | null> {
     const id = this.bg();
+    if (id.startsWith('img:')) {
+      const url = photoBackgroundUrl(id.slice(4), format);
+      let p = this.photoCache.get(url);
+      if (!p) {
+        p = fetch(url)
+          .then((r) => {
+            if (!r.ok) throw new Error(String(r.status));
+            return r.blob();
+          })
+          .then((b) => createImageBitmap(b));
+        p.catch(() => this.photoCache.delete(url));
+        this.photoCache.set(url, p);
+      }
+      return { image: await p };
+    }
     if (id === 'photo') {
       const p = this.photo();
       return p ? { image: p } : null;
