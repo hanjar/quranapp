@@ -17,7 +17,8 @@ import { ContentApi, UserDataApi } from '../../core/contracts';
 import { luminance, normalizeHex } from '../../core/custom-theme';
 import { ReaderUiService } from '../../core/reader-ui.service';
 import { CardFormat, GlyphWord, cardFileName, wordsOnPage } from './verse-card-layout';
-import { CardColors, renderVerseCard } from './verse-card-render';
+import { CardBackdrop, CardColors, renderVerseCard } from './verse-card-render';
+import { CARD_BACKGROUNDS } from './card-backgrounds';
 
 /** Day colours used when the app is in night mode (the glyph ink is dark). */
 const DAY_FALLBACK: CardColors = {
@@ -55,6 +56,28 @@ const DAY_FALLBACK: CardColors = {
         } @else {
           <p class="status">Membuat gambar…</p>
         }
+      </div>
+
+      <div class="bgs" role="radiogroup" aria-label="Latar">
+        <button type="button" role="radio" class="bg" [attr.aria-checked]="bg() === 'theme'" (click)="bg.set('theme')">
+          <span class="bg__thumb bg__thumb--theme" aria-hidden="true"></span>
+          <span class="bg__label">Tema</span>
+        </button>
+        @for (b of backgrounds; track b.id) {
+          <button type="button" role="radio" class="bg" [attr.aria-checked]="bg() === b.id" (click)="bg.set(b.id)">
+            <img class="bg__thumb" [src]="b.thumb" alt="" />
+            <span class="bg__label">{{ b.label }}</span>
+          </button>
+        }
+        <label class="bg" [class.is-on]="bg() === 'photo'">
+          <input type="file" accept="image/*" class="mf-visually-hidden" (change)="pickPhoto($event)" />
+          @if (photoThumb(); as t) {
+            <img class="bg__thumb" [src]="t" alt="" />
+          } @else {
+            <span class="bg__thumb bg__thumb--photo" aria-hidden="true">+</span>
+          }
+          <span class="bg__label">Foto saya</span>
+        </label>
       </div>
 
       <div class="opts">
@@ -142,6 +165,56 @@ const DAY_FALLBACK: CardColors = {
       color: var(--ui-muted);
       font-size: 14px;
     }
+    .bgs {
+      display: flex;
+      gap: 8px;
+      overflow-x: auto;
+      padding-bottom: 4px;
+      scrollbar-width: thin;
+    }
+    .bg {
+      flex: none;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      width: 66px;
+      padding: 0;
+      border: none;
+      background: none;
+      color: var(--ui-ink);
+      font: inherit;
+      cursor: pointer;
+    }
+    .bg__thumb {
+      width: 60px;
+      height: 75px;
+      border-radius: 8px;
+      object-fit: cover;
+      border: 2px solid transparent;
+      box-sizing: border-box;
+    }
+    .bg[aria-checked='true'] .bg__thumb,
+    .bg.is-on .bg__thumb {
+      border-color: var(--ui-primary);
+    }
+    .bg__thumb--theme {
+      background: var(--mf-paper);
+      outline: 3px solid var(--mf-frame-ink);
+      outline-offset: -8px;
+    }
+    .bg__thumb--photo {
+      display: grid;
+      place-items: center;
+      font-size: 26px;
+      color: var(--ui-muted);
+      border: 2px dashed var(--ui-hair);
+    }
+    .bg__label {
+      font-size: 11.5px;
+      text-align: center;
+      line-height: 1.2;
+    }
     .opts {
       display: flex;
       align-items: center;
@@ -205,6 +278,11 @@ export class VerseCard {
   protected readonly blob = signal<Blob | null>(null);
   protected readonly url = signal<string | null>(null);
   protected readonly failed = signal(false);
+  /** 'theme' (paper + braided band), a drawn background id, or 'photo'. */
+  protected readonly bg = signal<string>('theme');
+  protected readonly backgrounds = CARD_BACKGROUNDS.map((b) => ({ ...b, thumb: thumbnail(b.draw) }));
+  private readonly photo = signal<ImageBitmap | null>(null);
+  protected readonly photoThumb = signal<string | null>(null);
 
   private readonly ref = computed(() => ({
     surah: clampInt(this.surah(), 1, 114),
@@ -222,6 +300,8 @@ export class VerseCard {
       const r = this.ref();
       const f = this.format();
       const tr = this.withTranslation();
+      this.bg();
+      this.photo();
       this.content.index();
       untracked(() => void this.build(r, f, tr));
     });
@@ -257,6 +337,7 @@ export class VerseCard {
         },
         this.colors(),
         format,
+        this.backdrop(),
       );
       const blob = await new Promise<Blob | null>((res) => canvas.toBlob(res, 'image/png'));
       if (seq !== this.seq) return;
@@ -300,6 +381,36 @@ export class VerseCard {
       ink: v('--mf-text-ink') ?? DAY_FALLBACK.ink,
       accent: v('--mf-ayah-ornament') ?? DAY_FALLBACK.accent,
     };
+  }
+
+  private backdrop(): CardBackdrop | null {
+    const id = this.bg();
+    if (id === 'photo') {
+      const p = this.photo();
+      return p ? { image: p } : null;
+    }
+    const b = CARD_BACKGROUNDS.find((x) => x.id === id);
+    return b ? { draw: b.draw } : null;
+  }
+
+  /** "Foto saya": stays on this device, only drawn into the image. */
+  protected async pickPhoto(e: Event): Promise<void> {
+    const input = e.target as HTMLInputElement;
+    const file = input.files?.[0];
+    input.value = '';
+    if (!file) return;
+    try {
+      const bmp = await createImageBitmap(file);
+      this.photo()?.close();
+      this.photo.set(bmp);
+      this.photoThumb.set(thumbnail((ctx, w, h) => {
+        const sc = Math.max(w / bmp.width, h / bmp.height);
+        ctx.drawImage(bmp, (w - bmp.width * sc) / 2, (h - bmp.height * sc) / 2, bmp.width * sc, bmp.height * sc);
+      }));
+      this.bg.set('photo');
+    } catch {
+      this.ui.showToast({ message: 'Foto tidak bisa dibuka. Coba foto lain.' });
+    }
   }
 
   private setUrl(u: string | null): void {
@@ -346,6 +457,18 @@ export class VerseCard {
     const page = (this.content.index() ? this.content.pageOf(r) : null) ?? this.userData.position()?.page ?? 1;
     void this.router.navigate(['/hal', page]);
   }
+}
+
+/** Small preview of a drawn background (drawn at card size, scaled down). */
+function thumbnail(draw: (ctx: CanvasRenderingContext2D, w: number, h: number) => void): string {
+  const c = document.createElement('canvas');
+  c.width = 120;
+  c.height = 150;
+  const ctx = c.getContext('2d');
+  if (!ctx) return '';
+  ctx.scale(120 / 1080, 150 / 1350);
+  draw(ctx, 1080, 1350);
+  return c.toDataURL('image/jpeg', 0.8);
 }
 
 function clampInt(raw: string, lo: number, hi: number): number {

@@ -147,11 +147,44 @@ function textBlock(
   };
 }
 
-/** Draws the card; returns the canvas. Fonts must already be loaded (document.fonts). */
+/** What goes behind the text: a drawn background or the user's own photo (cover-fit). */
+export type CardBackdrop =
+  | { draw: (ctx: CanvasRenderingContext2D, w: number, h: number) => void }
+  | { image: CanvasImageSource & { width: number; height: number } };
+
+function drawCover(ctx: CanvasRenderingContext2D, img: CanvasImageSource & { width: number; height: number }, w: number, h: number) {
+  const s = Math.max(w / img.width, h / img.height);
+  const dw = img.width * s;
+  const dh = img.height * s;
+  ctx.drawImage(img, (w - dw) / 2, (h - dh) / 2, dw, dh);
+}
+
+function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+}
+
+/** Hex colour with alpha (0..1). */
+function withAlpha(hex: string, a: number): string {
+  const n = parseInt(hex.slice(1), 16);
+  return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${a})`;
+}
+
+/**
+ * Draws the card; returns the canvas. Fonts must already be loaded (document.fonts).
+ * Without a backdrop: theme paper with the braided band. With one: the backdrop full bleed and the
+ * text on a translucent paper panel so it stays readable on any picture.
+ */
 export async function renderVerseCard(
   content: CardContent,
   colors: CardColors,
   format: CardFormat,
+  backdrop: CardBackdrop | null = null,
 ): Promise<HTMLCanvasElement> {
   const { w: W, h: H } = CARD_SIZE[format];
   const canvas = document.createElement('canvas');
@@ -159,29 +192,40 @@ export async function renderVerseCard(
   canvas.height = H;
   const ctx = canvas.getContext('2d')!;
 
-  ctx.fillStyle = colors.surround;
-  ctx.fillRect(0, 0, W, H);
-  const m = 34;
-  ctx.fillStyle = colors.paper;
-  ctx.fillRect(m, m, W - 2 * m, H - 2 * m);
-  const t = 40;
-  await drawBand(ctx, colors.frame, m + 18, m + 18, W - 2 * (m + 18), H - 2 * (m + 18), t);
+  // Backdrop: margin around the panel (the picture shows there); the panel shrinks to the text.
+  const P = 96;
+  let inset: number;
+  if (backdrop) {
+    if ('draw' in backdrop) backdrop.draw(ctx, W, H);
+    else drawCover(ctx, backdrop.image, W, H);
+    inset = P + 30;
+  } else {
+    ctx.fillStyle = colors.surround;
+    ctx.fillRect(0, 0, W, H);
+    const m = 34;
+    ctx.fillStyle = colors.paper;
+    ctx.fillRect(m, m, W - 2 * m, H - 2 * m);
+    const t = 40;
+    await drawBand(ctx, colors.frame, m + 18, m + 18, W - 2 * (m + 18), H - 2 * (m + 18), t);
+    inset = m + 18 + t;
+  }
 
   const cx = W / 2;
-  const maxW = W - 2 * (m + 18 + t + 56);
+  const maxW = W - 2 * (inset + 56);
   const titleH = 120;
   const footH = 150;
-  const top = m + 18 + t + 40;
-  const bottom = H - (m + 18 + t + 30);
-  const avail = bottom - top - titleH - footH;
+  let top = inset + 40;
+  let bottom = H - (inset + 30);
+  let avail = bottom - top - titleH - footH;
 
   // Largest sizes whose blocks fit the space between title and footer.
   let ar: Block | null = null;
   let tr: Block | null = null;
   const gapBetween = 56;
-  for (let k = 0; k <= 14; k++) {
-    const arSize = Math.round(70 - k * 3);
-    const trSize = Math.round(40 - k * 1.2);
+  for (let k = 0; k <= 20; k++) {
+    // Short ayat get large glyphs; long ones shrink until they fit.
+    const arSize = 90 - k * 3;
+    const trSize = Math.round(Math.max(24, 42 - k * 1.1));
     ar = content.glyphs.length
       ? glyphBlock(ctx, content.glyphs, arSize, maxW, cx, colors.ink)
       : content.arabic
@@ -192,6 +236,28 @@ export async function renderVerseCard(
       : null;
     const total = (ar?.height ?? 0) + (tr?.height ?? 0) + (ar && tr ? gapBetween : 0);
     if (total <= avail) break;
+  }
+
+  if (backdrop) {
+    // Panel just tall enough for the text, centred; long ayat still use the full height.
+    const body = (ar?.height ?? 0) + (tr?.height ?? 0) + (ar && tr ? gapBetween : 0);
+    avail = Math.min(avail, body + 40);
+    const panelH = 40 + titleH + avail + footH + 30 + 24;
+    const py = Math.max(P, (H - panelH) / 2);
+    ctx.save();
+    ctx.shadowColor = 'rgba(0,0,0,0.25)';
+    ctx.shadowBlur = 44;
+    ctx.shadowOffsetY = 12;
+    ctx.fillStyle = withAlpha(colors.paper, 0.86);
+    roundRect(ctx, P, py, W - 2 * P, panelH, 34);
+    ctx.fill();
+    ctx.restore();
+    ctx.strokeStyle = withAlpha(colors.frame, 0.5);
+    ctx.lineWidth = 2;
+    roundRect(ctx, P + 16, py + 16, W - 2 * (P + 16), panelH - 32, 24);
+    ctx.stroke();
+    top = py + 30 + 40;
+    bottom = top + titleH + avail + footH;
   }
 
   // Title
