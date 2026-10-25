@@ -93,6 +93,10 @@ const DAY_FALLBACK: CardColors = {
           <input type="checkbox" [checked]="withTranslation()" (change)="withTranslation.set(!withTranslation())" />
           Terjemahan
         </label>
+        <label class="check">
+          <input type="checkbox" data-testid="card-tajweed" [checked]="tajweed()" (change)="setTajweed(!tajweed())" />
+          Tajwid berwarna
+        </label>
       </div>
 
       <div class="actions">
@@ -275,6 +279,8 @@ export class VerseCard {
 
   protected readonly format = signal<CardFormat>('post');
   protected readonly withTranslation = signal(true);
+  /** Tajweed colours on the mushaf glyphs (remembered on this device). */
+  protected readonly tajweed = signal(readTajweed());
   protected readonly blob = signal<Blob | null>(null);
   protected readonly url = signal<string | null>(null);
   protected readonly failed = signal(false);
@@ -300,6 +306,7 @@ export class VerseCard {
       const r = this.ref();
       const f = this.format();
       const tr = this.withTranslation();
+      this.tajweed();
       this.bg();
       this.photo();
       this.content.index();
@@ -330,6 +337,7 @@ export class VerseCard {
           glyphs,
           arabic,
           translation,
+          tajweed: this.tajweed(),
           footer: `Mushaf Digital · ${location.host}`,
           credit: glyphs.length
             ? 'Mushaf Madinah (KFGQPC QCF V4) · Terjemahan Kemenag RI'
@@ -413,6 +421,15 @@ export class VerseCard {
     }
   }
 
+  protected setTajweed(on: boolean): void {
+    this.tajweed.set(on);
+    try {
+      localStorage.setItem(TAJWEED_KEY, on ? '1' : '0');
+    } catch {
+      /* storage blocked: lasts for this page */
+    }
+  }
+
   private setUrl(u: string | null): void {
     const old = this.url();
     if (old) URL.revokeObjectURL(old);
@@ -456,6 +473,16 @@ export class VerseCard {
     const r = this.ref();
     const page = (this.content.index() ? this.content.pageOf(r) : null) ?? this.userData.position()?.page ?? 1;
     void this.router.navigate(['/hal', page]);
+  }
+}
+
+const TAJWEED_KEY = 'mf-card-tajweed';
+
+function readTajweed(): boolean {
+  try {
+    return localStorage.getItem(TAJWEED_KEY) !== '0';
+  } catch {
+    return true;
   }
 }
 

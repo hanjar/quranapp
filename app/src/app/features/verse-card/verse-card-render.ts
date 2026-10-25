@@ -10,6 +10,8 @@ export interface CardColors {
 }
 
 export interface CardContent {
+  /** false: mushaf glyphs in one ink colour instead of the tajweed colours. */
+  tajweed?: boolean;
   /** "Al-Baqarah · Ayat 255" */
   title: string;
   /** "QS. Al-Baqarah [2]: 255" */
@@ -86,6 +88,7 @@ function glyphBlock(
   maxW: number,
   cx: number,
   color: string,
+  mono: boolean,
 ): Block {
   const gap = size * 0.18;
   const widths = glyphs.map((g) => {
@@ -97,20 +100,35 @@ function glyphBlock(
   return {
     height: lines.length * lh,
     draw: (top) => {
-      ctx.fillStyle = color;
-      ctx.textBaseline = 'middle';
-      ctx.textAlign = 'right';
+      // The QCF fonts paint the tajweed colours themselves (COLR). For plain text, draw them on a
+      // separate layer and recolour every painted pixel with the ink (keeps the anti-aliasing).
+      const layer = mono ? document.createElement('canvas') : null;
+      if (layer) {
+        layer.width = ctx.canvas.width;
+        layer.height = Math.ceil(lines.length * lh);
+      }
+      const c = layer?.getContext('2d') ?? ctx;
+      const y0 = layer ? 0 : top;
+      c.fillStyle = color;
+      c.textBaseline = 'middle';
+      c.textAlign = 'right';
       lines.forEach(([s, e], li) => {
         let lw = 0;
         for (let i = s; i < e; i++) lw += widths[i]! + (i > s ? gap : 0);
         let xr = cx + lw / 2;
-        const y = top + li * lh + lh / 2;
+        const y = y0 + li * lh + lh / 2;
         for (let i = s; i < e; i++) {
-          ctx.font = `${size}px '${glyphs[i]!.family}'`;
-          ctx.fillText(glyphs[i]!.code, xr, y);
+          c.font = `${size}px '${glyphs[i]!.family}'`;
+          c.fillText(glyphs[i]!.code, xr, y);
           xr -= widths[i]! + gap;
         }
       });
+      if (layer) {
+        c.globalCompositeOperation = 'source-in';
+        c.fillStyle = color;
+        c.fillRect(0, 0, layer.width, layer.height);
+        ctx.drawImage(layer, 0, top);
+      }
     },
   };
 }
@@ -227,7 +245,7 @@ export async function renderVerseCard(
     const arSize = 90 - k * 3;
     const trSize = Math.round(Math.max(24, 42 - k * 1.1));
     ar = content.glyphs.length
-      ? glyphBlock(ctx, content.glyphs, arSize, maxW, cx, colors.ink)
+      ? glyphBlock(ctx, content.glyphs, arSize, maxW, cx, colors.ink, content.tajweed === false)
       : content.arabic
         ? textBlock(ctx, content.arabic, AR_FALLBACK, arSize * 0.8, 1.9, maxW, cx, colors.ink, true)
         : null;
