@@ -500,9 +500,9 @@ const TAJWEED_KEY = 'mf-card-tajweed';
 
 function readTajweed(): boolean {
   try {
-    return localStorage.getItem(TAJWEED_KEY) !== '0';
+    return localStorage.getItem(TAJWEED_KEY) === '1';
   } catch {
-    return true;
+    return false;
   }
 }
 

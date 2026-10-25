@@ -109,17 +109,25 @@ function glyphBlock(
       }
       const c = layer?.getContext('2d') ?? ctx;
       const y0 = layer ? 0 : top;
-      c.fillStyle = color;
-      c.textBaseline = 'middle';
-      c.textAlign = 'right';
+      // The ayah-number ornament keeps its own colours in plain mode (recoloured it is a blot).
+      const ornaments: { code: string; family: string; x: number; y: number }[] = [];
+      for (const k of [c, ctx]) {
+        k.fillStyle = color;
+        k.textBaseline = 'middle';
+        k.textAlign = 'right';
+      }
       lines.forEach(([s, e], li) => {
         let lw = 0;
         for (let i = s; i < e; i++) lw += widths[i]! + (i > s ? gap : 0);
         let xr = cx + lw / 2;
         const y = y0 + li * lh + lh / 2;
         for (let i = s; i < e; i++) {
-          c.font = `${size}px '${glyphs[i]!.family}'`;
-          c.fillText(glyphs[i]!.code, xr, y);
+          const g = glyphs[i]!;
+          if (layer && g.end) ornaments.push({ code: g.code, family: g.family, x: xr, y: top + li * lh + lh / 2 });
+          else {
+            c.font = `${size}px '${g.family}'`;
+            c.fillText(g.code, xr, y);
+          }
           xr -= widths[i]! + gap;
         }
       });
@@ -128,6 +136,10 @@ function glyphBlock(
         c.fillStyle = color;
         c.fillRect(0, 0, layer.width, layer.height);
         ctx.drawImage(layer, 0, top);
+        for (const o of ornaments) {
+          ctx.font = `${size}px '${o.family}'`;
+          ctx.fillText(o.code, o.x, o.y);
+        }
       }
     },
   };
@@ -266,7 +278,7 @@ export async function renderVerseCard(
     ctx.shadowColor = 'rgba(0,0,0,0.25)';
     ctx.shadowBlur = 44;
     ctx.shadowOffsetY = 12;
-    ctx.fillStyle = withAlpha(colors.paper, 0.86);
+    ctx.fillStyle = withAlpha(colors.paper, 0.72);
     roundRect(ctx, P, py, W - 2 * P, panelH, 34);
     ctx.fill();
     ctx.restore();
