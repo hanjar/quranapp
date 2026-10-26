@@ -123,7 +123,8 @@ function glyphBlock(
         const y = y0 + li * lh + lh / 2;
         for (let i = s; i < e; i++) {
           const g = glyphs[i]!;
-          if (layer && g.end) ornaments.push({ code: g.code, family: g.family, x: xr, y: top + li * lh + lh / 2 });
+          if (layer && g.end)
+            ornaments.push({ code: g.code, family: g.family, x: xr, y: top + li * lh + lh / 2 });
           else {
             c.font = `${size}px '${g.family}'`;
             c.fillText(g.code, xr, y);
@@ -182,14 +183,26 @@ export type CardBackdrop =
   | { draw: (ctx: CanvasRenderingContext2D, w: number, h: number) => void }
   | { image: CanvasImageSource & { width: number; height: number } };
 
-function drawCover(ctx: CanvasRenderingContext2D, img: CanvasImageSource & { width: number; height: number }, w: number, h: number) {
+function drawCover(
+  ctx: CanvasRenderingContext2D,
+  img: CanvasImageSource & { width: number; height: number },
+  w: number,
+  h: number,
+) {
   const s = Math.max(w / img.width, h / img.height);
   const dw = img.width * s;
   const dh = img.height * s;
   ctx.drawImage(img, (w - dw) / 2, (h - dh) / 2, dw, dh);
 }
 
-function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
+function roundRect(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  r: number,
+) {
   ctx.beginPath();
   ctx.moveTo(x + r, y);
   ctx.arcTo(x + w, y, x + w, y + h, r);
