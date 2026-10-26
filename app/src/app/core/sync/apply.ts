@@ -29,7 +29,9 @@ import {
   mergeReadPages,
 } from '../models';
 import { MushafDb } from '../storage/db';
-import { bookmarkPayload, folderPayload, makeOp, readDayPayload, readMarksPayload, roundPayload } from './outbox';
+import { bookmarkPayload, folderPayload, makeOp, prefsPayload, readDayPayload, readMarksPayload, roundPayload } from './outbox';
+import { mergePrefs, newerIn } from './prefs-merge';
+import type { PrefExtraValue } from '../models';
 import { BatchResult, Change } from './sync-types';
 
 /**
@@ -270,13 +272,15 @@ async function applyPrefs(ctx: Ctx, ch: Change): Promise<void> {
   if (ch.deleted || !ch.data) return;
   const local = await db.prefs.get('prefs');
   if (local && local.rev != null && local.rev > ch.rev) return;
-  if (!ctx.opts.force && pendingFor(ctx, 'prefs', 'prefs').length) {
-    // Local edit is newer than this pull: keep it, retry on top of the current revision.
-    await bumpBaseRev(ctx, 'prefs', 'prefs', ch.rev);
-    return;
-  }
-  const d = ch.data;
+  const pending = !ctx.opts.force && pendingFor(ctx, 'prefs', 'prefs').length > 0;
+  // Local edit still to be sent: it goes on top of the current revision.
+  if (pending) await bumpBaseRev(ctx, 'prefs', 'prefs', ch.rev);
   const base = local ?? { ...DEFAULT_PREFERENCES, key: 'prefs' as const };
+  // Per-setting merge (see prefs-merge.ts): a local setting changed later than the cloud's
+  // copy survives the pull and is sent on.
+  const localPayload = local ? (prefsPayload(base) as Record<string, unknown>) : null;
+  const d = localPayload ? mergePrefs(localPayload, ch.data) : ch.data;
+  const sendOn = !pending && !!localPayload && newerIn(localPayload, ch.data);
   const paper = str(d, 'paperTheme');
   const ui = str(d, 'uiTheme');
   const layout = str(d, 'layoutMode');
@@ -319,10 +323,38 @@ async function applyPrefs(ctx: Ctx, ch: Change): Promise<void> {
         ? (renderer as PageRendererId)
         : base.pageRenderer,
     showDoaKhatam: bool(d, 'showDoaKhatam') ?? base.showDoaKhatam,
+    extra: parseExtra(d['extra']) ?? base.extra,
+    fieldTimes: parseFieldTimes(d['fieldTimes']) ?? base.fieldTimes,
     updatedAt: num(d, 'updatedAt') ?? base.updatedAt,
     rev: ch.rev,
   });
   ctx.changed = true;
+  if (sendOn) {
+    const merged = await db.prefs.get('prefs');
+    if (merged) {
+      const op = makeOp(ctx.accountId, 'prefs', 'prefs', 'upsert', prefsPayload(merged), ch.rev);
+      await db.outbox.add(op);
+      ctx.pending.push(op);
+    }
+  }
+}
+
+/** prefs.extra from the wire: short strings, numbers, booleans only. */
+export function parseExtra(raw: unknown): Record<string, PrefExtraValue> | null {
+  if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) return null;
+  const out: Record<string, PrefExtraValue> = {};
+  for (const [k, v] of Object.entries(raw as Record<string, unknown>)) {
+    if (typeof v === 'boolean' || (typeof v === 'number' && Number.isFinite(v)) || (typeof v === 'string' && v.length <= 600))
+      out[k] = v;
+  }
+  return out;
+}
+
+export function parseFieldTimes(raw: unknown): Record<string, number> | null {
+  if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) return null;
+  const out: Record<string, number> = {};
+  for (const [k, v] of Object.entries(raw as Record<string, unknown>)) if (typeof v === 'number' && Number.isFinite(v)) out[k] = v;
+  return out;
 }
 
 async function applyPosition(ctx: Ctx, ch: Change): Promise<void> {

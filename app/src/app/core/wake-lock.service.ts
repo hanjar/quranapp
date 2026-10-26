@@ -1,4 +1,5 @@
 import { DestroyRef, Injectable, effect, inject, signal, untracked } from '@angular/core';
+import { syncedSetting } from './synced-setting';
 import { NavigationEnd, Router } from '@angular/router';
 import { AudioService } from './audio/audio.service';
 import { ReaderUiService } from './reader-ui.service';
@@ -23,14 +24,8 @@ export function idleMs(mode: WakeMode): number | null {
   return null;
 }
 
-function readMode(): WakeMode {
-  try {
-    const v = localStorage.getItem(KEY);
-    if (v === 'off' || v === '10' || v === '30' || v === 'reading') return v;
-  } catch {
-    /* storage unavailable */
-  }
-  return DEFAULT_MODE;
+function decodeMode(v: string | null): WakeMode {
+  return v === 'off' || v === '10' || v === '30' || v === 'reading' ? v : DEFAULT_MODE;
 }
 
 /** Minimal shape of the Screen Wake Lock API we rely on. */
@@ -54,7 +49,9 @@ export class WakeLockService {
 
   readonly supported =
     typeof navigator !== 'undefined' && !!(navigator as { wakeLock?: unknown }).wakeLock;
-  readonly mode = signal<WakeMode>(readMode());
+  /** Synced with the account (prefs.extra.wake), mirrored to the old local key. */
+  private readonly setting = syncedSetting<WakeMode>('wake', KEY, decodeMode, (m) => m);
+  readonly mode = this.setting.value;
   /** True while a wake lock is actually held. */
   readonly held = signal(false);
 
@@ -133,15 +130,10 @@ export class WakeLockService {
   }
 
   setMode(mode: WakeMode): void {
-    this.mode.set(mode);
+    this.setting.set(mode);
     this.idle.set(false);
     this.clearTimer();
     this.armTimer(mode);
-    try {
-      localStorage.setItem(KEY, mode);
-    } catch {
-      /* storage unavailable */
-    }
   }
 
   /** Register interaction: leave idle state and restart the countdown. */

@@ -1,3 +1,4 @@
+import { mergePrefs } from './prefs-merge';
 import {
   type BookmarkData,
   type FolderData,
@@ -556,12 +557,17 @@ function applyOp(
       if (op.entityId !== 'prefs') return reject('entityId must be "prefs"');
       const p = parsePrefs(op.payload);
       if (!p.ok) return reject(p.error);
-      if (sim.prefs && op.baseRev !== sim.prefs.rev) {
-        return { opId: op.opId, status: 'conflict', current: prefsChange(sim.prefs) };
+      // Per-setting merge instead of a whole-object conflict: a device only overrides the
+      // settings it changed (see prefs-merge.ts), so nothing another device set is lost.
+      let value = p.value;
+      if (sim.prefs) {
+        const stored = JSON.parse(sim.prefs.payload) as unknown;
+        const merged = parsePrefs(mergePrefs(isRecord(stored) ? stored : {}, p.value as unknown as Record<string, unknown>));
+        if (merged.ok) value = merged.value;
       }
       const rev = ++sim.rev;
-      sim.prefs = { payload: JSON.stringify(p.value), rev };
-      writes.push((g) => upsertPrefsStmt(db, userId, p.value, rev, g));
+      sim.prefs = { payload: JSON.stringify(value), rev };
+      writes.push((g) => upsertPrefsStmt(db, userId, value, rev, g));
       return { opId: op.opId, status: 'applied', rev };
     }
   }

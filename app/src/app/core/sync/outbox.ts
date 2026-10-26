@@ -117,6 +117,8 @@ export function prefsPayload(p: Preferences): Record<string, unknown> {
     audioFollow: p.audioFollow,
     pageRenderer: p.pageRenderer,
     showDoaKhatam: p.showDoaKhatam,
+    extra: p.extra,
+    fieldTimes: p.fieldTimes,
     updatedAt: p.updatedAt,
   };
 }

@@ -17,6 +17,7 @@ import {
   ReadingPosition,
 } from '../models';
 import { isPaperThemeId, parseCustomThemes } from '../custom-theme';
+import { parseExtra, parseFieldTimes } from '../sync/apply';
 
 export const MAX_IMPORT_BYTES = 2 * 1024 * 1024;
 const MAX_BOOKMARKS = 20000;
@@ -199,6 +200,8 @@ export function validatePreferences(raw: unknown): Preferences {
       typeof raw['showDoaKhatam'] === 'boolean'
         ? raw['showDoaKhatam']
         : DEFAULT_PREFERENCES.showDoaKhatam,
+    extra: parseExtra(raw['extra']) ?? {},
+    fieldTimes: parseFieldTimes(raw['fieldTimes']) ?? {},
     updatedAt: isTime(raw['updatedAt']) ? raw['updatedAt'] : 0,
     rev: null,
   };

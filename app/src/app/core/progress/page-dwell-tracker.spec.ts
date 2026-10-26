@@ -41,14 +41,23 @@ describe('PageDwellTracker', () => {
     expect(reads).toEqual([[7, 30_000]]);
   });
 
-  it('tracks both pages of a spread independently and keeps staying pages running', () => {
+  it('a two-page spread needs 60 s, then both pages count', () => {
     tracker.visible([4, 5]);
-    vi.advanceTimersByTime(20_000);
-    tracker.visible([5, 6]); // 4 left uncounted, 5 stays
-    vi.advanceTimersByTime(10_000); // 5 reaches 30 s
-    expect(reads).toEqual([[5, 30_000]]);
-    vi.advanceTimersByTime(20_000); // 6 reaches 30 s
-    expect(reads).toEqual([[5, 30_000], [6, 30_000]]);
+    vi.advanceTimersByTime(59_999);
+    expect(reads).toEqual([]);
+    vi.advanceTimersByTime(1);
+    expect(reads).toEqual([
+      [4, 60_000],
+      [5, 60_000],
+    ]);
+  });
+
+  it('turning to the next spread before 60 s counts nothing', () => {
+    tracker.visible([4, 5]);
+    vi.advanceTimersByTime(40_000);
+    tracker.visible([6, 7]);
+    vi.advanceTimersByTime(40_000);
+    expect(reads).toEqual([]);
   });
 
   it('hidden() drops stays and pauses; resume() restarts the wanted pages from zero', () => {

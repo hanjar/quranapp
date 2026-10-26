@@ -18,6 +18,7 @@ import { luminance, normalizeHex } from '../../core/custom-theme';
 import { ReaderUiService } from '../../core/reader-ui.service';
 import { CardFormat, GlyphWord, cardFileName, wordsOnPage } from './verse-card-layout';
 import { CardBackdrop, CardColors, renderVerseCard } from './verse-card-render';
+import { syncedSetting } from '../../core/synced-setting';
 import { CARD_BACKGROUNDS, PHOTO_BACKGROUNDS, photoBackgroundUrl } from './card-backgrounds';
 
 /** Day colours used when the app is in night mode (the glyph ink is dark). */
@@ -280,7 +281,8 @@ export class VerseCard {
   protected readonly format = signal<CardFormat>('post');
   protected readonly withTranslation = signal(true);
   /** Tajweed colours on the mushaf glyphs (remembered on this device). */
-  protected readonly tajweed = signal(readTajweed());
+  private readonly tajweedSetting = syncedSetting('cardTajweed', TAJWEED_KEY, (r) => r === '1', (v) => (v ? '1' : '0'));
+  protected readonly tajweed = this.tajweedSetting.value;
   protected readonly blob = signal<Blob | null>(null);
   protected readonly url = signal<string | null>(null);
   protected readonly failed = signal(false);
@@ -442,12 +444,7 @@ export class VerseCard {
   }
 
   protected setTajweed(on: boolean): void {
-    this.tajweed.set(on);
-    try {
-      localStorage.setItem(TAJWEED_KEY, on ? '1' : '0');
-    } catch {
-      /* storage blocked: lasts for this page */
-    }
+    this.tajweedSetting.set(on);
   }
 
   private setUrl(u: string | null): void {
@@ -498,13 +495,6 @@ export class VerseCard {
 
 const TAJWEED_KEY = 'mf-card-tajweed';
 
-function readTajweed(): boolean {
-  try {
-    return localStorage.getItem(TAJWEED_KEY) === '1';
-  } catch {
-    return false;
-  }
-}
 
 /** Small preview of a drawn background (drawn at card size, scaled down). */
 function thumbnail(draw: (ctx: CanvasRenderingContext2D, w: number, h: number) => void): string {

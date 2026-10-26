@@ -9,6 +9,7 @@ import {
   untracked,
 } from '@angular/core';
 import { ArabicTextService } from '../../core/content/arabic.service';
+import { syncedSetting } from '../../core/synced-setting';
 import { LatinService } from '../../core/content/latin.service';
 import { TafsirService } from '../../core/content/tafsir.service';
 import { TranslationService } from '../../core/content/translation.service';
@@ -437,7 +438,9 @@ export class VerseSheet {
 
   /** undefined = loading, null = unavailable. */
   protected readonly latinText = signal<string | null | undefined>(undefined);
-  protected readonly latinCollapsed = signal(readCollapsed());
+  /** Folded sections follow the account (prefs.extra), mirrored to the old local keys. */
+  private readonly latinFold = syncedSetting('verseLatinFolded', LATIN_KEY, (r) => r === '1', (v) => (v ? '1' : '0'));
+  protected readonly latinCollapsed = this.latinFold.value;
   protected readonly latinSource = computed(() => {
     const src = this.latin.source();
     return src ? src.origin || src.name : null;
@@ -446,7 +449,8 @@ export class VerseSheet {
 
   private readonly translation = inject(TranslationService);
   protected readonly trText = signal<string | null | undefined>(undefined);
-  protected readonly trCollapsed = signal(readFlag(TR_KEY));
+  private readonly trFold = syncedSetting('verseTranslationFolded', TR_KEY, (r) => r === '1', (v) => (v ? '1' : '0'));
+  protected readonly trCollapsed = this.trFold.value;
   protected readonly trSource = computed(() => {
     const src = this.translation.source();
     return src?.name && src.edition
@@ -513,9 +517,7 @@ export class VerseSheet {
   }
 
   protected toggleTr(): void {
-    const next = !this.trCollapsed();
-    this.trCollapsed.set(next);
-    writeFlag(TR_KEY, next);
+    this.trFold.set(!this.trCollapsed());
   }
 
   protected async copyTr(): Promise<void> {
@@ -541,13 +543,7 @@ export class VerseSheet {
   }
 
   protected toggleLatin(): void {
-    const next = !this.latinCollapsed();
-    this.latinCollapsed.set(next);
-    try {
-      localStorage.setItem(LATIN_KEY, next ? '1' : '0');
-    } catch {
-      // storage unavailable: preference is session-only
-    }
+    this.latinFold.set(!this.latinCollapsed());
   }
 
   protected async copyLatin(): Promise<void> {
@@ -656,25 +652,6 @@ const LATIN_KEY = 'mf-latin-collapsed';
 
 const TR_KEY = 'mf-translation-collapsed';
 
-function readFlag(key: string): boolean {
-  try {
-    return localStorage.getItem(key) === '1';
-  } catch {
-    return false;
-  }
-}
-
-function writeFlag(key: string, value: boolean): void {
-  try {
-    localStorage.setItem(key, value ? '1' : '0');
-  } catch {
-    // storage unavailable: preference is session-only
-  }
-}
-
-function readCollapsed(): boolean {
-  return readFlag(LATIN_KEY);
-}
 
 async function copyText(text: string): Promise<boolean> {
   try {

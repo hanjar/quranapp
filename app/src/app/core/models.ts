@@ -250,6 +250,10 @@ export interface Preferences {
   pageRenderer: PageRendererId;
   /** Show the khatam supplication (doa khatam) entry points. Synced. */
   showDoaKhatam: boolean;
+  /** Small settings without a field of their own (page sound, tafsir view, ...). Synced per key. */
+  extra: Record<string, PrefExtraValue>;
+  /** Per-setting change times, `extra.<key>` for extra; drives the per-setting merge. */
+  fieldTimes: Record<string, number>;
   updatedAt: number;
   rev: number | null;
 }
@@ -285,9 +289,13 @@ export const DEFAULT_PREFERENCES: Preferences = {
   audioFollow: true,
   pageRenderer: 'classic',
   showDoaKhatam: true,
+  extra: {},
+  fieldTimes: {},
   updatedAt: 0,
   rev: null,
 };
+
+export type PrefExtraValue = string | number | boolean;
 
 // ---------------------------------------------------------------------------
 // Reading progress (automatic, local-first, synced). See docs/progress.md.

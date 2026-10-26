@@ -21,7 +21,8 @@ interface Stay {
  *  - `visible(pages)` whenever the set of on-screen pages changes (page turn, spread, mode switch);
  *  - `hidden()` when the app goes to the background, `resume()` when it returns;
  *  - `stop()` (or `dispose()`) when the reader closes.
- * A page counts only after `dwellMs` (30 s) of continuous foreground on it; leaving earlier, going
+ * A page counts only after `dwellMs` (30 s) of continuous foreground on it (a two-page spread: twice
+ * that, then both count); leaving earlier, going
  * to the background or closing the reader counts nothing. Each stay reports a page at most once.
  */
 export class PageDwellTracker {
@@ -83,7 +84,7 @@ export class PageDwellTracker {
       if (this.stays.get(page) !== stay || stay.counted) return;
       stay.counted = true;
       this.opts.onRead(page, this.now() - stay.since);
-    }, this.dwellMs);
+    }, this.wanted.length > 1 ? this.dwellMs * 2 : this.dwellMs);
     this.stays.set(page, stay);
   }
 

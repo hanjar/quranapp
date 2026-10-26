@@ -72,6 +72,28 @@ function folderPayload(f: BookmarkFolder) {
   };
 }
 
+/** Settings that travel to the cloud (the per-setting merge tracks only these). */
+const SYNCED_PREF_KEYS = new Set(
+  Object.keys(prefsPayload(DEFAULT_PREFERENCES)).filter((k) => !['extra', 'fieldTimes', 'updatedAt'].includes(k)),
+);
+
+/** Change times for the settings a patch really changes (`extra.<key>` per extra key). */
+function changedFieldTimes(
+  prev: Preferences,
+  patch: Partial<Preferences>,
+  now: number,
+): Record<string, number> {
+  const out: Record<string, number> = {};
+  const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
+  for (const [k, v] of Object.entries(patch)) {
+    if (k === 'extra' && v && typeof v === 'object') {
+      for (const [ek, ev] of Object.entries(v as Record<string, unknown>))
+        if (!same(prev.extra[ek], ev)) out[`extra.${ek}`] = now;
+    } else if (SYNCED_PREF_KEYS.has(k) && !same((prev as unknown as Record<string, unknown>)[k], v)) out[k] = now;
+  }
+  return out;
+}
+
 const naturalCompare = (a: string, b: string) => a.localeCompare(b, 'id', { numeric: true });
 const sameName = (a: string, b: string) => a.toLocaleLowerCase('id') === b.toLocaleLowerCase('id');
 
@@ -97,6 +119,8 @@ function prefsPayload(p: Preferences) {
     audioFollow: p.audioFollow,
     pageRenderer: p.pageRenderer,
     showDoaKhatam: p.showDoaKhatam,
+    extra: p.extra,
+    fieldTimes: p.fieldTimes,
     updatedAt: p.updatedAt,
   };
 }
@@ -369,7 +393,13 @@ export class UserDataService extends UserDataApi {
       const next = await this.db.transaction('rw', this.tables, async () => {
         const row = await this.db.prefs.get('prefs');
         const prev = row ? this.stripPrefs(row) : { ...DEFAULT_PREFERENCES };
-        const merged: Preferences = { ...prev, ...patch, updatedAt: Date.now(), rev: prev.rev };
+        const now = Date.now();
+        const merged: Preferences = { ...prev, ...patch, updatedAt: now, rev: prev.rev };
+        merged.fieldTimes = {
+          ...prev.fieldTimes,
+          ...changedFieldTimes(prev, patch, now),
+          ...(patch.fieldTimes ?? {}),
+        };
         await this.db.prefs.put({ ...merged, key: 'prefs' });
         const account = await activeSyncAccount(this.db);
         const before = JSON.stringify({ ...prefsPayload(prev), updatedAt: 0 });

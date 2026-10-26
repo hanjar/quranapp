@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, effect, inject, untracked } from '@
 import { RouterOutlet } from '@angular/router';
 import { ReaderUiService } from './core/reader-ui.service';
 import { UpdateService } from './core/update.service';
+import { syncedSetting } from './core/synced-setting';
 import { UserDataApi } from './core/contracts';
 import { sendUsagePing } from './core/usage-ping';
 import { GestureTour } from './features/onboarding/gesture-tour';
@@ -21,6 +22,8 @@ export class App {
   constructor() {
     const ui = inject(ReaderUiService);
     const updates = inject(UpdateService);
+    // Keeps the error-report choice from the account in the local key the reporter reads.
+    syncedSetting('errorReport', 'mf-error-report', (r) => r !== 'off', (on) => (on ? null : 'off'));
     const userData = inject(UserDataApi);
     // Anonymous daily count of devices opening the app (owner dashboard, see privasi.html).
     effect(() => {

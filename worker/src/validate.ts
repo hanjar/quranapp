@@ -98,7 +98,43 @@ export interface PrefsData {
   audioFollow?: boolean;
   showDoaKhatam?: boolean;
   pageRenderer?: (typeof PAGE_RENDERERS)[number];
+  /** Small settings without a schema of their own (page sound, tafsir view, ...). */
+  extra?: Record<string, string | number | boolean>;
+  /** Per-setting change times (`extra.<key>` for extra), for the per-setting merge. */
+  fieldTimes?: Record<string, number>;
   updatedAt: number;
+}
+
+export const MAX_PREF_EXTRA = 64;
+const EXTRA_KEY_RE = /^[A-Za-z][A-Za-z0-9_.-]{0,40}$/;
+const EXTRA_STR_MAX = 600;
+
+function parseExtra(raw: unknown): Result<Record<string, string | number | boolean>> {
+  if (!isRecord(raw)) return fail('extra must be an object');
+  const keys = Object.keys(raw);
+  if (keys.length > MAX_PREF_EXTRA) return fail(`extra has at most ${MAX_PREF_EXTRA} keys`);
+  const out: Record<string, string | number | boolean> = {};
+  for (const k of keys) {
+    const v = raw[k];
+    if (!EXTRA_KEY_RE.test(k)) return fail('invalid extra key');
+    if (typeof v === 'boolean' || (typeof v === 'number' && Number.isFinite(v))) out[k] = v;
+    else if (typeof v === 'string' && v.length <= EXTRA_STR_MAX) out[k] = v;
+    else return fail('extra values must be short strings, numbers or booleans');
+  }
+  return { ok: true, value: out };
+}
+
+function parseFieldTimes(raw: unknown): Result<Record<string, number>> {
+  if (!isRecord(raw)) return fail('fieldTimes must be an object');
+  const keys = Object.keys(raw);
+  if (keys.length > MAX_PREF_EXTRA * 2) return fail('too many fieldTimes');
+  const out: Record<string, number> = {};
+  for (const k of keys) {
+    const t = timestamp(raw[k]);
+    if (!EXTRA_KEY_RE.test(k) || t === null) return fail('invalid fieldTimes entry');
+    out[k] = t;
+  }
+  return { ok: true, value: out };
 }
 
 /** `[firstAt, lastAt]` epoch ms. */
@@ -341,6 +377,16 @@ export function parsePrefs(raw: unknown): Result<PrefsData> {
     const am = oneOf(raw['audioMode'], AUDIO_MODES);
     if (!am) return fail('audioMode must be ayah, page or surah');
     value.audioMode = am;
+  }
+  if (raw['extra'] !== undefined) {
+    const ex = parseExtra(raw['extra']);
+    if (!ex.ok) return fail(ex.error);
+    value.extra = ex.value;
+  }
+  if (raw['fieldTimes'] !== undefined) {
+    const ft = parseFieldTimes(raw['fieldTimes']);
+    if (!ft.ok) return fail(ft.error);
+    value.fieldTimes = ft.value;
   }
   if (raw['pageRenderer'] !== undefined) {
     const pr = oneOf(raw['pageRenderer'], PAGE_RENDERERS);

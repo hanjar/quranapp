@@ -11,6 +11,7 @@ import {
   ReadingPosition,
   SurahMeta,
   SyncStatus,
+  PrefExtraValue,
 } from './models';
 
 /**
@@ -109,6 +110,20 @@ export abstract class UserDataApi {
 
   abstract init(): Promise<void>;
   abstract setPrefs(patch: Partial<Omit<Preferences, 'updatedAt' | 'rev'>>): Promise<void>;
+  /**
+   * One small synced setting in prefs.extra (null removes it). `at` overrides its change time
+   * (a one-time move of an old device-only value uses 1, so a cloud value wins).
+   */
+  setExtra(key: string, value: PrefExtraValue | null, at?: number): Promise<void> {
+    const extra = { ...this.prefs().extra };
+    if (value === null) delete extra[key];
+    else extra[key] = value;
+    return this.setPrefs(
+      at === undefined
+        ? { extra }
+        : { extra, fieldTimes: { ...this.prefs().fieldTimes, [`extra.${key}`]: at } },
+    );
+  }
   /** Throttled persistence (≥ 2 s apart) + flush on visibilitychange/pagehide. */
   abstract savePosition(page: number, ayah?: AyahRef | null): void;
   abstract flushPosition(): Promise<void>;

@@ -315,16 +315,36 @@ describe('position and prefs', () => {
     payload: prefsPayload(over),
   });
 
-  it('prefs: LWW by rev, stale baseRev conflicts with current', async () => {
+  it('prefs merge per setting: a device only overrides what it changed', async () => {
     const cookie = await login('a@x.co');
-    expect((await batch(cookie, [prefsOp(null)])).body.data.results[0]).toMatchObject({ status: 'applied', rev: 1 });
-    expect((await batch(cookie, [prefsOp(1, { uiTheme: 'samudra' })])).body.data.results[0]).toMatchObject({ status: 'applied', rev: 2 });
-    const stale = (await batch(cookie, [prefsOp(1, { uiTheme: 'ceria' })])).body.data.results[0];
-    expect(stale.status).toBe('conflict');
-    expect(stale.current).toMatchObject({ entity: 'prefs', id: 'prefs', rev: 2 });
-    expect(stale.current.data.uiTheme).toBe('samudra');
-    const noBase = (await batch(cookie, [prefsOp(null)])).body.data.results[0];
-    expect(noBase.status).toBe('conflict');
+    const theme = { id: 't1', name: 'Hijau', paper: '#edf8f5', surround: '#c8e4dc', frameInk: '#047857', frameInkInner: '#519b85', ayahOrnament: '#046c4e', textInk: '#1d221e' };
+    // Phone: custom theme + a small extra setting.
+    const phone = prefsOp(null, {
+      paperTheme: 'custom:t1',
+      customThemes: [theme],
+      extra: { pageSound: 'grab' },
+      updatedAt: 1000,
+      fieldTimes: { paperTheme: 1000, customThemes: 1000, 'extra.pageSound': 1000 },
+    });
+    expect((await batch(cookie, [phone])).body.data.results[0]).toMatchObject({ status: 'applied', rev: 1 });
+    // PC (stale base, no themes) only changed the paper colour later.
+    const pc = prefsOp(null, { paperTheme: 'blue', customThemes: [], updatedAt: 2000, fieldTimes: { paperTheme: 2000 } });
+    expect((await batch(cookie, [pc])).body.data.results[0]).toMatchObject({ status: 'applied', rev: 2 });
+    const pulled = (await json(await call('GET', '/sync?cursor=0', { cookie }))).data.changes.find(
+      (c: { entity: string }) => c.entity === 'prefs',
+    ).data;
+    expect(pulled.paperTheme).toBe('blue');
+    expect(pulled.customThemes).toHaveLength(1);
+    expect(pulled.extra).toEqual({ pageSound: 'grab' });
+    expect(pulled.fieldTimes).toMatchObject({ paperTheme: 2000, customThemes: 1000 });
+  });
+
+  it('prefs extra rejects bad keys and large values', async () => {
+    const cookie = await login('a@x.co');
+    const bad = (await batch(cookie, [prefsOp(null, { extra: { 'no spaces': 1 } })])).body.data.results[0];
+    expect(bad.status).toBe('rejected');
+    const big = (await batch(cookie, [prefsOp(null, { extra: { x: 'a'.repeat(700) } })])).body.data.results[0];
+    expect(big.status).toBe('rejected');
   });
 
   it('prefs validation rejects unknown enum values', async () => {

@@ -1,5 +1,6 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
 import { AudioService } from './audio/audio.service';
+import { syncedSetting } from './synced-setting';
 
 /**
  * A paper sound when the reader turns a page. Two choices (Freesound, silence trimmed,
@@ -34,7 +35,9 @@ interface Voice {
 export class PageTurnSoundService {
   private readonly audio = inject(AudioService);
 
-  readonly choice = signal<PageSoundChoice>(readChoice());
+  /** Synced with the account (prefs.extra.pageSound), mirrored to the old local key. */
+  private readonly setting = syncedSetting<PageSoundChoice>('pageSound', KEY, decodeChoice, (c) => c);
+  readonly choice = this.setting.value;
   readonly enabled = computed(() => this.choice() !== 'off');
 
   private ctx: AudioContext | null = null;
@@ -68,13 +71,7 @@ export class PageTurnSoundService {
 
   /** Picks the sound (or off) and plays a sample so the choice can be heard. */
   choose(choice: PageSoundChoice): void {
-    this.choice.set(choice);
-    try {
-      if (choice === 'paper') localStorage.removeItem(KEY);
-      else localStorage.setItem(KEY, choice);
-    } catch {
-      /* storage blocked: lasts for this page load */
-    }
+    this.setting.set(choice);
     if (choice === 'off') return;
     this.last = 0;
     const ctx = this.context();
@@ -155,11 +152,6 @@ export class PageTurnSoundService {
   }
 }
 
-function readChoice(): PageSoundChoice {
-  try {
-    const v = localStorage.getItem(KEY);
-    return v === 'off' || v === 'paper' ? v : 'grab';
-  } catch {
-    return 'grab';
-  }
+function decodeChoice(v: string | null): PageSoundChoice {
+  return v === 'off' || v === 'paper' ? v : 'grab';
 }

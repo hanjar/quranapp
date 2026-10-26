@@ -20,6 +20,7 @@ import { ReaderUiService } from '../../core/reader-ui.service';
 import { TafsirAccessError, TafsirIkService } from '../../core/tafsir/tafsir-ik.service';
 import { Block, Inline, kemenagBlocks, parseTafsir, sectionIndexFor } from './tafsir-format';
 import { TafsirService } from '../../core/content/tafsir.service';
+import { syncedSetting } from '../../core/synced-setting';
 
 export type ReadFont = 'poppins' | 'serif' | 'system';
 export type ReadSpacing = 'tight' | 'normal' | 'loose';
@@ -543,7 +544,8 @@ export class TafsirReader {
 
   /** Ibnu Katsir is private (allow-listed account); everyone else reads Tafsir Kemenag. */
   protected readonly ikAllowed = this.tafsir.allowed;
-  private readonly chosen = signal<TafsirSource>(storageGet(SOURCE_KEY) === 'ik' ? 'ik' : 'kemenag');
+  private readonly sourceSetting = syncedSetting<TafsirSource>('tafsirSource', SOURCE_KEY, (r) => (r === 'ik' ? 'ik' : 'kemenag'), (v) => v);
+  private readonly chosen = this.sourceSetting.value;
   protected readonly source = computed<TafsirSource>(() => {
     const want = this.sumber() === 'ik' ? 'ik' : this.chosen();
     return want === 'ik' && this.ikAllowed() ? 'ik' : 'kemenag';
@@ -565,7 +567,9 @@ export class TafsirReader {
   protected readonly sizeMin = READ_SIZE_MIN;
   protected readonly sizeMax = READ_SIZE_MAX;
 
-  protected readonly view = signal<ReadView>(readView(storageGet(VIEW_KEY)));
+  /** Reading view and source follow the account (prefs.extra), mirrored to the old local keys. */
+  private readonly viewSetting = syncedSetting<ReadView>('tafsirView', VIEW_KEY, readView, (v) => JSON.stringify(v));
+  protected readonly view = this.viewSetting.value;
   protected readonly panel = signal(false);
   protected readonly fontStack = computed(() => FONT_STACK[this.view().font]);
   protected readonly lineHeight = computed(() => LINE[this.view().spacing]);
@@ -663,8 +667,7 @@ export class TafsirReader {
   protected setSource(src: TafsirSource): void {
     if (src === this.source()) return;
     const ayah = this.ayahInView();
-    this.chosen.set(src);
-    storageSet(SOURCE_KEY, src);
+    this.sourceSetting.set(src);
     void this.router.navigate(['/tafsir', this.surahNum()], {
       queryParams: { ayat: ayah, sumber: src === 'ik' ? 'ik' : null },
       replaceUrl: true,
@@ -672,9 +675,7 @@ export class TafsirReader {
   }
 
   protected set(patch: Partial<ReadView>): void {
-    const v = readView(JSON.stringify({ ...this.view(), ...patch }));
-    this.view.set(v);
-    storageSet(VIEW_KEY, JSON.stringify(v));
+    this.viewSetting.set(readView(JSON.stringify({ ...this.view(), ...patch })));
   }
 
   protected fontOf(f: ReadFont): string {

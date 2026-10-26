@@ -90,12 +90,12 @@ describe('PageTurnSoundService', () => {
     expect(localStorage.getItem('mf-page-sound')).toBe('off');
   });
 
-  it('remembers the chosen sound per device', async () => {
+  it('remembers the chosen sound', async () => {
     const s = TestBed.inject(PageTurnSoundService);
     s.choose('grab');
     expect(localStorage.getItem('mf-page-sound')).toBe('grab');
     expect(s.enabled()).toBe(true);
     s.choose('paper');
-    expect(localStorage.getItem('mf-page-sound')).toBeNull();
+    expect(localStorage.getItem('mf-page-sound')).toBe('paper');
   });
 });

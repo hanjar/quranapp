@@ -1,6 +1,6 @@
 import { buildLabel } from '../../core/build-info';
 import { PageSoundChoice, PageTurnSoundService } from '../../core/page-turn-sound';
-import { errorReportEnabled, setErrorReportEnabled } from '../../core/storage/error-reporter';
+import { syncedSetting } from '../../core/synced-setting';
 import { AudioService } from '../../core/audio/audio.service';
 import { AudioOfflineApi } from '../../core/audio/audio-offline.api';
 import { AUDIO_MODES } from '../shell/audio-labels';
@@ -558,8 +558,10 @@ export class SettingsSheet {
   }
 
   protected readonly buildLabel = buildLabel();
-  protected readonly errorReport = errorReportEnabled;
-  protected readonly setErrorReport = setErrorReportEnabled;
+  /** Synced with the account; the reporter reads the mirrored local key. */
+  private readonly errorReportSetting = syncedSetting('errorReport', 'mf-error-report', (r) => r !== 'off', (on) => (on ? null : 'off'));
+  protected readonly errorReport = this.errorReportSetting.value;
+  protected readonly setErrorReport = (on: boolean) => this.errorReportSetting.set(on);
   protected readonly audio = inject(AudioService);
   protected readonly audioModes = AUDIO_MODES;
   protected readonly audioOffline = inject(AudioOfflineApi);
