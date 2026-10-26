@@ -306,10 +306,8 @@ import { latinCopyText, shareText, translationCopyText, verseReference, verseUrl
       user-select: text;
       -webkit-user-select: text;
     }
+    /* Flows with the sheet (one scroll for everything); the action bar is sticky below it. */
     .tafsir-text {
-      max-height: 40vh;
-      overflow-y: auto;
-      overscroll-behavior: contain;
       font-size: 15.5px;
       line-height: 1.65;
       user-select: text;
