@@ -67,6 +67,10 @@ export class SyncService extends SyncApi {
   readonly account = this._account.asReadonly();
   readonly lastSuccessAt = this._lastSuccessAt.asReadonly();
   readonly conflict = this._conflict.asReadonly();
+  /** When this device was last linked to an account by signing in (ms), else null. */
+  readonly signedInAt = signal<number | null>(null);
+  /** The first sync after signing in has not finished yet. */
+  private firstLinkPending = false;
   /** Last newer reading position received from another device (a new object each time). */
   readonly remotePosition = signal<ReadingPosition | null>(null);
 
@@ -246,6 +250,8 @@ export class SyncService extends SyncApi {
     });
     await enqueueLocalSnapshot(this.db, user.id);
     this.coldStart = true;
+    this.firstLinkPending = true;
+    this.signedInAt.set(Date.now());
     this.setStatus('pending');
     await this.run(false);
   }
@@ -341,6 +347,7 @@ export class SyncService extends SyncApi {
       dirty = (await this.pull(accountId, false)) || dirty;
       this.phase = 'finish';
       this.coldStart = false;
+      this.firstLinkPending = false;
       this.pullFailures = 0;
       const now = Date.now();
       this._lastSuccessAt.set(now);
@@ -452,6 +459,7 @@ export class SyncService extends SyncApi {
       localDeviceId: this.userData.deviceId(),
       detectPositionConflict: detect,
       holdPosition: !!this._conflict(),
+      firstLink: detect && this.firstLinkPending,
     };
   }
 

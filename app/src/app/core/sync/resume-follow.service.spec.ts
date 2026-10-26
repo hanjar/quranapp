@@ -13,6 +13,7 @@ describe('ResumeFollowService', () => {
   const remotePosition = signal<ReadingPosition | null>(null);
   const conflict = signal<PositionConflict | null>(null);
   const resolveConflict = vi.fn(async () => undefined);
+  const signedInAt = signal<number | null>(null);
   let url = '/hal/10';
   let ui: ReaderUiService;
   let go: ReturnType<typeof vi.fn>;
@@ -21,7 +22,7 @@ describe('ResumeFollowService', () => {
   function setup() {
     TestBed.configureTestingModule({
       providers: [
-        { provide: SyncApi, useValue: { remotePosition, conflict, resolveConflict } },
+        { provide: SyncApi, useValue: { remotePosition, conflict, resolveConflict, signedInAt } },
         { provide: Router, useValue: { get url() { return url; } } },
       ],
     });
@@ -40,6 +41,7 @@ describe('ResumeFollowService', () => {
     remotePosition.set(null);
     conflict.set(null);
     resolveConflict.mockClear();
+    signedInAt.set(null);
     url = '/hal/10';
   });
 
@@ -74,6 +76,18 @@ describe('ResumeFollowService', () => {
     TestBed.tick();
     expect(resolveConflict).toHaveBeenCalledWith('device');
     expect(toast).not.toHaveBeenCalled();
+  });
+
+  it('right after signing in it offers the last page of the account instead of jumping', () => {
+    setup();
+    signedInAt.set(Date.now());
+    conflict.set({ device: pos(10), cloud: pos(250) } as PositionConflict);
+    TestBed.tick();
+    expect(go).not.toHaveBeenCalled();
+    expect(resolveConflict).toHaveBeenCalledWith('device');
+    expect(toast.mock.calls[0]![0]).toMatchObject({ message: 'Terakhir dibaca di akun ini: hal. 250', actionLabel: 'Buka' });
+    toast.mock.calls[0]![0].action();
+    expect(go).toHaveBeenCalledWith(250);
   });
 
   it('outside the reader it just takes the newer position', () => {

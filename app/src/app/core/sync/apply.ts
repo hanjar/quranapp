@@ -43,6 +43,11 @@ export interface ApplyOptions {
   detectPositionConflict: boolean;
   /** A position conflict is awaiting a user choice: leave the local position alone. */
   holdPosition?: boolean;
+  /**
+   * First sync after signing in on this device: the account's position from another device is
+   * offered even when this device's (guest) position is newer.
+   */
+  firstLink?: boolean;
   /** Server-authoritative (conflict / duplicate results): ignore pending-op guards. */
   force?: boolean;
   now?: number;
@@ -341,6 +346,7 @@ async function applyPosition(ctx: Ctx, ch: Change): Promise<void> {
     if (!opts.holdPosition) {
       await db.positions.put(remote);
       ctx.changed = true;
+      if (remote.deviceId !== opts.localDeviceId) ctx.remotePosition = remote;
     }
     return;
   }
@@ -355,6 +361,11 @@ async function applyPosition(ctx: Ctx, ch: Change): Promise<void> {
     // Echo of our own write: just record the revision.
     if (remote.updatedAt === local.updatedAt && local.rev !== remote.rev)
       await db.positions.update(editionId, { rev: remote.rev });
+    return;
+  }
+  if (opts.firstLink && opts.detectPositionConflict && remote.page !== local.page) {
+    ctx.conflict = { device: local, cloud: remote };
+    await dropPending(ctx, 'position', editionId);
     return;
   }
   if (remote.updatedAt <= local.updatedAt) return; // local is newer; it wins on push

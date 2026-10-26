@@ -181,6 +181,8 @@ export abstract class SyncApi {
   abstract readonly account: Signal<Account | null>;
   abstract readonly lastSuccessAt: Signal<number | null>;
   abstract readonly conflict: Signal<PositionConflict | null>;
+  /** When this device was last linked by signing in (ms), else null. */
+  abstract readonly signedInAt: Signal<number | null>;
   /** Newer reading position received from another device (new object each time). */
   abstract readonly remotePosition: Signal<ReadingPosition | null>;
 
