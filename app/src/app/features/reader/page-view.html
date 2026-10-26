@@ -15,6 +15,7 @@
   @if (sideRibbon(); as r) {
     <span
       class="vribbon"
+      [class.is-left]="r.left"
       [style.top.%]="r.top + r.height * 0.15"
       [style.height.%]="r.height * 0.7"
       [style.width.%]="r.width"

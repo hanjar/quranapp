@@ -83,7 +83,7 @@ export class PageView implements OnDestroy {
    * Margin tab for the last bookmarked verse on the page, shown with or without the page
    * ribbon. Percent of the page box; null = none.
    */
-  protected readonly sideRibbon = signal<{ top: number; height: number; width: number } | null>(
+  protected readonly sideRibbon = signal<{ top: number; height: number; width: number; left: boolean } | null>(
     null,
   );
 
@@ -95,6 +95,10 @@ export class PageView implements OnDestroy {
   readonly selected = input<AyahRef | null>(null);
   /** Set of `surah:ayah` keys that are bookmarked. */
   readonly bookmarked = input<ReadonlySet<string>>(new Set());
+  /** Two-page view: only one page shows the verse side ribbon (the one with the last bookmark). */
+  readonly sideRibbonOn = input(true);
+  /** Outer edge for the verse ribbon: the left page of a spread uses its left edge. */
+  readonly ribbonSide = input<'right' | 'left'>('right');
 
   /** Forces a renderer (the style preview); null = the reader's setting. */
   readonly renderer = input<PageRendererId | null>(null);
@@ -156,7 +160,8 @@ export class PageView implements OnDestroy {
     effect(() => {
       const svg = this.svgEl();
       const bm = this.bookmarked();
-      const show = !this.preview();
+      const show = !this.preview() && this.sideRibbonOn();
+      this.ribbonSide();
       untracked(() => this.layoutSideRibbons(svg, show ? bm : new Set()));
     });
     effect((onCleanup) => {
@@ -167,7 +172,7 @@ export class PageView implements OnDestroy {
       const ro = new ResizeObserver(() =>
         this.layoutSideRibbons(
           svg,
-          this.preview() ? new Set() : this.bookmarked(),
+          this.preview() || !this.sideRibbonOn() ? new Set() : this.bookmarked(),
         ),
       );
       ro.observe(page);
@@ -209,11 +214,13 @@ export class PageView implements OnDestroy {
     let last: ReturnType<typeof lastLine> = null;
     // Right edge of the text block: a short ayah may start mid-line, so not its own edge.
     let blockRight = -Infinity;
+    let blockLeft = Infinity;
     let minLine = Infinity;
     for (const el of svg.querySelectorAll<SVGPathElement>('.ayahPolygon')) {
       const rects = parseRects(el.getAttribute('d') ?? '');
       for (const r of rects) {
         blockRight = Math.max(blockRight, r.x2);
+        blockLeft = Math.min(blockLeft, r.x1);
         if (r.y2 - r.y1 > 10) minLine = Math.min(minLine, r.y2 - r.y1);
       }
       const k = verseKey(Number(el.getAttribute('surah')), Number(el.getAttribute('ayah')));
@@ -227,14 +234,17 @@ export class PageView implements OnDestroy {
     // A rectangle can cover several full lines: keep only the last one. Lines differ a
     // little in height, so allow 30% over the shortest line (two lines are about 2x).
     const lineH = minLine * 1.3;
-    const top = at(blockRight, Math.max(last.y1, last.y2 - lineH));
-    const bottom = at(blockRight, last.y2);
+    const left = this.ribbonSide() === 'left';
+    const edge = left ? blockLeft : blockRight;
+    const top = at(edge, Math.max(last.y1, last.y2 - lineH));
+    const bottom = at(edge, last.y2);
     // From a little inside the text block (RIBBON_IN) out past the page edge (RIBBON_OUT).
-    const inner = ((box.right - top.x) / box.width) * 100;
+    const inner = ((left ? top.x - box.left : box.right - top.x) / box.width) * 100;
     this.sideRibbon.set({
       top: ((top.y - box.top) / box.height) * 100,
       height: ((bottom.y - top.y) / box.height) * 100,
       width: Math.max(inner, 0) + RIBBON_IN + RIBBON_OUT,
+      left,
     });
   }
 

@@ -131,6 +131,22 @@ export class ReaderShell {
     return set;
   });
 
+  /**
+   * The one page that shows the verse side ribbon: in a spread, the later page (reading order)
+   * holding a verse bookmark, so the pair shows a single ribbon.
+   */
+  protected readonly ribbonPage = computed<number | null>(() => {
+    const pages = this.visible();
+    if (pages.length < 2) return pages[0] ?? null;
+    let best: number | null = null;
+    for (const b of this.userData.bookmarks()) {
+      if (b.kind !== 'verse' || b.surah === null || b.ayah === null) continue;
+      const p = this.content.index() ? this.content.pageOf({ surah: b.surah, ayah: b.ayah }) : b.page;
+      for (const v of pages) if ((p === v || b.page === v) && (best === null || v > best)) best = v;
+    }
+    return best;
+  });
+
   // --- chrome -------------------------------------------------------------
   /** The menu can always be hidden by the user; the preference only controls auto-hide and the default. */
   protected readonly chromeShown = computed(() => this.ui.chromeVisible());

@@ -461,6 +461,22 @@ describe('ReaderShell', () => {
     expect(fixture.nativeElement.querySelectorAll('mf-page-view').length).toBe(2);
   });
 
+  it('spread: one verse side ribbon, on the later page; the left page uses its left edge', async () => {
+    userData.prefs.set({ ...DEFAULT_PREFERENCES, layoutMode: 'spread' });
+    const bm = (id: string, page: number) =>
+      ({ id, kind: 'verse', surah: 2, ayah: page, page }) as unknown as never;
+    userData.bookmarks.set([bm('a', 3), bm('b', 4)] as never);
+    const fixture = await mount('4');
+    const views = fixture.debugElement
+      .queryAll((d) => d.name === 'mf-page-view')
+      .map((d) => d.componentInstance as { page: () => number; sideRibbonOn: () => boolean; ribbonSide: () => string });
+    const by = (p: number) => views.find((v) => v.page() === p)!;
+    expect(by(4).sideRibbonOn()).toBe(true);
+    expect(by(3).sideRibbonOn()).toBe(false);
+    expect(by(4).ribbonSide()).toBe('left');
+    expect(by(3).ribbonSide()).toBe('right');
+  });
+
   it('shows the load error when metadata is unavailable', async () => {
     content.index.set(null);
     content.loadError.set('Tidak dapat memuat');
