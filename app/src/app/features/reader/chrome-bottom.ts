@@ -4,7 +4,10 @@ import {
   Component,
   OnDestroy,
   computed,
+  effect,
   inject,
+  signal,
+  untracked,
   input,
   output,
 } from '@angular/core';
@@ -26,7 +29,12 @@ export const BOOKMARK_LONG_PRESS_MS = 500;
 @Component({
   selector: 'mf-chrome-bottom',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  host: { '[class.is-hidden]': '!shown()', role: 'navigation', 'aria-label': 'Navigasi halaman' },
+  host: {
+    '[class.is-hidden]': '!shown()',
+    role: 'navigation',
+    'aria-label': 'Navigasi halaman',
+    '(document:keydown.escape)': 'pickOpen.set(false)',
+  },
   template: `
     <button
       type="button"
@@ -165,7 +173,11 @@ export const BOOKMARK_LONG_PRESS_MS = 500;
       data-testid="bookmark-btn"
       [class.is-on]="pageBookmarked()"
       [attr.aria-label]="
-        pageBookmarked() ? 'Hapus penanda halaman ' + page() : 'Tandai halaman ' + page()
+        spreadPages().length > 1
+          ? 'Penanda halaman: pilih halaman kiri atau kanan'
+          : pageBookmarked()
+            ? 'Hapus penanda halaman ' + page()
+            : 'Tandai halaman ' + page()
       "
       [attr.aria-pressed]="pageBookmarked()"
       title="Ketuk untuk menandai, tekan lama untuk daftar penanda"
@@ -194,6 +206,28 @@ export const BOOKMARK_LONG_PRESS_MS = 500;
         <path d="M8.5 21v-7h4v7l-2-1.6z" fill="currentColor" />
       </svg>
     </button>
+    }
+
+    @if (pickOpen()) {
+      <!-- Two-page view: which page? Buttons sit like the pages (left page on the left). -->
+      <div class="pick-scrim" (click)="pickOpen.set(false)" aria-hidden="true"></div>
+      <div class="pick" role="dialog" aria-label="Tandai halaman mana?" data-testid="bookmark-pick">
+        <span class="pick__title">Tandai halaman</span>
+        <div class="pick__row">
+          @for (p of spreadPages(); track p) {
+            <button
+              type="button"
+              class="pick__btn"
+              [class.is-on]="isMarked(p)"
+              [attr.aria-pressed]="isMarked(p)"
+              (click)="toggleSpreadPage(p)"
+            >
+              <span class="pick__side">{{ p % 2 === 0 ? 'Kiri' : 'Kanan' }}</span>
+              Hal. {{ p }}
+            </button>
+          }
+        </div>
+      </div>
     }
 
     <button
@@ -290,6 +324,59 @@ export const BOOKMARK_LONG_PRESS_MS = 500;
         display: none;
       }
     }
+    .pick-scrim {
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+    }
+    .pick {
+      position: absolute;
+      right: calc(var(--mf-safe-right) + 8px);
+      bottom: calc(100% + 8px);
+      z-index: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      padding: 10px;
+      border-radius: var(--mf-radius-md);
+      border: 1px solid var(--ui-hair);
+      background: var(--ui-surface);
+      box-shadow: 0 8px 24px color-mix(in srgb, var(--ui-ink) 16%, transparent);
+    }
+    .pick__title {
+      font-size: 12.5px;
+      color: var(--ui-muted);
+      padding: 0 2px;
+    }
+    .pick__row {
+      display: flex;
+      gap: 8px;
+    }
+    .pick__btn {
+      min-width: 96px;
+      min-height: 56px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 2px;
+      border-radius: 10px;
+      border: 1px solid var(--ui-hair);
+      background: transparent;
+      color: var(--ui-ink);
+      font: inherit;
+      font-size: 15px;
+      font-weight: 500;
+    }
+    .pick__btn.is-on {
+      border-color: var(--ui-accent-icon);
+      background: color-mix(in srgb, var(--ui-accent-icon) 14%, transparent);
+    }
+    .pick__side {
+      font-size: 11.5px;
+      font-weight: 400;
+      color: var(--ui-muted);
+    }
   `,
 })
 export class ChromeBottom implements OnDestroy {
@@ -310,9 +397,31 @@ export class ChromeBottom implements OnDestroy {
 
   protected readonly page = this.ui.currentPage;
 
-  protected readonly pageBookmarked = computed(() => {
-    return this.bookmarkToggle.isPageBookmarked(this.ui.currentPage());
+  protected readonly pageBookmarked = computed(() =>
+    this.spreadPages().some((p) => this.bookmarkToggle.isPageBookmarked(p)),
+  );
+
+  /** Pages shown, left page first (in a spread the even page is on the left). */
+  protected readonly spreadPages = computed(() => {
+    const v = this.ui.visiblePages();
+    return v.length > 1 ? [...v].sort((a, b) => b - a) : [this.ui.currentPage()];
   });
+  /** Two-page view: tapping the bookmark asks which page. */
+  protected readonly pickOpen = signal(false);
+  /** Turning the page closes the question. */
+  private readonly closeOnTurn = effect(() => {
+    this.ui.visiblePages();
+    untracked(() => this.pickOpen.set(false));
+  });
+
+  protected isMarked(p: number): boolean {
+    return this.bookmarkToggle.isPageBookmarked(p);
+  }
+
+  protected toggleSpreadPage(p: number): void {
+    this.pickOpen.set(false);
+    void this.bookmarkToggle.togglePage(p);
+  }
 
   /** The last mushaf page: its bookmark button becomes "Khatam". */
   protected readonly isLastPage = computed(() => this.ui.visiblePages().includes(PAGE_COUNT));
@@ -378,6 +487,10 @@ export class ChromeBottom implements OnDestroy {
   protected onBookmarkClick(): void {
     if (this.longPressed) {
       this.longPressed = false;
+      return;
+    }
+    if (this.spreadPages().length > 1) {
+      this.pickOpen.update((v) => !v);
       return;
     }
     void this.toggleBookmark();

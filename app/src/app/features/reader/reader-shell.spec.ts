@@ -355,6 +355,22 @@ describe('ReaderShell', () => {
       }
     });
 
+    it('two-page view: tapping the bookmark asks which page (left page first)', async () => {
+      userData.prefs.set({ ...DEFAULT_PREFERENCES, layoutMode: 'spread' });
+      const f = await mount('4');
+      const toggle = vi.spyOn(userData, 'togglePageBookmark');
+      q(f, '[data-testid="bookmark-btn"]')!.click();
+      f.detectChanges();
+      expect(toggle).not.toHaveBeenCalled();
+      const pick = q(f, '[data-testid="bookmark-pick"]')!;
+      const btns = Array.from(pick.querySelectorAll('button')).map((b) => b.textContent!.replace(/\s+/g, ' ').trim());
+      expect(btns).toEqual(['Kiri Hal. 4', 'Kanan Hal. 3']);
+      (pick.querySelectorAll('button')[1] as HTMLElement).click();
+      f.detectChanges();
+      expect(toggle).toHaveBeenCalledWith(3);
+      expect(q(f, '[data-testid="bookmark-pick"]')).toBeNull();
+    });
+
     it('right-click on the bookmark button opens the bookmarks sheet', async () => {
       const f = await mount('5');
       q(f, '[data-testid="bookmark-btn"]')!.dispatchEvent(
