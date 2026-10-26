@@ -2,6 +2,7 @@ import { BookmarkToggleService } from '../../core/bookmark-toggle.service';
 import {
   ChangeDetectionStrategy,
   Component,
+  ElementRef,
   OnDestroy,
   computed,
   effect,
@@ -16,6 +17,9 @@ import { ContentApi } from '../../core/contracts';
 import { KhatamService } from '../../core/khatam.service';
 import { PAGE_COUNT } from '../../core/models';
 import { ReaderUiService } from '../../core/reader-ui.service';
+
+/** Width of the Kiri/Kanan picker (two 100 px buttons, gap, padding, border); also set in CSS. */
+const PICK_WIDTH = 230;
 
 /** Press-and-hold on the bookmark button opens the bookmarks list after this long. */
 export const BOOKMARK_LONG_PRESS_MS = 500;
@@ -185,7 +189,7 @@ export const BOOKMARK_LONG_PRESS_MS = 500;
         (pointerleave)="pressEnd()"
         (pointercancel)="pressEnd()"
         (contextmenu)="onContextMenu($event)"
-        (click)="onBookmarkClick()"
+        (click)="onBookmarkClick($event)"
       >
         <svg
           width="21"
@@ -210,7 +214,14 @@ export const BOOKMARK_LONG_PRESS_MS = 500;
     @if (pickOpen()) {
       <!-- Two-page view: which page? Buttons sit like the pages (left page on the left). -->
       <div class="pick-scrim" (click)="pickOpen.set(false)" aria-hidden="true"></div>
-      <div class="pick" role="dialog" aria-label="Tandai halaman mana?" data-testid="bookmark-pick">
+      <div
+        class="pick"
+        role="dialog"
+        aria-label="Tandai halaman mana?"
+        data-testid="bookmark-pick"
+        [style.left.px]="pickAt().left"
+        [style.--pick-arrow.px]="pickAt().arrow"
+      >
         <span class="pick__title">Tandai halaman</span>
         <div class="pick__row">
           @for (p of spreadPages(); track p) {
@@ -328,10 +339,12 @@ export const BOOKMARK_LONG_PRESS_MS = 500;
       inset: 0;
       z-index: 0;
     }
+    /* Opens right above the bookmark button (left set from its position), arrow pointing at it. */
     .pick {
       position: absolute;
-      right: calc(var(--mf-safe-right) + 8px);
-      bottom: calc(100% + 8px);
+      bottom: calc(100% + 10px);
+      width: 230px;
+      box-sizing: border-box;
       z-index: 1;
       display: flex;
       flex-direction: column;
@@ -341,6 +354,15 @@ export const BOOKMARK_LONG_PRESS_MS = 500;
       border: 1px solid var(--ui-hair);
       background: var(--ui-surface);
       box-shadow: 0 8px 24px color-mix(in srgb, var(--ui-ink) 16%, transparent);
+    }
+    .pick::after {
+      content: '';
+      position: absolute;
+      top: 100%;
+      left: calc(var(--pick-arrow, 50%) - 7px);
+      border: 7px solid transparent;
+      border-top-color: var(--ui-surface);
+      filter: drop-shadow(0 1px 0 var(--ui-hair));
     }
     .pick__title {
       font-size: 12.5px;
@@ -352,7 +374,7 @@ export const BOOKMARK_LONG_PRESS_MS = 500;
       gap: 8px;
     }
     .pick__btn {
-      min-width: 96px;
+      flex: 1;
       min-height: 56px;
       display: flex;
       flex-direction: column;
@@ -407,6 +429,9 @@ export class ChromeBottom implements OnDestroy {
   });
   /** Two-page view: tapping the bookmark asks which page. */
   protected readonly pickOpen = signal(false);
+  /** Where the picker sits (px from the bar's left) and where its arrow points, inside it. */
+  protected readonly pickAt = signal({ left: 8, arrow: 40 });
+  private readonly host = inject(ElementRef<HTMLElement>);
   /** Turning the page closes the question. */
   private readonly closeOnTurn = effect(() => {
     this.ui.visiblePages();
@@ -483,16 +508,28 @@ export class ChromeBottom implements OnDestroy {
     setTimeout(() => (this.longPressed = false), 600);
   }
 
-  protected onBookmarkClick(): void {
+  protected onBookmarkClick(ev?: MouseEvent): void {
     if (this.longPressed) {
       this.longPressed = false;
       return;
     }
     if (this.spreadPages().length > 1) {
+      if (!this.pickOpen() && ev?.currentTarget instanceof HTMLElement)
+        this.placePick(ev.currentTarget);
       this.pickOpen.update((v) => !v);
       return;
     }
     void this.toggleBookmark();
+  }
+
+  /** Centres the picker over the button, kept inside the bar; the arrow still points at the button. */
+  private placePick(btn: HTMLElement): void {
+    const bar = (this.host.nativeElement as HTMLElement).getBoundingClientRect();
+    const b = btn.getBoundingClientRect();
+    const center = b.left + b.width / 2 - bar.left;
+    const width = PICK_WIDTH;
+    const left = Math.max(8, Math.min(center - width / 2, bar.width - width - 8));
+    this.pickAt.set({ left, arrow: center - left });
   }
 
   ngOnDestroy(): void {
