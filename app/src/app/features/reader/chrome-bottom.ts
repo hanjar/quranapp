@@ -58,7 +58,6 @@ export const BOOKMARK_LONG_PRESS_MS = 500;
       </svg>
     </button>
 
-
     <button
       type="button"
       class="mf-icon-btn"
@@ -166,46 +165,46 @@ export const BOOKMARK_LONG_PRESS_MS = 500;
         </svg>
       </button>
     } @else {
-    <!-- Tap: mark/unmark the page. Long-press or right-click: open the bookmarks list (Menu › Penanda for keyboard). -->
-    <button
-      type="button"
-      class="mf-icon-btn"
-      data-testid="bookmark-btn"
-      [class.is-on]="pageBookmarked()"
-      [attr.aria-label]="
-        spreadPages().length > 1
-          ? 'Penanda halaman: pilih halaman kiri atau kanan'
-          : pageBookmarked()
-            ? 'Hapus penanda halaman ' + page()
-            : 'Tandai halaman ' + page()
-      "
-      [attr.aria-pressed]="pageBookmarked()"
-      title="Ketuk untuk menandai, tekan lama untuk daftar penanda"
-      (pointerdown)="pressStart($event)"
-      (pointerup)="pressEnd()"
-      (pointerleave)="pressEnd()"
-      (pointercancel)="pressEnd()"
-      (contextmenu)="onContextMenu($event)"
-      (click)="onBookmarkClick()"
-    >
-      <svg
-        width="21"
-        height="21"
-        viewBox="0 0 24 24"
-        stroke="currentColor"
-        stroke-width="1.6"
-        stroke-linejoin="round"
-        aria-hidden="true"
+      <!-- Tap: mark/unmark the page. Long-press or right-click: open the bookmarks list (Menu › Penanda for keyboard). -->
+      <button
+        type="button"
+        class="mf-icon-btn"
+        data-testid="bookmark-btn"
+        [class.is-on]="pageBookmarked()"
+        [attr.aria-label]="
+          spreadPages().length > 1
+            ? 'Penanda halaman: pilih halaman kiri atau kanan'
+            : pageBookmarked()
+              ? 'Hapus penanda halaman ' + page()
+              : 'Tandai halaman ' + page()
+        "
+        [attr.aria-pressed]="pageBookmarked()"
+        title="Ketuk untuk menandai, tekan lama untuk daftar penanda"
+        (pointerdown)="pressStart($event)"
+        (pointerup)="pressEnd()"
+        (pointerleave)="pressEnd()"
+        (pointercancel)="pressEnd()"
+        (contextmenu)="onContextMenu($event)"
+        (click)="onBookmarkClick()"
       >
-        <path
-          d="M5.5 3h9l4 4v14h-13z"
-          [attr.fill]="pageBookmarked() ? 'currentColor' : 'none'"
-          [attr.fill-opacity]="pageBookmarked() ? 0.18 : 1"
-        />
-        <path d="M14.5 3v4h4" fill="none" />
-        <path d="M8.5 21v-7h4v7l-2-1.6z" fill="currentColor" />
-      </svg>
-    </button>
+        <svg
+          width="21"
+          height="21"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+          stroke-width="1.6"
+          stroke-linejoin="round"
+          aria-hidden="true"
+        >
+          <path
+            d="M5.5 3h9l4 4v14h-13z"
+            [attr.fill]="pageBookmarked() ? 'currentColor' : 'none'"
+            [attr.fill-opacity]="pageBookmarked() ? 0.18 : 1"
+          />
+          <path d="M14.5 3v4h4" fill="none" />
+          <path d="M8.5 21v-7h4v7l-2-1.6z" fill="currentColor" />
+        </svg>
+      </button>
     }
 
     @if (pickOpen()) {
