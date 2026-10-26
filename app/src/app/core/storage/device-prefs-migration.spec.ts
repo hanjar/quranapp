@@ -67,7 +67,7 @@ describe('UserDataService device-prefs migration', () => {
 
   it('keeps defaults when nothing is stored, and does not overwrite existing synced values', async () => {
     let svc = await create();
-    expect(svc.prefs()).toMatchObject({ lineRules: false, audioMode: 'surah', audioFollow: true, pageRenderer: 'classic' });
+    expect(svc.prefs()).toMatchObject({ lineRules: true, audioMode: 'surah', audioFollow: true, pageRenderer: 'classic' });
     await db.meta.delete('migr:device-prefs-synced');
     await db.prefs.put({ ...DEFAULT_PREFERENCES, key: 'prefs', lineRules: false, updatedAt: 5 });
     localStorage.setItem('mf-line-rules', 'on');

@@ -14,7 +14,7 @@ const base = {
 describe('validatePreferences: device settings', () => {
   it('older exports without the fields get defaults', () => {
     expect(validatePreferences(base)).toMatchObject({
-      lineRules: false,
+      lineRules: true,
       showLatin: false,
       translationScale: 1,
       audioMode: 'surah',
@@ -51,7 +51,7 @@ describe('validatePreferences: device settings', () => {
         pageRenderer: 'z',
       }),
     ).toMatchObject({
-      lineRules: false,
+      lineRules: true,
       translationScale: 1,
       audioMode: 'surah',
       pageRenderer: 'classic',

@@ -9,12 +9,12 @@ describe('LineRulesService', () => {
     TestBed.resetTestingModule();
   });
 
-  it('defaults to off', () => {
+  it('defaults to on', () => {
     TestBed.configureTestingModule({ providers: [fakeUserData().provider] });
     const s = TestBed.inject(LineRulesService);
     TestBed.tick();
-    expect(s.enabled()).toBe(false);
-    expect(document.documentElement.hasAttribute('data-line-rules')).toBe(false);
+    expect(s.enabled()).toBe(true);
+    expect(document.documentElement.getAttribute('data-line-rules')).toBe('on');
   });
 
   it('reads the synced pref and applies the attribute', () => {

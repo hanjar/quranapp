@@ -278,7 +278,7 @@ export const DEFAULT_PREFERENCES: Preferences = {
   nightAuto: 'system',
   nightStart: DEFAULT_NIGHT_START,
   nightEnd: DEFAULT_NIGHT_END,
-  lineRules: false,
+  lineRules: true,
   showLatin: false,
   translationScale: DEFAULT_FONT_SCALE,
   audioMode: 'surah',
