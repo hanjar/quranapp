@@ -120,7 +120,12 @@ const FOCUSABLE =
             </svg>
           </button>
         </div>
-        <div class="body">
+        <div
+          class="body"
+          (scroll)="onBodyScroll($event)"
+          (touchstart)="bodyTouchStart($event)"
+          (touchmove)="bodyTouchMove($event)"
+        >
           @switch (shown()) {
             @case ('verse') {
               <app-verse-sheet />
@@ -347,6 +352,32 @@ export class SheetHost implements OnDestroy {
   protected dragCancel(): void {
     this.drag = null;
     this.dragY.set(null);
+  }
+
+  /**
+   * Scrolling the content up (or swiping up on content that does not scroll) pulls a phone sheet
+   * up to full screen, like a map app; the handle or a drag down brings it back.
+   */
+  private bodyTouchY: number | null = null;
+
+  private canExpand(): boolean {
+    return !this.expanded() && !window.matchMedia('(min-width: 768px)').matches;
+  }
+
+  protected onBodyScroll(e: Event): void {
+    if ((e.target as HTMLElement).scrollTop > 12 && this.canExpand()) this.expanded.set(true);
+  }
+
+  protected bodyTouchStart(e: TouchEvent): void {
+    this.bodyTouchY = e.touches.length === 1 ? e.touches[0]!.clientY : null;
+  }
+
+  protected bodyTouchMove(e: TouchEvent): void {
+    if (this.bodyTouchY === null || e.touches.length !== 1 || !this.canExpand()) return;
+    if (this.bodyTouchY - e.touches[0]!.clientY > 30) {
+      this.bodyTouchY = null;
+      this.expanded.set(true);
+    }
   }
 
   protected onGrabClick(e: MouseEvent): void {
