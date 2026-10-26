@@ -1,4 +1,4 @@
-import { Injectable, computed, inject, signal } from '@angular/core';
+import { Injectable, computed, inject } from '@angular/core';
 import { AudioService } from './audio/audio.service';
 import { syncedSetting } from './synced-setting';
 

@@ -1,4 +1,4 @@
-import { isDevMode, signal } from '@angular/core';
+import { isDevMode } from '@angular/core';
 import { BUILD_INFO } from '../build-info';
 import { APP_CONFIG } from '../config';
 
@@ -6,7 +6,8 @@ import { APP_CONFIG } from '../config';
  * Sends storage and app errors to the Worker (`POST /diag`) so a failure on one device
  * can be diagnosed without the user copying messages. Only the error name, message,
  * operation, app version and browser are sent: never page content or bookmarks.
- * Per device it can be switched off (Pengaturan › Kirim laporan galat otomatis).
+ * It can be switched off (Pengaturan › Kirim laporan galat otomatis); the choice follows the
+ * account and is mirrored to the local key read here on every report (see synced-setting.ts).
  */
 export interface ReportedError {
   op: string;
@@ -31,18 +32,6 @@ function readEnabled(): boolean {
   }
 }
 
-export const errorReportEnabled = signal(readEnabled());
-
-export function setErrorReportEnabled(on: boolean): void {
-  errorReportEnabled.set(on);
-  try {
-    if (on) localStorage.removeItem(KEY);
-    else localStorage.setItem(KEY, 'off');
-  } catch {
-    /* storage blocked: the setting lasts for this page load */
-  }
-}
-
 let deviceId: string | null = null;
 let queue: ReportedError[] = [];
 let sent = 0;
@@ -56,7 +45,7 @@ export function setErrorReportDevice(id: string): void {
 
 /** Off under `ng serve` and in tests; only production builds report. */
 function active(): boolean {
-  return !isDevMode() && APP_CONFIG.syncEnabled && errorReportEnabled() && typeof fetch === 'function';
+  return !isDevMode() && APP_CONFIG.syncEnabled && readEnabled() && typeof fetch === 'function';
 }
 
 export function reportError(e: ReportedError): void {

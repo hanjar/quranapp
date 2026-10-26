@@ -48,7 +48,7 @@ const FONT_STACK: Record<ReadFont, string> = {
 };
 const LINE: Record<ReadSpacing, number> = { tight: 1.55, normal: 1.75, loose: 1.95 };
 
-/** Stored view settings, sanitised (per device; a convenience, not synced). */
+/** Stored view settings, sanitised (synced with the account through syncedSetting). */
 export function readView(raw: string | null): ReadView {
   try {
     const v = { ...READ_VIEW_DEFAULT, ...(JSON.parse(raw ?? '{}') as Partial<ReadView>) };
@@ -63,8 +63,8 @@ export function readView(raw: string | null): ReadView {
 }
 
 /**
- * Reading page for the private Tafsir Ibnu Katsir (opened from the menu, owner account only).
- * Built for long reading: one column, adjustable font / size / spacing, ayah quotes shown as the
+ * Tafsir reading page (Menu › Tafsir): Tafsir Kemenag for everyone, the private Tafsir Ibnu
+ * Katsir for the allow-listed account. Built for long reading: one column, adjustable font / size / spacing, ayah quotes shown as the
  * Kemenag translation, review notes (RAGU) folded behind a small ⚠.
  */
 @Component({
@@ -782,20 +782,4 @@ export class TafsirReader {
 
 function rangeLabel(from: number, to: number): string {
   return to > from ? `${from}–${to}` : String(from);
-}
-
-function storageGet(k: string): string | null {
-  try {
-    return localStorage.getItem(k);
-  } catch {
-    return null;
-  }
-}
-
-function storageSet(k: string, v: string): void {
-  try {
-    localStorage.setItem(k, v);
-  } catch {
-    /* blocked: lasts for this page load */
-  }
 }
