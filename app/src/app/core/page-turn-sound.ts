@@ -5,7 +5,7 @@ import { AudioService } from './audio/audio.service';
  * A paper sound when the reader turns a page. Two choices (Freesound, silence trimmed,
  * see public/sfx and NOTICE.md): "Kertas" = "Aggressively turning paper pages #5" by Vvix
  * (CC0), "Ambil kertas" = "Paper Grab" by Geoff Bremner (CC BY-NC 4.0). Per-device
- * setting, "Kertas" by default, quiet, and never over a recitation. Rapid page turns
+ * setting, "Ambil kertas" by default, quiet, and never over a recitation. Rapid page turns
  * stay calm: taps closer than MIN_GAP_MS share one sound, at most two sounds overlap
  * (the older one fades out), and turns in a burst use the short cut of the sound.
  */
@@ -158,8 +158,8 @@ export class PageTurnSoundService {
 function readChoice(): PageSoundChoice {
   try {
     const v = localStorage.getItem(KEY);
-    return v === 'off' || v === 'grab' ? v : 'paper';
+    return v === 'off' || v === 'paper' ? v : 'grab';
   } catch {
-    return 'paper';
+    return 'grab';
   }
 }

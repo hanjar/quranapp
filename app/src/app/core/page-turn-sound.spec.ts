@@ -51,6 +51,10 @@ describe('PageTurnSoundService', () => {
     now += 1000;
   }
 
+  it('defaults to "Ambil kertas" (grab) when nothing was chosen', () => {
+    expect(TestBed.inject(PageTurnSoundService).choice()).toBe('grab');
+  });
+
   it('plays on a turn once loaded', async () => {
     const s = TestBed.inject(PageTurnSoundService);
     await warm(s);
