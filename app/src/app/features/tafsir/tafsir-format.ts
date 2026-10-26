@@ -106,3 +106,20 @@ export function sectionIndexFor(blocks: readonly Block[], ayah: number): number 
   }
   return best;
 }
+
+/** Tafsir Kemenag (one text per ayah) → the same blocks: an "Ayat n" section, then its paragraphs. */
+export function kemenagBlocks(surah: number, ayahs: Record<string, string>): Block[] {
+  const blocks: Block[] = [];
+  const keys = Object.keys(ayahs)
+    .map(Number)
+    .filter((n) => Number.isInteger(n) && n > 0)
+    .sort((a, b) => a - b);
+  for (const a of keys) {
+    blocks.push({ kind: 'section', label: `${surah}:${a}`, s: surah, from: a, to: a });
+    for (const para of ayahs[String(a)]!.split(/\n+/)) {
+      const p = para.trim();
+      if (p) blocks.push({ kind: 'p', parts: [{ t: 'text', v: p }] });
+    }
+  }
+  return blocks;
+}

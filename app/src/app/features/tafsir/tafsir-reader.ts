@@ -18,7 +18,8 @@ import { ContentApi, UserDataApi } from '../../core/contracts';
 import { TranslationService } from '../../core/content/translation.service';
 import { ReaderUiService } from '../../core/reader-ui.service';
 import { TafsirAccessError, TafsirIkService } from '../../core/tafsir/tafsir-ik.service';
-import { Block, Inline, parseTafsir, sectionIndexFor } from './tafsir-format';
+import { Block, Inline, kemenagBlocks, parseTafsir, sectionIndexFor } from './tafsir-format';
+import { TafsirService } from '../../core/content/tafsir.service';
 
 export type ReadFont = 'poppins' | 'serif' | 'system';
 export type ReadSpacing = 'tight' | 'normal' | 'loose';
@@ -34,6 +35,8 @@ export const READ_VIEW_DEFAULT: ReadView = { font: 'poppins', size: 18, spacing:
 export const READ_SIZE_MIN = 14;
 export const READ_SIZE_MAX = 26;
 const VIEW_KEY = 'mf-tafsir-view';
+const SOURCE_KEY = 'mf-tafsir-source';
+export type TafsirSource = 'kemenag' | 'ik';
 /** Blocks rendered at first, then added as the reader scrolls (Al-Baqarah has thousands). */
 const STEP = 80;
 
@@ -81,7 +84,7 @@ export function readView(raw: string | null): ReadView {
         </svg>
       </button>
       <label class="pick">
-        <span class="pick__sub">Tafsir Ibnu Katsir</span>
+        <span class="pick__sub">{{ sourceLabel() }}</span>
         <select class="pick__sel" aria-label="Pilih surah" [value]="surahNum()" (change)="goSurah($event)">
           @for (s of surahs(); track s.number) {
             <option [value]="s.number" [selected]="s.number === surahNum()">{{ s.number }}. {{ s.nameLatin }}</option>
@@ -142,10 +145,27 @@ export function readView(raw: string | null): ReadView {
       } @else {
         <h1 class="title">{{ surahName() }}</h1>
         <p class="lead">{{ ayahCount() }} ayat</p>
-        <p class="disclaimer">
-          Terjemahan AI dari teks Arab Ibnu Katsir, belum ditashih. Kutipan ayat memakai terjemahan
-          Kemenag RI. Tanda ⚠ menandai bagian yang perlu dicek ahli. Untuk keperluan pribadi.
-        </p>
+        @if (ikAllowed()) {
+          <div class="seg source" role="radiogroup" aria-label="Sumber tafsir" data-testid="tafsir-source">
+            <button type="button" role="radio" [attr.aria-checked]="source() === 'kemenag'" (click)="setSource('kemenag')">
+              Kemenag
+            </button>
+            <button type="button" role="radio" [attr.aria-checked]="source() === 'ik'" (click)="setSource('ik')">
+              Ibnu Katsir
+            </button>
+          </div>
+        }
+        @if (source() === 'ik') {
+          <p class="disclaimer">
+            Terjemahan AI dari teks Arab Ibnu Katsir, belum ditashih. Kutipan ayat memakai terjemahan
+            Kemenag RI. Tanda ⚠ menandai bagian yang perlu dicek ahli. Untuk keperluan pribadi.
+          </p>
+        } @else {
+          <p class="disclaimer">
+            Tafsir Kementerian Agama RI (quran.kemenag.go.id, lewat EQuran.id). Terjemahan ayat: Kemenag
+            RI, edisi penyempurnaan 2019.
+          </p>
+        }
         @if (sections().length > 1) {
           <label class="jump">
             <span>Lompat ke</span>
@@ -370,6 +390,11 @@ export function readView(raw: string | null): ReadView {
       color: var(--ui-muted);
       font-size: 0.8em;
     }
+    .source {
+      width: fit-content;
+      margin: 4px 0 14px;
+      font-family: var(--ui-font);
+    }
     .disclaimer {
       margin: 0 0 16px;
       padding: 10px 12px;
@@ -503,6 +528,7 @@ export class TafsirReader {
   private readonly content = inject(ContentApi);
   private readonly translations = inject(TranslationService);
   private readonly tafsir = inject(TafsirIkService);
+  private readonly kemenag = inject(TafsirService);
   private readonly ui = inject(ReaderUiService);
   private readonly userData = inject(UserDataApi);
   private readonly router = inject(Router);
@@ -512,6 +538,19 @@ export class TafsirReader {
   /** Route param and ?ayat= (component input binding). */
   readonly surah = input<string>('1');
   readonly ayat = input<string | undefined>(undefined);
+  /** ?sumber=ik opens Ibnu Katsir (search entry); otherwise the last choice, Kemenag at first. */
+  readonly sumber = input<string | undefined>(undefined);
+
+  /** Ibnu Katsir is private (allow-listed account); everyone else reads Tafsir Kemenag. */
+  protected readonly ikAllowed = this.tafsir.allowed;
+  private readonly chosen = signal<TafsirSource>(storageGet(SOURCE_KEY) === 'ik' ? 'ik' : 'kemenag');
+  protected readonly source = computed<TafsirSource>(() => {
+    const want = this.sumber() === 'ik' ? 'ik' : this.chosen();
+    return want === 'ik' && this.ikAllowed() ? 'ik' : 'kemenag';
+  });
+  protected readonly sourceLabel = computed(() =>
+    this.source() === 'ik' ? 'Tafsir Ibnu Katsir' : 'Tafsir Kemenag',
+  );
 
   protected readonly fonts: { id: ReadFont; label: string }[] = [
     { id: 'poppins', label: 'Poppins' },
@@ -560,7 +599,8 @@ export class TafsirReader {
     effect(() => {
       const s = this.surahNum();
       const ayat = Number(this.ayat()) || 0;
-      untracked(() => void this.load(s, ayat));
+      const src = this.source();
+      untracked(() => void this.load(s, ayat, src));
     });
     // Render more blocks as the end comes into view.
     const io = new IntersectionObserver(
@@ -577,14 +617,19 @@ export class TafsirReader {
     inject(DestroyRef).onDestroy(() => io.disconnect());
   }
 
-  private async load(s: number, ayat: number): Promise<void> {
+  private async load(s: number, ayat: number, src: TafsirSource): Promise<void> {
     const seq = ++this.loadSeq;
     this.state.set('loading');
     this.open.set(new Set());
     try {
-      const file = await this.tafsir.load(s);
+      let blocks: Block[];
+      if (src === 'ik') blocks = parseTafsir(await this.tafsir.load(s));
+      else {
+        const f = await this.kemenag.surah(s);
+        if (!f) throw new Error('unavailable');
+        blocks = kemenagBlocks(s, f.ayahs);
+      }
       if (seq !== this.loadSeq) return;
-      const blocks = parseTafsir(file);
       const target = ayat ? sectionIndexFor(blocks, ayat) : -1;
       this.blocks.set(blocks);
       this.limit.set(Math.max(STEP, target + STEP));
@@ -611,7 +656,19 @@ export class TafsirReader {
   }
 
   protected reload(): void {
-    void this.load(this.surahNum(), Number(this.ayat()) || 0);
+    void this.load(this.surahNum(), Number(this.ayat()) || 0, this.source());
+  }
+
+  /** Switch source and stay at the ayah being read. */
+  protected setSource(src: TafsirSource): void {
+    if (src === this.source()) return;
+    const ayah = this.ayahInView();
+    this.chosen.set(src);
+    storageSet(SOURCE_KEY, src);
+    void this.router.navigate(['/tafsir', this.surahNum()], {
+      queryParams: { ayat: ayah, sumber: src === 'ik' ? 'ik' : null },
+      replaceUrl: true,
+    });
   }
 
   protected set(patch: Partial<ReadView>): void {

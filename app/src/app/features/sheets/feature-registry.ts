@@ -16,8 +16,8 @@ export type FeatureAction =
   | { type: 'font'; dir: 1 | -1 }
   /** Verse sheet of the first ayah on the current page (Baca tafsir, Bagikan, Favorit…). */
   | { type: 'verse' }
-  /** Private Tafsir Ibnu Katsir at the current page. */
-  | { type: 'tafsir-ik' };
+  /** The tafsir reading page at the current page (Ibnu Katsir only for the allow-listed account). */
+  | { type: 'tafsir'; source: 'kemenag' | 'ik' };
 
 /** Device/app capabilities that gate some features. */
 export interface FeatureEnv {
@@ -141,7 +141,7 @@ export const FEATURES: readonly FeatureEntry[] = [
     'Tafsir Ibnu Katsir',
     'Halaman baca Tafsir Ibnu Katsir (terjemahan AI, belum ditashih) mulai dari ayat di halaman ini.',
     'Baca',
-    { type: 'tafsir-ik' },
+    { type: 'tafsir', source: 'ik' },
     [
       'tafsir',
       'tafsir ibnu katsir',
@@ -158,10 +158,10 @@ export const FEATURES: readonly FeatureEntry[] = [
   ),
   f(
     'tafsir-kemenag',
-    'Tafsir Kemenag per ayat',
-    'Ketuk sebuah ayat lalu pilih "Baca tafsir". Dibuka untuk ayat pertama di halaman ini.',
+    'Tafsir Kemenag',
+    'Halaman baca Tafsir Kemenag RI per surah, mulai dari ayat di halaman ini (juga lewat Menu, Tafsir).',
     'Baca',
-    { type: 'verse' },
+    { type: 'tafsir', source: 'kemenag' },
     [
       'tafsir',
       'tafsir kemenag',

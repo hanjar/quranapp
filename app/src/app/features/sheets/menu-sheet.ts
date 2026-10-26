@@ -167,7 +167,6 @@ import { offlineNeedsAttention, syncNeedsAttention } from '../reader/attention';
         </button>
       </li>
       }
-      @if (tafsir.allowed()) {
       <li>
         <button type="button" class="tile" data-tile="tafsir" (click)="openTafsir()">
           <svg
@@ -187,7 +186,6 @@ import { offlineNeedsAttention, syncNeedsAttention } from '../reader/attention';
           <span class="label">Tafsir</span>
         </button>
       </li>
-      }
       @if (admin.allowed()) {
       <li>
         <button type="button" class="tile" data-tile="stats" (click)="openStats()">
@@ -486,7 +484,7 @@ export class MenuSheet {
     this.history.navigateUrl('/grup');
   }
 
-  /** Tafsir Ibnu Katsir of the first ayah on the current page (a page of its own, like the doa). */
+  /** Tafsir (Kemenag; Ibnu Katsir for the allow-listed account) of the first ayah on the current page (a page of its own, like the doa). */
   protected openTafsir(): void {
     const first = this.content.index() ? this.content.pageMeta(this.ui.currentPage()).first : null;
     this.history.navigateUrl(first ? `/tafsir/${first.surah}?ayat=${first.ayah}` : '/tafsir/1');

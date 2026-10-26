@@ -1,4 +1,4 @@
-import { emphasis, parseInline, parseRef, parseTafsir, sectionIndexFor } from './tafsir-format';
+import { emphasis, kemenagBlocks, parseInline, parseRef, parseTafsir, sectionIndexFor } from './tafsir-format';
 
 describe('tafsir-format', () => {
   it('parses refs', () => {
@@ -56,5 +56,18 @@ describe('tafsir-format', () => {
     expect(sectionIndexFor(blocks, 3)).toBe(2);
     expect(sectionIndexFor(blocks, 5)).toBe(5);
     expect(sectionIndexFor(blocks, 40)).toBe(5);
+  });
+});
+
+describe('kemenagBlocks', () => {
+  it('one section per ayah in order, paragraphs split on new lines, text kept literal', () => {
+    const b = kemenagBlocks(112, { '2': 'Dua *a*.', '1': 'Satu.\n\nLanjut.' });
+    expect(b.map((x) => (x.kind === 'section' ? `#${x.from}` : (x.parts[0] as { v: string }).v))).toEqual([
+      '#1',
+      'Satu.',
+      'Lanjut.',
+      '#2',
+      'Dua *a*.',
+    ]);
   });
 });

@@ -79,9 +79,7 @@ describe('MenuSheet', () => {
     expect(m.tiles()).toContain('progress');
   });
 
-  it('Tafsir tile only for allowed accounts; opens the tafsir of the current page', () => {
-    expect(mount().tile('tafsir')).toBeNull();
-    tafsirAllowed.set(true);
+  it('Tafsir tile for everyone; opens the tafsir of the current page', () => {
     const m = mount();
     const nav = vi.spyOn(TestBed.inject(Router), 'navigateByUrl').mockResolvedValue(true);
     m.tile('tafsir')!.click();
@@ -94,6 +92,7 @@ describe('MenuSheet', () => {
       'bookmarks',
       'progress',
       'groups',
+      'tafsir',
       'doa',
       'offline',
       'settings',

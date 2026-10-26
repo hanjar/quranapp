@@ -480,9 +480,13 @@ export class SearchSheet {
         else this.ui.closeSheet();
         break;
       }
-      case 'tafsir-ik': {
+      case 'tafsir': {
         const first = this.content.index() ? this.content.pageMeta(this.ui.currentPage()).first : null;
-        this.history.navigateUrl(first ? `/tafsir/${first.surah}?ayat=${first.ayah}` : '/tafsir/1');
+        const q = new URLSearchParams();
+        if (first) q.set('ayat', String(first.ayah));
+        if (a.source === 'ik') q.set('sumber', 'ik');
+        const qs = q.toString();
+        this.history.navigateUrl(`/tafsir/${first?.surah ?? 1}${qs ? '?' + qs : ''}`);
         break;
       }
       case 'font': {

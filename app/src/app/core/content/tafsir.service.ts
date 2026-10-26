@@ -55,6 +55,11 @@ export class TafsirService {
     return f?.ayahs[String(ref.ayah)] ?? null;
   }
 
+  /** Whole surah (the tafsir reading page), or null when unavailable. */
+  surah(surah: number): Promise<TafsirFile | null> {
+    return this.load(surah);
+  }
+
   private load(surah: number): Promise<TafsirFile | null> {
     let p = this.files.get(surah);
     if (!p) {

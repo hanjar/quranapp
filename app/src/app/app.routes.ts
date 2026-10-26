@@ -49,10 +49,10 @@ export const routes: Routes = [
     title: 'Doa Khatam · Mushaf Digital',
   },
   {
-    // Private Tafsir Ibnu Katsir (allow-listed account only; the API enforces it).
+    // Tafsir reading page: Kemenag for everyone, Ibnu Katsir for the allow-listed account.
     path: 'tafsir/:surah',
     loadComponent: () => import('./features/tafsir/tafsir-reader').then((m) => m.TafsirReader),
-    title: 'Tafsir Ibnu Katsir · Mushaf Digital',
+    title: 'Tafsir · Mushaf Digital',
   },
   {
     // Owner-only usage dashboard (the API enforces it).
