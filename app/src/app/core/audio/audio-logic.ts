@@ -18,6 +18,11 @@ export interface Qari {
   attribution: string;
   /** Has offline packages and our R2 copy. */
   offline: boolean;
+  /**
+   * Our R2 Opus copy of the ayah, for qaris that only stream (`offline` false). Used when
+   * the device can't decode the CDN files. Undefined when we have no copy.
+   */
+  own?: (ref: AyahRef) => string;
 }
 
 export const QARIS: readonly Qari[] = [
@@ -43,6 +48,7 @@ export const QARIS: readonly Qari[] = [
       `https://mirrors.quranicaudio.com/everyayah/Ghamadi_40kbps/${pad3(ref.surah)}${pad3(ref.ayah)}.mp3`,
     attribution: 'Saad Al-Ghamdi · audio via EveryAyah',
     offline: false,
+    own: (ref) => `https://audio.hanjar.net/ghamdi/opus32/${pad3(ref.surah)}${pad3(ref.ayah)}.webm`,
   },
 ];
 

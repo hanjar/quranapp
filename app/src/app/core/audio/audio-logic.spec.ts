@@ -85,6 +85,16 @@ describe('qari urls', () => {
     );
   });
 
+  it('builds the Al-Ghamdi own R2 opus copy url per ayah', () => {
+    expect(ghamdi.own?.({ surah: 2, ayah: 255 })).toBe(
+      'https://audio.hanjar.net/ghamdi/opus32/002255.webm',
+    );
+  });
+
+  it('gives Alafasy no own url (it uses the existing R2 copy path)', () => {
+    expect(alafasy.own).toBeUndefined();
+  });
+
   it('gives the default qari for unknown or missing ids', () => {
     expect(qariById(null).id).toBe('alafasy');
     expect(qariById('nope').id).toBe('alafasy');

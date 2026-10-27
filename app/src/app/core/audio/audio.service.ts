@@ -189,8 +189,9 @@ export class AudioService {
           );
         return;
       }
-      if (!file && qari.offline && this.preferOwn) {
-        this.startFile(a, token, ref, basmalah, ownCopyUrl(a, target), stream);
+      const own = !file && this.preferOwn ? this.ownUrl(a, target) : null;
+      if (own) {
+        this.startFile(a, token, ref, basmalah, own, stream);
         return;
       }
       this.startFile(
@@ -232,7 +233,8 @@ export class AudioService {
       }
       // An Android 10 tablet failed the same (longer) files on both CDNs with "Format error",
       // though they decode fine elsewhere: try our own re-encoded copy on R2 last.
-      if (!this.freshRetried && this.qari().offline) {
+      const own = this.freshRetried ? null : this.ownUrl(a, basmalah ? { surah: 1, ayah: 1 } : ref);
+      if (own) {
         this.freshRetried = true;
         reportError({
           op: 'audio-retry',
@@ -240,7 +242,7 @@ export class AudioService {
           message: `${ref.surah}:${ref.ayah} · ${failed}`,
           at: Date.now(),
         });
-        a.src = ownCopyUrl(a, basmalah ? { surah: 1, ayah: 1 } : ref);
+        a.src = own;
         void a.play().catch(() => undefined);
         return;
       }
@@ -306,6 +308,17 @@ export class AudioService {
   private fail(msg = 'Audio tidak dapat diputar. Periksa koneksi lalu coba lagi.'): void {
     this.state.set('error');
     this.error.set(msg);
+  }
+
+  /**
+   * Our own copy on R2 for the current qari, or null when there is none. Offline qaris use
+   * the Alafasy copy; streaming qaris use their `own` URL, only where Opus plays.
+   */
+  private ownUrl(a: HTMLAudioElement, target: AyahRef): string | null {
+    const qari = this.qari();
+    if (qari.offline) return ownCopyUrl(a, target);
+    if (!qari.own || a.canPlayType('audio/webm; codecs=opus') === '') return null;
+    return qari.own(target);
   }
 
   private createAudio(): HTMLAudioElement {
