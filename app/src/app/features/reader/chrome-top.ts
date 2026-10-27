@@ -1,9 +1,13 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input } from '@angular/core';
 import { ContentApi, OfflineApi, SyncApi, UserDataApi } from '../../core/contracts';
+import { ProgressService } from '../../core/progress/progress.service';
 import { ReaderUiService } from '../../core/reader-ui.service';
 import { ThemeService } from '../../core/theme.service';
 import { UpdateService } from '../../core/update.service';
 import { menuNeedsAttention, offlineNeedsAttention, syncNeedsAttention } from './attention';
+
+/** Circumference of the progress ring (r = 13). */
+const RING_LEN = 2 * Math.PI * 13;
 
 /**
  * Top bar (fits a 320px portrait phone): [surah title ▾ / "Hal. · Juz" → browse sheet] …
@@ -52,7 +56,45 @@ import { menuNeedsAttention, offlineNeedsAttention, syncNeedsAttention } from '.
       </button>
     </div>
 
-    <button type="button" class="mf-icon-btn" aria-label="Cari" (click)="ui.openSheet('search')">
+    @if (progress.enabled()) {
+      <button
+        type="button"
+        class="today"
+        data-testid="today-badge"
+        [class.is-done]="todayDone()"
+        [attr.aria-label]="todayLabel()"
+        (click)="ui.openSheet('progress')"
+      >
+        <svg class="today__ring" width="30" height="30" viewBox="0 0 30 30" aria-hidden="true">
+          <circle class="today__track" cx="15" cy="15" r="13" />
+          @if (todayRatio() > 0) {
+            <circle
+              class="today__arc"
+              cx="15"
+              cy="15"
+              r="13"
+              transform="rotate(-90 15 15)"
+              [style.stroke-dasharray]="todayDash()"
+            />
+          }
+          <path
+            class="today__star"
+            d="M15 7.5L17.2 9.7H20.3V12.8L22.5 15L20.3 17.2V20.3H17.2L15 22.5L12.8 20.3H9.7V17.2L7.5 15L9.7 12.8V9.7H12.8Z"
+          />
+        </svg>
+        <span class="today__text">
+          <span class="today__num">{{ progress.todayCount() }}/{{ progress.dailyTarget() }}</span>
+          <span class="today__cap">{{ todayDone() ? 'target tercapai' : 'hal. hari ini' }}</span>
+        </span>
+      </button>
+    }
+
+    <button
+      type="button"
+      class="mf-icon-btn search-btn"
+      aria-label="Cari"
+      (click)="ui.openSheet('search')"
+    >
       <svg
         width="21"
         height="21"
@@ -156,6 +198,10 @@ import { menuNeedsAttention, offlineNeedsAttention, syncNeedsAttention } from '.
         transform var(--mf-dur-base) var(--mf-ease),
         visibility 0s linear var(--mf-dur-base);
     }
+    /* The icons stay at the right edge even when the title is capped for the centred badge. */
+    .search-btn {
+      margin-left: auto;
+    }
     .title-wrap {
       flex: 1;
       min-width: 0;
@@ -190,6 +236,97 @@ import { menuNeedsAttention, offlineNeedsAttention, syncNeedsAttention } from '.
     .title__chev {
       flex: none;
       color: var(--ui-muted);
+    }
+    /* Keeps a long surah name clear of the centred today badge (see .today). */
+    .title-wrap:has(+ .today) {
+      max-width: calc(50% - 80px);
+    }
+    .today {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      min-height: var(--mf-tap);
+      padding: 2px 10px 2px 4px;
+      border: 1px solid var(--ui-hair);
+      border-radius: 999px;
+      background: color-mix(in srgb, var(--ui-primary) 7%, var(--ui-surface));
+      color: var(--ui-ink);
+      font-family: var(--ui-font);
+      white-space: nowrap;
+    }
+    .today:focus-visible {
+      outline: 2px solid var(--ui-primary);
+      outline-offset: 2px;
+    }
+    .today__ring {
+      flex: none;
+    }
+    .today__track {
+      fill: none;
+      stroke: var(--ui-hair);
+      stroke-width: 2.5;
+    }
+    .today__arc {
+      fill: none;
+      stroke: var(--ui-primary);
+      stroke-width: 2.5;
+      stroke-linecap: round;
+    }
+    /* Rub el hizb outline with a light tint, so it reads as an ornament rather than a gear. */
+    .today__star {
+      fill: color-mix(in srgb, var(--ui-primary) 16%, transparent);
+      stroke: var(--ui-primary);
+      stroke-width: 1.2;
+      stroke-linejoin: round;
+    }
+    .is-done .today__star {
+      fill: var(--ui-primary);
+    }
+    .today__text {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      line-height: 1.15;
+    }
+    .today__num {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--ui-ink);
+      font-variant-numeric: tabular-nums;
+    }
+    .today__cap {
+      font-size: 10.5px;
+      letter-spacing: 0.02em;
+      color: var(--ui-muted);
+    }
+    /* Under 440px the full pill would reach the three icon buttons: compact ring + number, no caption. */
+    @media (max-width: 439px) {
+      .title-wrap:has(+ .today) {
+        max-width: calc(50% - 46px);
+      }
+      .today {
+        gap: 4px;
+        padding: 2px 8px 2px 3px;
+      }
+      .today__ring {
+        width: 26px;
+        height: 26px;
+      }
+      .today__num {
+        font-size: 13px;
+      }
+      .today__cap {
+        display: none;
+      }
+    }
+    @media (prefers-reduced-motion: no-preference) {
+      .today__arc {
+        transition: stroke-dasharray 300ms var(--mf-ease);
+      }
     }
     .page-btn {
       padding: 1px 12px 5px 0;
@@ -226,8 +363,22 @@ export class ChromeTop {
   private readonly updates = inject(UpdateService);
   private readonly offline = inject(OfflineApi);
   protected readonly night = inject(ThemeService);
+  protected readonly progress = inject(ProgressService);
 
   readonly shown = input(true);
+
+  protected readonly todayRatio = computed(() => {
+    const target = this.progress.dailyTarget();
+    return target > 0 ? Math.min(1, this.progress.todayCount() / target) : 0;
+  });
+  protected readonly todayDone = computed(
+    () => this.progress.todayCount() >= this.progress.dailyTarget(),
+  );
+  protected readonly todayDash = computed(() => `${this.todayRatio() * RING_LEN} ${RING_LEN}`);
+  protected readonly todayLabel = computed(
+    () =>
+      `Hari ini ${this.progress.todayCount()} dari ${this.progress.dailyTarget()} halaman. Buka progres membaca`,
+  );
 
   /** Manual flip. From Otomatis the toast offers a way back. */
   protected toggleNight(): void {
