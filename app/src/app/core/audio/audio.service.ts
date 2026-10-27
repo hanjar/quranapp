@@ -4,14 +4,17 @@ import { Router } from '@angular/router';
 import { ContentApi, UserDataApi } from '../contracts';
 import { AyahRef } from '../models';
 import { ReaderUiService } from '../reader-ui.service';
+import { syncedSetting } from '../synced-setting';
 import { AudioOfflineApi, audioFileUrl } from './audio-offline.api';
 import {
   AudioMode,
-  QARI,
+  DEFAULT_QARI,
+  QariId,
   globalAyahNumber,
   needsBasmalah,
   nextAyah,
   prevAyah,
+  qariById,
   shouldContinue,
 } from './audio-logic';
 
@@ -30,7 +33,13 @@ export class AudioService {
   private readonly router = inject(Router);
   private readonly offline = inject(AudioOfflineApi);
 
-  readonly qari = QARI;
+  private readonly qariSetting = syncedSetting<QariId>(
+    'qari',
+    'mf-qari',
+    (r) => qariById(r).id,
+    (v) => (v === DEFAULT_QARI.id ? null : v),
+  );
+  readonly qari = computed(() => qariById(this.qariSetting.value()));
   readonly state = signal<AudioState>('idle');
   /** The ayah being recited (also set while its basmalah plays). */
   readonly current = signal<AyahRef | null>(null);
@@ -129,6 +138,17 @@ export class AudioService {
     void this.data.setPrefs({ audioFollow: on });
   }
 
+  /** Switch voice; an ayah being recited restarts in the new voice (no basmalah again). */
+  setQari(id: QariId): void {
+    this.qariSetting.set(id);
+    const cur = this.current();
+    if (
+      cur &&
+      (this.state() === 'playing' || this.state() === 'paused' || this.state() === 'loading')
+    )
+      this.playFile(cur, false);
+  }
+
   // --- internals ------------------------------------------------------------
 
   private counts(): number[] {
@@ -151,35 +171,37 @@ export class AudioService {
     this.firstFailure = null;
     this.state.set('loading');
     this.setMediaSession(ref);
-    // Stored recitation first (offline packages), otherwise stream.
-    void this.offline
-      .localUrl(target)
-      .catch(() => null)
-      .then((local) => {
-        if (token !== this.token) return;
-        const stream = QARI.primary(globalAyahNumber(target, this.counts()));
-        if (!local && isOffline()) {
-          // Surah packages don't carry the Al-Fatihah file used for the basmalah.
-          if (basmalah) this.playFile(ref, false);
-          else
-            this.fail(
-              'Ayat ini belum disimpan untuk offline. Sambungkan internet atau simpan surahnya.',
-            );
-          return;
-        }
-        if (!local && this.preferOwn) {
-          this.startFile(a, token, ref, basmalah, ownCopyUrl(a, target), stream);
-          return;
-        }
-        this.startFile(
-          a,
-          token,
-          ref,
-          basmalah,
-          local ?? stream,
-          local ? stream : QARI.fallback(target),
-        );
-      });
+    const qari = this.qari();
+    // Stored recitation first (offline packages, Alafasy only), otherwise stream.
+    const local: Promise<string | null> = qari.offline
+      ? this.offline.localUrl(target).catch(() => null)
+      : Promise.resolve(null);
+    void local.then((file) => {
+      if (token !== this.token) return;
+      const stream = qari.primary(globalAyahNumber(target, this.counts()), target);
+      if (!file && isOffline()) {
+        if (!qari.offline) this.fail('Qari ini hanya bisa diputar dengan internet.');
+        // Surah packages don't carry the Al-Fatihah file used for the basmalah.
+        else if (basmalah) this.playFile(ref, false);
+        else
+          this.fail(
+            'Ayat ini belum disimpan untuk offline. Sambungkan internet atau simpan surahnya.',
+          );
+        return;
+      }
+      if (!file && qari.offline && this.preferOwn) {
+        this.startFile(a, token, ref, basmalah, ownCopyUrl(a, target), stream);
+        return;
+      }
+      this.startFile(
+        a,
+        token,
+        ref,
+        basmalah,
+        file ?? stream,
+        file ? stream : qari.fallback(target),
+      );
+    });
   }
 
   private startFile(
@@ -210,7 +232,7 @@ export class AudioService {
       }
       // An Android 10 tablet failed the same (longer) files on both CDNs with "Format error",
       // though they decode fine elsewhere: try our own re-encoded copy on R2 last.
-      if (!this.freshRetried) {
+      if (!this.freshRetried && this.qari().offline) {
         this.freshRetried = true;
         reportError({
           op: 'audio-retry',
@@ -305,7 +327,7 @@ export class AudioService {
       : `Surah ${ref.surah}`;
     ms.metadata = new MediaMetadata({
       title: `${name} · Ayat ${ref.ayah}`,
-      artist: QARI.name,
+      artist: this.qari().name,
       album: 'Mushaf Digital',
       artwork: [{ src: 'icons/icon-512.png', sizes: '512x512', type: 'image/png' }],
     });

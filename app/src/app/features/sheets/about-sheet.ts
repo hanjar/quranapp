@@ -3,6 +3,7 @@ import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/cor
 import { SwUpdate } from '@angular/service-worker';
 import { UpdateService } from '../../core/update.service';
 import { withTimeout } from '../../core/async';
+import { QARIS } from '../../core/audio/audio-logic';
 import { AudioService } from '../../core/audio/audio.service';
 import { BUILD_INFO } from '../../core/build-info';
 import { ContentApi } from '../../core/contracts';
@@ -117,7 +118,9 @@ import { SHEET_STYLES } from './sheet-styles';
 
     <section aria-label="Atribusi audio">
       <h3>Audio</h3>
-      <p class="muted">{{ audio.qari.attribution }}</p>
+      @for (q of qaris; track q.id) {
+        <p class="muted">{{ q.attribution }}</p>
+      }
     </section>
 
     <section aria-label="Keutuhan teks">
@@ -155,7 +158,8 @@ import { SHEET_STYLES } from './sheet-styles';
       <h3>Privasi</h3>
       <p>
         Posisi baca, penanda, dan preferensi disimpan di perangkat ini. Bila Anda mengaktifkan
-        sinkronisasi, hanya ketiganya yang dikirim ke cloud. Tanpa iklan, tanpa pelacakan; hanya hitungan anonim jumlah perangkat per hari.
+        sinkronisasi, hanya ketiganya yang dikirim ke cloud. Tanpa iklan, tanpa pelacakan; hanya
+        hitungan anonim jumlah perangkat per hari.
         <a class="link" href="/privasi" target="_blank" rel="noopener">Kebijakan privasi lengkap</a>
       </p>
     </section>
@@ -169,6 +173,7 @@ export class AboutSheet {
   private readonly content = inject(ContentApi);
   protected readonly qcfCredit = QCF_ATTRIBUTION;
   protected readonly audio = inject(AudioService);
+  protected readonly qaris = QARIS;
   private readonly sw = inject(SwUpdate);
   protected readonly updates = inject(UpdateService);
   protected readonly ui = inject(ReaderUiService);

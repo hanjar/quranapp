@@ -1,10 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import {
-  QARI,
+  DEFAULT_QARI,
+  QARIS,
   globalAyahNumber,
   needsBasmalah,
   nextAyah,
   prevAyah,
+  qariById,
   shouldContinue,
 } from './audio-logic';
 
@@ -61,13 +63,32 @@ describe('needsBasmalah', () => {
   });
 });
 
-describe('QARI urls', () => {
-  it('builds primary and fallback urls', () => {
-    expect(QARI.primary(4914)).toBe(
+describe('qari urls', () => {
+  const alafasy = QARIS[0];
+  const ghamdi = qariById('ghamdi');
+
+  it('builds Alafasy primary and fallback urls', () => {
+    expect(alafasy.primary(4914, { surah: 55, ayah: 13 })).toBe(
       'https://cdn.islamic.network/quran/audio/128/ar.alafasy/4914.mp3',
     );
-    expect(QARI.fallback({ surah: 55, ayah: 13 })).toBe(
+    expect(alafasy.fallback({ surah: 55, ayah: 13 })).toBe(
       'https://cdn.equran.id/audio-partial/Misyari-Rasyid-Al-Afasi/055013.mp3',
     );
+  });
+
+  it('builds Al-Ghamdi primary and fallback urls per ayah', () => {
+    expect(ghamdi.primary(262, { surah: 2, ayah: 255 })).toBe(
+      'https://everyayah.com/data/Ghamadi_40kbps/002255.mp3',
+    );
+    expect(ghamdi.fallback({ surah: 2, ayah: 255 })).toBe(
+      'https://mirrors.quranicaudio.com/everyayah/Ghamadi_40kbps/002255.mp3',
+    );
+  });
+
+  it('gives the default qari for unknown or missing ids', () => {
+    expect(qariById(null).id).toBe('alafasy');
+    expect(qariById('nope').id).toBe('alafasy');
+    expect(qariById('ghamdi').offline).toBe(false);
+    expect(DEFAULT_QARI.offline).toBe(true);
   });
 });

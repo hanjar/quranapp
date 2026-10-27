@@ -210,7 +210,7 @@ function setPlayerHeight(px: number): void {
             <span class="err" role="alert">{{ audio.error() }}</span>
           } @else {
             <span class="title">{{ title() }}</span>
-            <span class="sub">{{ audio.qari.name }}</span>
+            <span class="sub">{{ audio.qari().name }}</span>
           }
         </button>
         <span class="mf-visually-hidden" aria-live="polite">{{ announce() }}</span>
@@ -337,7 +337,9 @@ export class AudioPlayer {
     const cur = this.audio.current();
     this.audio.stop();
     if (!cur || this.marks.isVerseBookmarked(cur)) return;
-    const name = this.content.index() ? this.content.surah(cur.surah).nameLatin : `Surah ${cur.surah}`;
+    const name = this.content.index()
+      ? this.content.surah(cur.surah).nameLatin
+      : `Surah ${cur.surah}`;
     const page = this.content.pageOf(cur) ?? this.ui.currentPage();
     this.ui.showToast({
       message: `Berhenti di ${name} · Ayat ${cur.ayah}. Jadikan penanda?`,
@@ -355,10 +357,16 @@ export class AudioPlayer {
     return nowPlayingTitle(name, cur.ayah, this.audio.basmalah());
   });
 
-  /** Offline-save control state for the current surah (null when unsupported). */
+  /** Offline-save control state for the current surah (null when unsupported or not Alafasy). */
   protected readonly dl = computed(() => {
     const cur = this.audio.current();
-    if (!cur || this.offlineAudio.supported().length === 0 || !this.offlineAudio.manifest()) return null;
+    if (
+      !cur ||
+      !this.audio.qari().offline ||
+      this.offlineAudio.supported().length === 0 ||
+      !this.offlineAudio.manifest()
+    )
+      return null;
     const scope: AudioScope = { kind: 'surah', id: cur.surah };
     this.offlineAudio.perSurah();
     const p = this.offlineAudio.progressOf(scope);

@@ -3,6 +3,7 @@ import { PageSoundChoice, PageTurnSoundService } from '../../core/page-turn-soun
 import { syncedSetting } from '../../core/synced-setting';
 import { AudioService } from '../../core/audio/audio.service';
 import { AudioOfflineApi } from '../../core/audio/audio-offline.api';
+import { QARIS } from '../../core/audio/audio-logic';
 import { AUDIO_MODES } from '../shell/audio-labels';
 import {
   offlineAudioSummary,
@@ -61,20 +62,72 @@ const SYNC_LABEL: Record<string, string> = {
   styles: [
     SHEET_STYLES,
     `
-      .time-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-size: 13px; color: var(--ui-ink2); }
-      .time { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
-      .time-row .mf-input { min-width: 0; }
-      .is-inactive { opacity: 0.45; }
-      .subh { margin: 14px 0 8px; font-size: 13px; font-weight: 600; color: var(--ui-ink2); }
-      .custom { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
-      .custom .card { width: 100%; }
-      .custom__acts { display: flex; gap: 2px; }
-      .mini { min-height: var(--mf-tap); padding: 0 8px; font-size: 13px; flex: 1; }
-      .mini.danger { color: var(--mf-danger); }
-      .confirm { grid-column: 1 / -1; padding: 8px; border: 1px solid var(--ui-line); border-radius: var(--mf-radius-sm); font-size: 13px; }
-      .confirm p { margin: 0 0 6px; }
-      .confirm__acts { display: flex; gap: 6px; justify-content: flex-end; }
-      .build { margin-top: 12px; width: 100%; }
+      .time-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+        font-size: 13px;
+        color: var(--ui-ink2);
+      }
+      .time {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        min-width: 0;
+      }
+      .time-row .mf-input {
+        min-width: 0;
+      }
+      .is-inactive {
+        opacity: 0.45;
+      }
+      .subh {
+        margin: 14px 0 8px;
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--ui-ink2);
+      }
+      .custom {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        min-width: 0;
+      }
+      .custom .card {
+        width: 100%;
+      }
+      .custom__acts {
+        display: flex;
+        gap: 2px;
+      }
+      .mini {
+        min-height: var(--mf-tap);
+        padding: 0 8px;
+        font-size: 13px;
+        flex: 1;
+      }
+      .mini.danger {
+        color: var(--mf-danger);
+      }
+      .confirm {
+        grid-column: 1 / -1;
+        padding: 8px;
+        border: 1px solid var(--ui-line);
+        border-radius: var(--mf-radius-sm);
+        font-size: 13px;
+      }
+      .confirm p {
+        margin: 0 0 6px;
+      }
+      .confirm__acts {
+        display: flex;
+        gap: 6px;
+        justify-content: flex-end;
+      }
+      .build {
+        margin-top: 12px;
+        width: 100%;
+      }
     `,
   ],
   template: `
@@ -132,26 +185,26 @@ const SYNC_LABEL: Record<string, string> = {
         @if (prefs().nightAuto === 'schedule') {
           <div class="time-row">
             <div class="time">
-            <label for="night-start">Mulai</label>
-            <input
-              id="night-start"
-              class="mf-input"
-              type="time"
-              step="900"
-              [value]="prefs().nightStart"
-              (change)="setTime('nightStart', $event)"
-            />
+              <label for="night-start">Mulai</label>
+              <input
+                id="night-start"
+                class="mf-input"
+                type="time"
+                step="900"
+                [value]="prefs().nightStart"
+                (change)="setTime('nightStart', $event)"
+              />
             </div>
             <div class="time">
-            <label for="night-end">Selesai</label>
-            <input
-              id="night-end"
-              class="mf-input"
-              type="time"
-              step="900"
-              [value]="prefs().nightEnd"
-              (change)="setTime('nightEnd', $event)"
-            />
+              <label for="night-end">Selesai</label>
+              <input
+                id="night-end"
+                class="mf-input"
+                type="time"
+                step="900"
+                [value]="prefs().nightEnd"
+                (change)="setTime('nightEnd', $event)"
+              />
             </div>
           </div>
         }
@@ -193,12 +246,13 @@ const SYNC_LABEL: Record<string, string> = {
       </div>
       @if (prefs().paperTheme === 'comfort') {
         <p class="muted">
-          <strong>Krem Nyaman:</strong> kertas krem hangat dengan tinta gelap (kontras ±12:1), bukan hitam
-          pekat di atas putih terang, sehingga silau berkurang. Penelitian cukup konsisten bahwa teks gelap di
-          latar terang lebih mudah dibaca, terutama di ruangan terang. Belum ada bukti kuat bahwa warna krem
-          atau filter cahaya biru mengurangi kelelahan mata, dan tiap orang bisa berbeda. Yang paling membantu:
-          kecerahan layar disamakan dengan cahaya ruangan, dan istirahatkan mata setiap 20 menit (lihat jauh 20
-          detik). Di ruangan gelap, pakai Mode malam.
+          <strong>Krem Nyaman:</strong> kertas krem hangat dengan tinta gelap (kontras ±12:1), bukan
+          hitam pekat di atas putih terang, sehingga silau berkurang. Penelitian cukup konsisten
+          bahwa teks gelap di latar terang lebih mudah dibaca, terutama di ruangan terang. Belum ada
+          bukti kuat bahwa warna krem atau filter cahaya biru mengurangi kelelahan mata, dan tiap
+          orang bisa berbeda. Yang paling membantu: kecerahan layar disamakan dengan cahaya ruangan,
+          dan istirahatkan mata setiap 20 menit (lihat jauh 20 detik). Di ruangan gelap, pakai Mode
+          malam.
         </p>
       }
       @if (prefs().customThemes.length) {
@@ -212,20 +266,59 @@ const SYNC_LABEL: Record<string, string> = {
                 [attr.aria-pressed]="prefs().paperTheme === 'custom:' + t.id"
                 (click)="data.setPrefs({ paperTheme: customPaperId(t.id) })"
               >
-                <span class="swatch" [style.background]="t.paper" [style.border-color]="t.frameInk" [style.border-width.px]="2"></span>
+                <span
+                  class="swatch"
+                  [style.background]="t.paper"
+                  [style.border-color]="t.frameInk"
+                  [style.border-width.px]="2"
+                ></span>
                 <span class="name">{{ t.name }}</span>
                 <span class="sub">{{ t.paper }}</span>
               </button>
               <div class="custom__acts">
-                <button type="button" class="mf-btn mf-btn--ghost mini" [attr.aria-label]="'Ubah tema ' + t.name" (click)="editTheme(t.id)">Ubah</button>
-                <button type="button" class="mf-btn mf-btn--ghost mini danger" [attr.aria-label]="'Hapus tema ' + t.name" (click)="confirmDelete.set(t.id)">Hapus</button>
+                <button
+                  type="button"
+                  class="mf-btn mf-btn--ghost mini"
+                  [attr.aria-label]="'Ubah tema ' + t.name"
+                  (click)="editTheme(t.id)"
+                >
+                  Ubah
+                </button>
+                <button
+                  type="button"
+                  class="mf-btn mf-btn--ghost mini danger"
+                  [attr.aria-label]="'Hapus tema ' + t.name"
+                  (click)="confirmDelete.set(t.id)"
+                >
+                  Hapus
+                </button>
               </div>
               @if (confirmDelete() === t.id) {
-                <div class="confirm" role="alertdialog" [attr.aria-label]="'Hapus tema ' + t.name + '?'">
-                  <p>Hapus tema "{{ t.name }}"?{{ prefs().paperTheme === 'custom:' + t.id ? ' Kertas kembali ke Sepia.' : '' }}</p>
+                <div
+                  class="confirm"
+                  role="alertdialog"
+                  [attr.aria-label]="'Hapus tema ' + t.name + '?'"
+                >
+                  <p>
+                    Hapus tema "{{ t.name }}"?{{
+                      prefs().paperTheme === 'custom:' + t.id ? ' Kertas kembali ke Sepia.' : ''
+                    }}
+                  </p>
                   <div class="confirm__acts">
-                    <button type="button" class="mf-btn mf-btn--ghost mini" (click)="confirmDelete.set(null)">Batal</button>
-                    <button type="button" class="mf-btn mf-btn--primary mini" (click)="deleteTheme(t.id)">Hapus</button>
+                    <button
+                      type="button"
+                      class="mf-btn mf-btn--ghost mini"
+                      (click)="confirmDelete.set(null)"
+                    >
+                      Batal
+                    </button>
+                    <button
+                      type="button"
+                      class="mf-btn mf-btn--primary mini"
+                      (click)="deleteTheme(t.id)"
+                    >
+                      Hapus
+                    </button>
                   </div>
                 </div>
               }
@@ -234,7 +327,11 @@ const SYNC_LABEL: Record<string, string> = {
         </div>
         <p class="muted">Tema sendiri hanya tampil di mode siang tanpa Kontras tinggi.</p>
       }
-      <button type="button" class="mf-btn mf-btn--outline build" (click)="history.navigateUrl('/tema')">
+      <button
+        type="button"
+        class="mf-btn mf-btn--outline build"
+        (click)="history.navigateUrl('/tema')"
+      >
         Buat tema sendiri
       </button>
     </section>
@@ -285,8 +382,22 @@ const SYNC_LABEL: Record<string, string> = {
     <section aria-labelledby="st-audio" data-search-id="audio">
       <h3 id="st-audio">Audio</h3>
       <div class="row" style="cursor: default">
-        <span>Qari</span><span class="end">{{ audio.qari.name }}</span>
+        <span>Qari</span>
       </div>
+      <div class="mf-segmented" role="group" aria-label="Qari">
+        @for (q of qaris; track q.id) {
+          <button
+            type="button"
+            [attr.aria-pressed]="audio.qari().id === q.id"
+            (click)="audio.setQari(q.id)"
+          >
+            {{ q.name }}
+          </button>
+        }
+      </div>
+      @if (!audio.qari().offline) {
+        <p class="muted">Audio offline hanya tersedia untuk Mishary Rasyid Alafasy.</p>
+      }
       <div class="mf-segmented" role="group" aria-label="Mode putar">
         @for (m of audioModes; track m.id) {
           <button
@@ -342,7 +453,9 @@ const SYNC_LABEL: Record<string, string> = {
       <div class="switch-row" data-search-id="line-rules">
         <span
           ><span id="sw-line-rules">Garis antarbaris</span
-          ><small id="sw-line-rules-d" style="display: block; color: var(--ui-muted); font-size: 12.5px"
+          ><small
+            id="sw-line-rules-d"
+            style="display: block; color: var(--ui-muted); font-size: 12.5px"
             >Garis tipis pemisah antarbaris di halaman mushaf.</small
           ></span
         >
@@ -387,9 +500,18 @@ const SYNC_LABEL: Record<string, string> = {
       <div class="row" style="cursor: default">
         <span id="page-sound-label">Suara balik halaman (perangkat ini)</span>
       </div>
-      <div class="mf-segmented" role="group" aria-labelledby="page-sound-label" data-search-id="page-sound">
+      <div
+        class="mf-segmented"
+        role="group"
+        aria-labelledby="page-sound-label"
+        data-search-id="page-sound"
+      >
         @for (o of pageSoundOptions; track o.id) {
-          <button type="button" [attr.aria-pressed]="pageSound.choice() === o.id" (click)="pageSound.choose(o.id)">
+          <button
+            type="button"
+            [attr.aria-pressed]="pageSound.choice() === o.id"
+            (click)="pageSound.choose(o.id)"
+          >
             {{ o.label }}
           </button>
         }
@@ -526,8 +648,11 @@ const SYNC_LABEL: Record<string, string> = {
       <div class="switch-row" data-search-id="error-report">
         <span
           ><span id="sw-error-report">Kirim laporan galat otomatis</span
-          ><small id="sw-error-report-d" style="display: block; color: var(--ui-muted); font-size: 12.5px"
-            >Hanya nama &amp; pesan galat, versi aplikasi dan browser, untuk memperbaiki masalah. Tanpa isi penanda.</small
+          ><small
+            id="sw-error-report-d"
+            style="display: block; color: var(--ui-muted); font-size: 12.5px"
+            >Hanya nama &amp; pesan galat, versi aplikasi dan browser, untuk memperbaiki masalah.
+            Tanpa isi penanda.</small
           ></span
         >
         <span class="hit"
@@ -559,11 +684,17 @@ export class SettingsSheet {
 
   protected readonly buildLabel = buildLabel();
   /** Synced with the account; the reporter reads the mirrored local key. */
-  private readonly errorReportSetting = syncedSetting('errorReport', 'mf-error-report', (r) => r !== 'off', (on) => (on ? null : 'off'));
+  private readonly errorReportSetting = syncedSetting(
+    'errorReport',
+    'mf-error-report',
+    (r) => r !== 'off',
+    (on) => (on ? null : 'off'),
+  );
   protected readonly errorReport = this.errorReportSetting.value;
   protected readonly setErrorReport = (on: boolean) => this.errorReportSetting.set(on);
   protected readonly audio = inject(AudioService);
   protected readonly audioModes = AUDIO_MODES;
+  protected readonly qaris = QARIS;
   protected readonly audioOffline = inject(AudioOfflineApi);
   private readonly content = inject(ContentApi);
   protected readonly audioOfflineSummary = computed(() => {
