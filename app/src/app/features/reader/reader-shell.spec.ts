@@ -224,7 +224,10 @@ describe('ReaderShell', () => {
         },
         {
           provide: TranslationService,
-          useValue: { source: signal(null), get: async (r: { surah: number; ayah: number }) => `Terjemah ${r.surah}:${r.ayah}` },
+          useValue: {
+            source: signal(null),
+            get: async (r: { surah: number; ayah: number }) => `Terjemah ${r.surah}:${r.ayah}`,
+          },
         },
         { provide: LatinService, useValue: { source: signal(null), get: async () => 'latin' } },
       ],
@@ -260,7 +263,12 @@ describe('ReaderShell', () => {
       expect(top[0]).toContain('Daftar surah, juz, halaman');
       expect(top[1]).toBe('Pilih halaman. Hal. 5 · Juz 1');
       expect(top.slice(2)).toEqual(['Cari', 'Nyalakan mode malam', 'Menu']);
-      for (const gone of ['Penanda', 'Progres membaca', 'Pengaturan', 'Sembunyikan menu (layar penuh)']) {
+      for (const gone of [
+        'Penanda',
+        'Progres membaca',
+        'Pengaturan',
+        'Sembunyikan menu (layar penuh)',
+      ]) {
         expect(top).not.toContain(gone);
       }
     });
@@ -322,7 +330,7 @@ describe('ReaderShell', () => {
       expect(bottom).toContain('Tandai halaman 5');
       expect(bottom).not.toContain('Daftar isi');
       expect(bottom.some((l) => l?.includes('Perbesar halaman'))).toBe(false);
-      expect(bottom).toContain('Pengaturan');
+      expect(bottom).toContain('Tampilan dan pengaturan');
     });
 
     it('play starts at the first ayah of the page', async () => {
@@ -364,7 +372,9 @@ describe('ReaderShell', () => {
       f.detectChanges();
       expect(toggle).not.toHaveBeenCalled();
       const pick = q(f, '[data-testid="bookmark-pick"]')!;
-      const btns = Array.from(pick.querySelectorAll('button')).map((b) => b.textContent!.replace(/\s+/g, ' ').trim());
+      const btns = Array.from(pick.querySelectorAll('button')).map((b) =>
+        b.textContent!.replace(/\s+/g, ' ').trim(),
+      );
       expect(btns).toEqual(['Kiri Hal. 4', 'Kanan Hal. 3']);
       (pick.querySelectorAll('button')[1] as HTMLElement).click();
       f.detectChanges();
@@ -486,7 +496,14 @@ describe('ReaderShell', () => {
     const fixture = await mount('4');
     const views = fixture.debugElement
       .queryAll((d) => d.name === 'mf-page-view')
-      .map((d) => d.componentInstance as { page: () => number; sideRibbonOn: () => boolean; ribbonSide: () => string });
+      .map(
+        (d) =>
+          d.componentInstance as {
+            page: () => number;
+            sideRibbonOn: () => boolean;
+            ribbonSide: () => string;
+          },
+      );
     const by = (p: number) => views.find((v) => v.page() === p)!;
     expect(by(4).sideRibbonOn()).toBe(true);
     expect(by(3).sideRibbonOn()).toBe(false);
@@ -548,7 +565,9 @@ describe('ReaderShell', () => {
       fixture.detectChanges();
       await fixture.whenStable();
       expect(
-        (fixture.nativeElement as HTMLElement).querySelector('.ayah.is-playing')?.getAttribute('data-ayah'),
+        (fixture.nativeElement as HTMLElement)
+          .querySelector('.ayah.is-playing')
+          ?.getAttribute('data-ayah'),
       ).toBe('2');
       audio.state.set('idle');
       audio.current.set(null);

@@ -85,11 +85,12 @@ export const BOOKMARK_LONG_PRESS_MS = 500;
       }
     </button>
 
+    <!-- The sheet is mostly display settings (night mode, paper, layout), so it is shown as "Tampilan"; the ≡ menu keeps "Pengaturan". -->
     <button
       type="button"
       class="mode-btn"
       data-testid="settings-btn"
-      aria-label="Pengaturan"
+      aria-label="Tampilan dan pengaturan"
       (click)="ui.openSheet('settings')"
     >
       <svg
@@ -100,13 +101,18 @@ export const BOOKMARK_LONG_PRESS_MS = 500;
         stroke="currentColor"
         stroke-width="1.6"
         stroke-linecap="round"
+        stroke-linejoin="round"
         aria-hidden="true"
       >
-        <path d="M4 8h10M18 8h2M4 16h3M11 16h9" />
-        <circle cx="16" cy="8" r="2" />
-        <circle cx="9" cy="16" r="2" />
+        <path
+          d="M12 3a9 9 0 0 0 0 18c1 0 1.6-.7 1.6-1.6 0-.4-.2-.8-.4-1.1-.3-.3-.4-.6-.4-1.1 0-.9.7-1.6 1.6-1.6h1.9a4.7 4.7 0 0 0 4.7-4.7C21 6.7 17 3 12 3z"
+        />
+        <circle cx="7.5" cy="11.5" r="1.15" fill="currentColor" stroke="none" />
+        <circle cx="9.5" cy="7.5" r="1.15" fill="currentColor" stroke="none" />
+        <circle cx="14" cy="6.8" r="1.15" fill="currentColor" stroke="none" />
+        <circle cx="17.3" cy="10" r="1.15" fill="currentColor" stroke="none" />
       </svg>
-      <span class="mode-btn__label" aria-hidden="true">Pengaturan</span>
+      <span class="mode-btn__label" aria-hidden="true">Tampilan</span>
     </button>
 
     <button
