@@ -87,7 +87,9 @@ const FOCUSABLE =
         <button
           type="button"
           class="grab"
-          [attr.aria-label]="expanded() ? 'Kembalikan ukuran panel' : 'Perbesar panel ke layar penuh'"
+          [attr.aria-label]="
+            expanded() ? 'Kembalikan ukuran panel' : 'Perbesar panel ke layar penuh'
+          "
           [attr.aria-expanded]="expanded()"
           (pointerdown)="dragStart($event)"
           (pointermove)="dragMove($event)"
@@ -355,10 +357,12 @@ export class SheetHost implements OnDestroy {
   }
 
   /**
-   * Scrolling the content up (or swiping up on content that does not scroll) pulls a phone sheet
-   * up to full screen, like a map app; the handle or a drag down brings it back.
+   * Phone sheets: scrolling the content up (or swiping up on content that does not scroll) pulls
+   * the sheet to full screen, like a map app. Swiping down while the content is at the top steps
+   * it back: full screen to normal, then normal to closed (one step per gesture).
    */
   private bodyTouchY: number | null = null;
+  private bodyTouchTop = false;
 
   private canExpand(): boolean {
     return !this.expanded() && !window.matchMedia('(min-width: 768px)').matches;
@@ -370,13 +374,20 @@ export class SheetHost implements OnDestroy {
 
   protected bodyTouchStart(e: TouchEvent): void {
     this.bodyTouchY = e.touches.length === 1 ? e.touches[0]!.clientY : null;
+    this.bodyTouchTop = (e.currentTarget as HTMLElement).scrollTop <= 0;
   }
 
   protected bodyTouchMove(e: TouchEvent): void {
-    if (this.bodyTouchY === null || e.touches.length !== 1 || !this.canExpand()) return;
-    if (this.bodyTouchY - e.touches[0]!.clientY > 30) {
+    if (this.bodyTouchY === null || e.touches.length !== 1) return;
+    if (window.matchMedia('(min-width: 768px)').matches) return;
+    const dy = e.touches[0]!.clientY - this.bodyTouchY; // > 0: finger moved down
+    if (-dy > 30 && this.canExpand()) {
       this.bodyTouchY = null;
       this.expanded.set(true);
+    } else if (dy > 60 && this.bodyTouchTop && (e.currentTarget as HTMLElement).scrollTop <= 0) {
+      this.bodyTouchY = null;
+      if (this.expanded()) this.expanded.set(false);
+      else this.history.close();
     }
   }
 
