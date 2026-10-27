@@ -17,7 +17,13 @@ import { ContentApi, UserDataApi } from '../../core/contracts';
 import { ReaderUiService } from '../../core/reader-ui.service';
 import { AudioService } from '../../core/audio/audio.service';
 import { SheetHistory } from './sheet-history';
-import { latinCopyText, shareText, translationCopyText, verseReference, verseUrl } from './nav-helpers';
+import {
+  latinCopyText,
+  shareText,
+  translationCopyText,
+  verseReference,
+  verseUrl,
+} from './nav-helpers';
 
 @Component({
   selector: 'app-verse-sheet',
@@ -186,7 +192,13 @@ import { latinCopyText, shareText, translationCopyText, verseReference, verseUrl
           </svg>
           Bagikan
         </button>
-        <button type="button" class="act" data-testid="card-btn" aria-label="Bagikan sebagai gambar" (click)="openCard()">
+        <button
+          type="button"
+          class="act"
+          data-testid="card-btn"
+          aria-label="Bagikan sebagai gambar"
+          (click)="openCard()"
+        >
           <svg
             width="22"
             height="22"
@@ -251,9 +263,12 @@ import { latinCopyText, shareText, translationCopyText, verseReference, verseUrl
     }
   `,
   styles: `
+    /* Fills the sheet so the action bar rests at its bottom even when the text is short. */
     :host {
       display: flex;
       flex-direction: column;
+      box-sizing: border-box;
+      min-height: 100%;
       gap: var(--mf-space-4);
       padding: var(--mf-space-1) var(--mf-space-5) 0;
       color: var(--ui-ink);
@@ -365,6 +380,7 @@ import { latinCopyText, shareText, translationCopyText, verseReference, verseUrl
     .grid {
       position: sticky;
       bottom: 0;
+      margin-top: auto;
       z-index: 1;
       background: var(--ui-surface);
       padding-bottom: var(--mf-space-4);
@@ -439,7 +455,12 @@ export class VerseSheet {
   /** undefined = loading, null = unavailable. */
   protected readonly latinText = signal<string | null | undefined>(undefined);
   /** Folded sections follow the account (prefs.extra), mirrored to the old local keys. */
-  private readonly latinFold = syncedSetting('verseLatinFolded', LATIN_KEY, (r) => r === '1', (v) => (v ? '1' : '0'));
+  private readonly latinFold = syncedSetting(
+    'verseLatinFolded',
+    LATIN_KEY,
+    (r) => r === '1',
+    (v) => (v ? '1' : '0'),
+  );
   protected readonly latinCollapsed = this.latinFold.value;
   protected readonly latinSource = computed(() => {
     const src = this.latin.source();
@@ -449,7 +470,12 @@ export class VerseSheet {
 
   private readonly translation = inject(TranslationService);
   protected readonly trText = signal<string | null | undefined>(undefined);
-  private readonly trFold = syncedSetting('verseTranslationFolded', TR_KEY, (r) => r === '1', (v) => (v ? '1' : '0'));
+  private readonly trFold = syncedSetting(
+    'verseTranslationFolded',
+    TR_KEY,
+    (r) => r === '1',
+    (v) => (v ? '1' : '0'),
+  );
   protected readonly trCollapsed = this.trFold.value;
   protected readonly trSource = computed(() => {
     const src = this.translation.source();
@@ -651,7 +677,6 @@ const ARABIC_WAIT_MS = 2000;
 const LATIN_KEY = 'mf-latin-collapsed';
 
 const TR_KEY = 'mf-translation-collapsed';
-
 
 async function copyText(text: string): Promise<boolean> {
   try {
