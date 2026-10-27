@@ -180,6 +180,16 @@ export function tafsirLast(raw: string | null): TafsirLast | null {
           >
             Lompat ke ayat…
           </button>
+          <button
+            type="button"
+            class="rail__jump rail__view"
+            data-testid="rail-view-btn"
+            aria-haspopup="dialog"
+            aria-label="Huruf dan tampilan bacaan"
+            (click)="openSheet('view')"
+          >
+            <span class="rail__aa" aria-hidden="true">Aa</span> · Huruf &amp; tampilan
+          </button>
           @if (ikAllowed()) {
             <span class="rail__cap rail__cap--src" id="lb-src">SUMBER</span>
             <div
@@ -1292,6 +1302,13 @@ export function tafsirLast(raw: string | null): TafsirLast | null {
         border-radius: var(--mf-radius-pill);
         color: var(--t-accent);
         font-weight: 500;
+      }
+      .rail__view {
+        margin-top: 8px;
+      }
+      .rail__aa {
+        font-family: var(--t-serif);
+        font-weight: 600;
       }
       .rail__src {
         display: flex;
