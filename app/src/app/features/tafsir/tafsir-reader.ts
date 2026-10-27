@@ -13,12 +13,21 @@ import {
   untracked,
   viewChild,
 } from '@angular/core';
+import { NgTemplateOutlet } from '@angular/common';
 import { Router } from '@angular/router';
 import { ContentApi, UserDataApi } from '../../core/contracts';
 import { TranslationService } from '../../core/content/translation.service';
 import { ReaderUiService } from '../../core/reader-ui.service';
 import { TafsirAccessError, TafsirIkService } from '../../core/tafsir/tafsir-ik.service';
-import { Block, Inline, kemenagBlocks, parseTafsir, sectionIndexFor } from './tafsir-format';
+import {
+  Block,
+  CompareRow,
+  Inline,
+  compareRows,
+  kemenagBlocks,
+  parseTafsir,
+  sectionIndexFor,
+} from './tafsir-format';
 import { TafsirService } from '../../core/content/tafsir.service';
 import { syncedSetting } from '../../core/synced-setting';
 
@@ -48,6 +57,13 @@ export const ARABIC_SCALES: readonly ArabicScale[] = [1, 1.2, 1.5];
 const VIEW_KEY = 'mf-tafsir-view';
 const SOURCE_KEY = 'mf-tafsir-source';
 const LAST_KEY = 'mf-tafsir-last';
+type SectionBlock = Extract<Block, { kind: 'section' }>;
+/** A compare row with its heading (the ayat it covers) and the ayat range each side really has. */
+interface RowView extends CompareRow {
+  head: SectionBlock;
+  leftRange: string;
+  rightRange: string;
+}
 export type TafsirSource = 'kemenag' | 'ik';
 /** Where the reader stopped last: surah, ayah in view, and which tafsir was open. */
 export interface TafsirLast {
@@ -60,6 +76,8 @@ const STEP = 80;
 /** Ayat quoted under a heading: more than this folds behind a button. */
 const VERSES_OPEN = 3;
 const RING = 2 * Math.PI * 17;
+/** From this width the page gets a side rail instead of the dock (keep in sync with the CSS). */
+const WIDE_QUERY = '(min-width: 1024px)';
 
 const FONT_STACK: Record<ReadFont, string> = {
   serif: "'Mf Read Serif', 'Source Serif 4', Georgia, serif",
@@ -112,12 +130,15 @@ export function tafsirLast(raw: string | null): TafsirLast | null {
  * Tafsir reading page (Menu › Tafsir), design "Kitab": Tafsir Kemenag for everyone, the private
  * Tafsir Ibnu Katsir for the allow-listed account. One centred column on the chosen paper theme,
  * a bottom dock for source and position, sheets for the reading view and for jumping to an ayah.
+ * On wide screens a side rail replaces the dock, and Ibnu Katsir can be read next to Kemenag.
  * Ayah quotes show the Kemenag translation, review notes (RAGU) are folded behind a small ⚠.
  */
 @Component({
   selector: 'app-tafsir-reader',
   changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [NgTemplateOutlet],
   host: {
+    '[class.cmp]': "layout() === 'compare'",
     '[style.--read-font]': 'fontStack()',
     '[style.--read-size.px]': 'view().size',
     '[style.--read-line]': 'lineHeight()',
@@ -142,185 +163,328 @@ export function tafsirLast(raw: string | null): TafsirLast | null {
       </button>
     </div>
 
-    <main class="wrap" #wrap>
-      @if (state() === 'loading') {
-        <p class="status">Memuat tafsir…</p>
-      } @else if (state() === 'denied') {
-        <p class="status">
-          Tafsir ini hanya tersedia untuk akun tertentu. Masuk dengan akun tersebut lalu coba lagi.
-        </p>
-      } @else if (state() === 'error') {
-        <p class="status">Tafsir surah ini belum bisa dimuat. Periksa koneksi lalu coba lagi.</p>
-        <button type="button" class="mf-btn mf-btn--primary retry" (click)="reload()">
-          Coba lagi
-        </button>
-      } @else {
-        <header class="head">
-          @if (surahArabic()) {
-            <div class="head__ar" lang="ar" dir="rtl">{{ surahArabic() }}</div>
-          }
-          <h1 class="title">{{ surahName() }}</h1>
-          <p class="lead">{{ ayahCount() }} ayat</p>
-          <label class="pill">
-            <span>Ganti surah</span>
-            <svg
-              width="12"
-              height="12"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2.2"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              aria-hidden="true"
-            >
-              <path d="M6 9l6 6 6-6" />
-            </svg>
-            <select
-              class="pill__sel"
-              aria-label="Pilih surah"
-              [value]="surahNum()"
-              (change)="goSurah($event)"
-            >
-              @for (s of surahs(); track s.number) {
-                <option [value]="s.number" [selected]="s.number === surahNum()">
-                  {{ s.number }}. {{ s.nameLatin }}
-                </option>
-              }
-            </select>
-          </label>
-        </header>
-
-        <p class="attr">
-          {{ attribution() }}
+    <div class="page">
+      @if (state() === 'ready') {
+        <aside class="rail" aria-label="Posisi dan sumber" data-testid="tafsir-rail">
+          <span class="rail__cap">AYAT</span>
+          <span class="rail__num">{{ currentAyah() }}</span>
+          <span class="rail__of">dari {{ ayahCount() }} · {{ percent() }}%</span>
+          <div class="rail__bar" aria-hidden="true">
+            <span class="rail__fill" [style.width.%]="percent()"></span>
+          </div>
           <button
             type="button"
-            class="attr__more"
-            [attr.aria-expanded]="detail()"
-            (click)="detail.set(!detail())"
+            class="rail__jump"
+            data-testid="rail-jump"
+            (click)="openSheet('jump')"
           >
-            rincian
+            Lompat ke ayat…
           </button>
-        </p>
-        @if (detail()) {
-          <p class="disclaimer">{{ disclaimer() }}</p>
-        }
-
-        @if (resumeAt(); as at) {
-          <button type="button" class="resume" (click)="resume(at)">
-            Lanjutkan dari Ayat {{ at }} →
-          </button>
-        }
-
-        @for (b of shown(); track $index) {
-          @if (b.kind === 'section') {
-            <h2
-              class="sec"
-              [id]="'sec-' + $index"
-              [attr.data-ayah]="b.s === surahNum() ? b.from : null"
+          @if (ikAllowed()) {
+            <span class="rail__cap rail__cap--src" id="lb-src">SUMBER</span>
+            <div
+              class="rail__src"
+              role="radiogroup"
+              aria-labelledby="lb-src"
+              data-testid="rail-source"
             >
-              <span class="sec__rule" aria-hidden="true"></span>
-              <span class="sec__col">
-                @if (secCap(b); as cap) {
-                  <span class="sec__cap">{{ cap }}</span>
+              <button
+                type="button"
+                role="radio"
+                [attr.aria-checked]="!compare() && source() === 'kemenag'"
+                (click)="setSource('kemenag')"
+              >
+                Kemenag
+              </button>
+              <button
+                type="button"
+                role="radio"
+                [attr.aria-checked]="!compare() && source() === 'ik'"
+                (click)="setSource('ik')"
+              >
+                Ibnu Katsir
+              </button>
+              <button
+                type="button"
+                role="radio"
+                class="dashed"
+                data-testid="rail-compare"
+                [attr.aria-checked]="compare()"
+                (click)="setCompare(!compare())"
+              >
+                Bandingkan berdampingan
+              </button>
+            </div>
+          }
+          @if (resumeAt(); as at) {
+            <button type="button" class="rail__resume" (click)="resume(at)">
+              Lanjutkan · Ayat {{ at }}
+            </button>
+          }
+        </aside>
+      }
+      <main class="wrap" #wrap>
+        @if (state() === 'loading') {
+          <p class="status">Memuat tafsir…</p>
+        } @else if (state() === 'denied') {
+          <p class="status">
+            Tafsir ini hanya tersedia untuk akun tertentu. Masuk dengan akun tersebut lalu coba
+            lagi.
+          </p>
+        } @else if (state() === 'error') {
+          <p class="status">Tafsir surah ini belum bisa dimuat. Periksa koneksi lalu coba lagi.</p>
+          <button type="button" class="mf-btn mf-btn--primary retry" (click)="reload()">
+            Coba lagi
+          </button>
+        } @else {
+          <header class="head">
+            @if (surahArabic()) {
+              <div class="head__ar" lang="ar" dir="rtl">{{ surahArabic() }}</div>
+            }
+            <h1 class="title">{{ surahName() }}</h1>
+            <p class="lead">{{ ayahCount() }} ayat</p>
+            <label class="pill">
+              <span>Ganti surah</span>
+              <svg
+                width="12"
+                height="12"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2.2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+              >
+                <path d="M6 9l6 6 6-6" />
+              </svg>
+              <select
+                class="pill__sel"
+                aria-label="Pilih surah"
+                [value]="surahNum()"
+                (change)="goSurah($event)"
+              >
+                @for (s of surahs(); track s.number) {
+                  <option [value]="s.number" [selected]="s.number === surahNum()">
+                    {{ s.number }}. {{ s.nameLatin }}
+                  </option>
                 }
-                <span class="sec__num" [class.sec__num--text]="!b.s">{{ secNum(b) }}</span>
-              </span>
-              <span class="sec__rule" aria-hidden="true"></span>
-            </h2>
-            @if (b.s) {
-              @let v = verseView(b, $index);
-              <div class="verses" [class.verses--one]="v.single">
-                @if (v.single) {
-                  <p class="verse">{{ ayah(b.s, b.from) }}</p>
-                } @else {
-                  <p class="verse">
-                    @for (a of v.list; track a) {
-                      <sup class="vn">{{ a }}</sup
-                      >{{ ayah(b.s, a) }}{{ ' ' }}
-                    }
-                  </p>
-                  @if (v.more; as m) {
-                    <button type="button" class="verses__more" (click)="expand($index)">
-                      Tampilkan ayat {{ m.from }}–{{ m.to }}
-                    </button>
-                  }
-                }
-              </div>
+              </select>
+            </label>
+          </header>
+
+          <p class="attr">
+            {{ attribution() }}
+            <button
+              type="button"
+              class="attr__more"
+              [attr.aria-expanded]="detail()"
+              (click)="detail.set(!detail())"
+            >
+              rincian
+            </button>
+          </p>
+          @if (detail()) {
+            <p class="disclaimer">{{ disclaimer() }}</p>
+          }
+
+          @if (resumeAt(); as at) {
+            <button type="button" class="resume" (click)="resume(at)">
+              Lanjutkan dari Ayat {{ at }} →
+            </button>
+          }
+
+          @if (layout() === 'compare') {
+            @for (r of shownRows(); track r.from; let ri = $index) {
+              <section class="row">
+                <ng-container
+                  *ngTemplateOutlet="
+                    secTpl;
+                    context: { $implicit: r.head, key: 'r' + ri, id: 'sec-' + ri, small: false }
+                  "
+                />
+                <div class="cols">
+                  <div class="col" data-testid="col-kemenag">
+                    <div class="colhead">
+                      <span class="colhead__name">KEMENAG</span>
+                      @if (r.leftRange) {
+                        <span class="colhead__rng">Ayat {{ r.leftRange }}</span>
+                      }
+                    </div>
+                    <ng-container
+                      *ngTemplateOutlet="
+                        colTpl;
+                        context: { $implicit: r.left, row: r, key: 'r' + ri + 'a' }
+                      "
+                    />
+                  </div>
+                  <div class="col" data-testid="col-ik">
+                    <div class="colhead">
+                      <span class="colhead__name">IBNU KATSIR</span>
+                      @if (r.rightRange) {
+                        <span class="colhead__rng">Ayat {{ r.rightRange }}</span>
+                      }
+                    </div>
+                    <ng-container
+                      *ngTemplateOutlet="
+                        colTpl;
+                        context: { $implicit: r.right, row: r, key: 'r' + ri + 'b' }
+                      "
+                    />
+                  </div>
+                </div>
+              </section>
             }
           } @else {
-            <p class="para">
-              @for (part of b.parts; track $index) {
-                @switch (part.t) {
-                  @case ('text') {
-                    @if (part.strong) {
-                      <strong>{{ part.v }}</strong>
-                    } @else if (part.em) {
-                      <em>{{ part.v }}</em>
-                    } @else {
-                      {{ part.v }}
-                    }
-                  }
-                  @case ('qs') {
-                    <span class="qs"
-                      >“{{ verseText(part.s, part.from, part.to) }}”
-                      <button type="button" class="ref" (click)="openMushaf(part.s, part.from)">
-                        ({{ refLabel(part.s, part.from, part.to) }})
-                      </button></span
-                    >
-                  }
-                  @case ('frag') {
-                    <span class="ar" lang="ar" dir="rtl">{{ part.arabic }}</span>
-                    <button
-                      type="button"
-                      class="ref"
-                      [attr.aria-label]="'Terjemahan ' + refLabel(part.s, part.from, part.to)"
-                      (click)="showVerse(part.s, part.from, part.to)"
-                    >
-                      ({{ shortRef(part.s, part.from, part.to) }})
-                    </button>
-                  }
-                  @case ('unknown') {
-                    <span class="ar" lang="ar" dir="rtl">{{ part.arabic }}</span>
-                  }
-                  @case ('ragu') {
-                    <button
-                      type="button"
-                      class="ragu"
-                      [attr.aria-expanded]="isOpen(part)"
-                      aria-label="Catatan: perlu dicek"
-                      (click)="toggleNote(part)"
-                    >
-                      ⚠
-                    </button>
-                    @if (isOpen(part)) {
-                      <span class="ragu-note">{{ part.note || 'Bagian ini perlu dicek.' }}</span>
-                    }
-                  }
-                }
+            @for (b of shown(); track $index) {
+              @if (b.kind === 'section') {
+                <ng-container
+                  *ngTemplateOutlet="
+                    secTpl;
+                    context: { $implicit: b, key: 'b' + $index, id: 'sec-' + $index, small: false }
+                  "
+                />
+              } @else {
+                <ng-container *ngTemplateOutlet="paraTpl; context: { $implicit: b }" />
               }
-            </p>
+            }
+          }
+          @if (limit() < total()) {
+            <div class="more" #more aria-hidden="true">Memuat lanjutan…</div>
+          } @else {
+            <nav class="nav" aria-label="Surah lain">
+              @if (surahNum() > 1) {
+                <button type="button" class="link" (click)="openSurah(surahNum() - 1)">
+                  ‹ {{ nameOf(surahNum() - 1) }}
+                </button>
+              }
+              <span class="grow"></span>
+              @if (surahNum() < 114) {
+                <button type="button" class="link" (click)="openSurah(surahNum() + 1)">
+                  {{ nameOf(surahNum() + 1) }} ›
+                </button>
+              }
+            </nav>
           }
         }
-        @if (limit() < blocks().length) {
-          <div class="more" #more aria-hidden="true">Memuat lanjutan…</div>
-        } @else {
-          <nav class="nav" aria-label="Surah lain">
-            @if (surahNum() > 1) {
-              <button type="button" class="link" (click)="openSurah(surahNum() - 1)">
-                ‹ {{ nameOf(surahNum() - 1) }}
+      </main>
+    </div>
+
+    <ng-template #secTpl let-b let-key="key" let-id="id" let-small="small">
+      <h2
+        class="sec"
+        [class.sec--small]="small"
+        [attr.id]="id"
+        [attr.data-ayah]="b.s === surahNum() ? b.from : null"
+      >
+        <span class="sec__rule" aria-hidden="true"></span>
+        <span class="sec__col">
+          @if (secCap(b); as cap) {
+            <span class="sec__cap">{{ cap }}</span>
+          }
+          <span class="sec__num" [class.sec__num--text]="!b.s">{{ secNum(b) }}</span>
+        </span>
+        <span class="sec__rule" aria-hidden="true"></span>
+      </h2>
+      @if (b.s) {
+        @let v = verseView(b, key);
+        <div class="verses" [class.verses--one]="v.single">
+          @if (v.single) {
+            <p class="verse">{{ ayah(b.s, b.from) }}</p>
+          } @else {
+            <p class="verse">
+              @for (a of v.list; track a) {
+                <sup class="vn">{{ a }}</sup
+                >{{ ayah(b.s, a) }}{{ ' ' }}
+              }
+            </p>
+            @if (v.more; as m) {
+              <button type="button" class="verses__more" (click)="expand(key)">
+                Tampilkan ayat {{ m.from }}–{{ m.to }}
               </button>
             }
-            <span class="grow"></span>
-            @if (surahNum() < 114) {
-              <button type="button" class="link" (click)="openSurah(surahNum() + 1)">
-                {{ nameOf(surahNum() + 1) }} ›
-              </button>
-            }
-          </nav>
-        }
+          }
+        </div>
       }
-    </main>
+    </ng-template>
+
+    <ng-template #paraTpl let-b>
+      <p class="para">
+        @for (part of b.parts; track $index) {
+          @switch (part.t) {
+            @case ('text') {
+              @if (part.strong) {
+                <strong>{{ part.v }}</strong>
+              } @else if (part.em) {
+                <em>{{ part.v }}</em>
+              } @else {
+                {{ part.v }}
+              }
+            }
+            @case ('qs') {
+              <span class="qs"
+                >“{{ verseText(part.s, part.from, part.to) }}”
+                <button type="button" class="ref" (click)="openMushaf(part.s, part.from)">
+                  ({{ refLabel(part.s, part.from, part.to) }})
+                </button></span
+              >
+            }
+            @case ('frag') {
+              <span class="ar" lang="ar" dir="rtl">{{ part.arabic }}</span>
+              <button
+                type="button"
+                class="ref"
+                [attr.aria-label]="'Terjemahan ' + refLabel(part.s, part.from, part.to)"
+                (click)="showVerse(part.s, part.from, part.to)"
+              >
+                ({{ shortRef(part.s, part.from, part.to) }})
+              </button>
+            }
+            @case ('unknown') {
+              <span class="ar" lang="ar" dir="rtl">{{ part.arabic }}</span>
+            }
+            @case ('ragu') {
+              <button
+                type="button"
+                class="ragu"
+                [attr.aria-expanded]="isOpen(part)"
+                aria-label="Catatan: perlu dicek"
+                (click)="toggleNote(part)"
+              >
+                ⚠
+              </button>
+              @if (isOpen(part)) {
+                <span class="ragu-note">{{ part.note || 'Bagian ini perlu dicek.' }}</span>
+              }
+            }
+          }
+        }
+      </p>
+    </ng-template>
+
+    <!-- One side of a compare row: its own-surah heading is the row heading, a narrower one a label. -->
+    <ng-template #colTpl let-blocks let-row="row" let-key="key">
+      @for (b of blocks; track $index) {
+        @if (b.kind === 'section') {
+          @if (b.s === surahNum()) {
+            @if (b.from !== row.from || b.to !== row.to) {
+              <p class="sub">Ayat {{ secNum(b) }}</p>
+            }
+          } @else {
+            <ng-container
+              *ngTemplateOutlet="
+                secTpl;
+                context: { $implicit: b, key: key + $index, id: null, small: true }
+              "
+            />
+          }
+        } @else {
+          <ng-container *ngTemplateOutlet="paraTpl; context: { $implicit: b }" />
+        }
+      } @empty {
+        <p class="sub sub--none">Tidak ada pembahasan untuk ayat ini.</p>
+      }
+    </ng-template>
 
     @if (state() === 'ready' && !sheet()) {
       <div class="dock" data-testid="tafsir-dock">
@@ -486,7 +650,7 @@ export function tafsirLast(raw: string | null): TafsirLast | null {
             </div>
           </div>
 
-          @if (source() === 'ik') {
+          @if (source() === 'ik' || layout() === 'compare') {
             <div class="group group--row">
               <span class="group__text" id="sw-notes">Catatan ⚠ selalu tampil</span>
               <button
@@ -646,6 +810,9 @@ export function tafsirLast(raw: string | null): TafsirLast | null {
       padding: 8px 20px calc(var(--mf-safe-bottom) + 120px);
       font-size: var(--read-size);
       line-height: var(--read-line);
+    }
+    .rail {
+      display: none;
     }
     .status {
       margin: 48px 0 16px;
@@ -988,6 +1155,183 @@ export function tafsirLast(raw: string | null): TafsirLast | null {
       color: var(--t-muted);
     }
 
+    .sec--small {
+      margin: 1.4em 0 0.5em;
+    }
+    .sec--small .sec__num {
+      font-size: 1.2em;
+    }
+    .row {
+      margin: 0 0 1.6em;
+    }
+    .cols {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+      gap: 48px;
+    }
+    .colhead {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 0.8em;
+      padding-bottom: 6px;
+      border-bottom: 1px solid var(--t-hair);
+      font-family: var(--ui-font);
+      font-size: 12px;
+      line-height: 1.4;
+    }
+    .colhead__name {
+      font-weight: 700;
+      letter-spacing: 0.14em;
+      color: var(--t-accent);
+    }
+    .colhead__rng {
+      color: var(--t-muted);
+    }
+    .sub {
+      margin: 1em 0 0.3em;
+      font-family: var(--ui-font);
+      font-size: 12px;
+      font-weight: 600;
+      line-height: 1.4;
+      color: var(--t-muted);
+    }
+    .sub--none {
+      font-weight: 400;
+      font-style: italic;
+    }
+
+    /* Wide screens: a sticky rail (position, jump, source) replaces the dock. */
+    @media (min-width: 1024px) {
+      .top,
+      .page {
+        max-width: 920px;
+      }
+      :host(.cmp) .top,
+      :host(.cmp) .page {
+        max-width: 1324px;
+      }
+      .page {
+        display: grid;
+        grid-template-columns: 176px minmax(0, 1fr);
+        column-gap: 48px;
+        align-items: start;
+        margin: 0 auto;
+        padding: 0 20px;
+      }
+      .top {
+        padding-inline: 32px;
+      }
+      .wrap {
+        grid-column: 2;
+        grid-row: 1;
+        width: 100%;
+        max-width: none;
+        margin: 0;
+        padding-inline: 0;
+      }
+      :host(:not(.cmp)) .wrap {
+        max-width: 680px;
+      }
+      .rail {
+        grid-column: 1;
+        grid-row: 1;
+        position: sticky;
+        top: 24px;
+        display: flex;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 4px;
+        padding-top: 16px;
+      }
+      .rail__cap {
+        font-size: 10px;
+        font-weight: 600;
+        letter-spacing: 0.16em;
+        color: var(--t-muted);
+      }
+      .rail__cap--src {
+        margin-top: 20px;
+        margin-bottom: 4px;
+      }
+      .rail__num {
+        font-family: var(--t-serif);
+        font-size: 44px;
+        font-weight: 600;
+        line-height: 1.1;
+        font-variant-numeric: tabular-nums;
+        color: var(--t-accent);
+      }
+      .rail__of {
+        font-size: 12px;
+        color: var(--t-muted);
+      }
+      .rail__bar {
+        height: 3px;
+        margin: 8px 0 14px;
+        border-radius: 2px;
+        background: var(--t-hair);
+        overflow: hidden;
+      }
+      .rail__fill {
+        display: block;
+        height: 100%;
+        background: var(--t-accent);
+      }
+      .rail__jump,
+      .rail__src button {
+        border: 1px solid var(--t-line);
+        background: transparent;
+        color: var(--t-ink);
+        font-size: 14px;
+        cursor: pointer;
+      }
+      .rail__jump {
+        min-height: 44px;
+        border-radius: var(--mf-radius-pill);
+        color: var(--t-accent);
+        font-weight: 500;
+      }
+      .rail__src {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+      .rail__src button {
+        min-height: 40px;
+        padding: 8px 12px;
+        border-radius: 10px;
+        line-height: 1.25;
+        text-align: start;
+      }
+      .rail__src button.dashed {
+        border-style: dashed;
+      }
+      .rail__src button[aria-checked='true'] {
+        border-style: solid;
+        border-color: var(--t-accent);
+        background: var(--t-accent);
+        color: var(--t-on-accent);
+      }
+      .rail__resume {
+        min-height: 44px;
+        margin-top: 12px;
+        padding: 0;
+        border: none;
+        background: none;
+        color: var(--t-accent);
+        font-size: 14px;
+        font-weight: 600;
+        text-align: start;
+        cursor: pointer;
+      }
+      .dock,
+      .resume {
+        display: none;
+      }
+    }
+
     .scrim {
       position: fixed;
       inset: 0;
@@ -1210,6 +1554,13 @@ export class TafsirReader {
   readonly ayat = input<string | undefined>(undefined);
   /** ?sumber=ik opens Ibnu Katsir (search entry); otherwise the last choice, Kemenag at first. */
   readonly sumber = input<string | undefined>(undefined);
+  /** ?banding=1 reads Kemenag and Ibnu Katsir side by side (wide screens, allow-listed account). */
+  readonly banding = input<string | undefined>(undefined);
+
+  /** Viewport at least 1024px wide: side rail, and room for the side-by-side view. */
+  protected readonly wide = signal(false);
+  /** Surah whose Ibnu Katsir text failed to load in compare mode: shown as a single source. */
+  private readonly compareFailed = signal<number | null>(null);
 
   /** Ibnu Katsir is private (allow-listed account); everyone else reads Tafsir Kemenag. */
   protected readonly ikAllowed = this.tafsir.allowed;
@@ -1224,13 +1575,22 @@ export class TafsirReader {
     const want = this.sumber() === 'ik' ? 'ik' : this.chosen();
     return want === 'ik' && this.ikAllowed() ? 'ik' : 'kemenag';
   });
+  protected readonly compare = computed(
+    () =>
+      this.banding() === '1' &&
+      this.wide() &&
+      this.ikAllowed() &&
+      this.compareFailed() !== this.surahNum(),
+  );
   protected readonly attribution = computed(() =>
-    this.source() === 'ik'
-      ? 'Terjemahan AI dari teks Arab Ibnu Katsir, belum ditashih'
-      : 'Tafsir Kementerian Agama RI · terjemahan edisi 2019',
+    this.layout() === 'compare'
+      ? 'Kemenag · Ibnu Katsir (terjemahan AI, belum ditashih)'
+      : this.source() === 'ik'
+        ? 'Terjemahan AI dari teks Arab Ibnu Katsir, belum ditashih'
+        : 'Tafsir Kementerian Agama RI · terjemahan edisi 2019',
   );
   protected readonly disclaimer = computed(() =>
-    this.source() === 'ik'
+    this.source() === 'ik' || this.layout() === 'compare'
       ? 'Terjemahan AI dari teks Arab Ibnu Katsir, belum ditashih. Kutipan ayat memakai terjemahan Kemenag RI. Tanda ⚠ menandai bagian yang perlu dicek ahli. Untuk keperluan pribadi.'
       : 'Tafsir Kementerian Agama RI (quran.kemenag.go.id, lewat EQuran.id). Terjemahan ayat: Kemenag RI, edisi penyempurnaan 2019.',
   );
@@ -1285,8 +1645,20 @@ export class TafsirReader {
 
   protected readonly state = signal<'loading' | 'ready' | 'error' | 'denied'>('loading');
   protected readonly blocks = signal<Block[]>([]);
+  /** Rows of the side-by-side view (compare mode only). */
+  protected readonly rows = signal<RowView[]>([]);
+  /** What the loaded data is: set together with blocks / rows, so the template never mixes them. */
+  protected readonly layout = signal<'single' | 'compare'>('single');
   protected readonly limit = signal(STEP);
+  protected readonly total = computed(() =>
+    this.layout() === 'compare' ? this.rows().length : this.blocks().length,
+  );
   protected readonly shown = computed(() => this.blocks().slice(0, this.limit()));
+  protected readonly shownRows = computed(() => this.rows().slice(0, this.limit()));
+  protected readonly percent = computed(() => {
+    const n = this.ayahCount();
+    return n ? Math.round(Math.min(1, Math.max(0, this.currentAyah() / n)) * 100) : 0;
+  });
   /** Ayah at the top of the screen, for the dock ring and the jump sheet. */
   protected readonly currentAyah = signal(1);
   protected readonly ringDash = computed(() => {
@@ -1297,7 +1669,7 @@ export class TafsirReader {
   /** Offered at the top when the page opens without ?ayat and a saved spot exists. */
   protected readonly resumeAt = signal<number | null>(null);
   protected readonly jumpTo = signal(1);
-  private readonly expanded = signal(new Set<number>());
+  private readonly expanded = signal(new Set<string>());
   private readonly tr = signal<Record<string, string>>({});
   private readonly open = signal(new Set<Inline>());
   private readonly more = viewChild<ElementRef<HTMLElement>>('more');
@@ -1306,11 +1678,19 @@ export class TafsirReader {
 
   constructor() {
     void this.translations.all().then((f) => f && this.tr.set(f.ayahs));
+    if (typeof matchMedia === 'function') {
+      const mq = matchMedia(WIDE_QUERY);
+      const onWide = () => this.wide.set(mq.matches);
+      onWide();
+      mq.addEventListener('change', onWide);
+      inject(DestroyRef).onDestroy(() => mq.removeEventListener('change', onWide));
+    }
     effect(() => {
       const s = this.surahNum();
       const ayat = Number(this.ayat()) || 0;
       const src = this.source();
-      untracked(() => void this.load(s, ayat, src));
+      const cmp = this.compare();
+      untracked(() => void this.load(s, ayat, src, cmp));
     });
     // Render more blocks as the end comes into view.
     const io = new IntersectionObserver(
@@ -1345,27 +1725,48 @@ export class TafsirReader {
     });
   }
 
-  private async load(s: number, ayat: number, src: TafsirSource): Promise<void> {
+  private async load(s: number, ayat: number, src: TafsirSource, cmp: boolean): Promise<void> {
     const seq = ++this.loadSeq;
     this.state.set('loading');
     this.open.set(new Set());
     this.expanded.set(new Set());
     this.resumeAt.set(null);
     try {
-      let blocks: Block[];
-      if (src === 'ik') blocks = parseTafsir(await this.tafsir.load(s));
-      else {
-        const f = await this.kemenag.surah(s);
-        if (!f) throw new Error('unavailable');
-        blocks = kemenagBlocks(s, f.ayahs);
+      let blocks: Block[] = [];
+      let rows: RowView[] = [];
+      let target: number;
+      if (cmp) {
+        const [k, ik] = await Promise.allSettled([this.kemenag.surah(s), this.tafsir.load(s)]);
+        if (seq !== this.loadSeq) return;
+        if (k.status === 'rejected' || !k.value) throw new Error('unavailable');
+        if (ik.status === 'rejected') {
+          // Back to one source (the effect reloads); say why the view changed.
+          this.ui.showToast({ message: 'Ibnu Katsir tidak bisa dimuat' });
+          this.compareFailed.set(s);
+          return;
+        }
+        rows = compareRows(s, kemenagBlocks(s, k.value.ayahs), parseTafsir(ik.value)).map((r) =>
+          rowView(s, r),
+        );
+        target = ayat ? rowIndexFor(rows, ayat) : -1;
+      } else {
+        if (src === 'ik') blocks = parseTafsir(await this.tafsir.load(s));
+        else {
+          const f = await this.kemenag.surah(s);
+          if (!f) throw new Error('unavailable');
+          blocks = kemenagBlocks(s, f.ayahs);
+        }
+        if (seq !== this.loadSeq) return;
+        target = ayat ? sectionIndexFor(blocks, ayat) : -1;
       }
-      if (seq !== this.loadSeq) return;
-      const target = ayat ? sectionIndexFor(blocks, ayat) : -1;
       const last = this.lastSetting.value();
+      const saved: TafsirSource = cmp ? 'kemenag' : src;
       this.resumeAt.set(
-        !ayat && last && last.s === s && last.src === src && last.a > 1 ? last.a : null,
+        !ayat && last && last.s === s && last.src === saved && last.a > 1 ? last.a : null,
       );
       this.blocks.set(blocks);
+      this.rows.set(rows);
+      this.layout.set(cmp ? 'compare' : 'single');
       this.limit.set(Math.max(STEP, target + STEP));
       this.currentAyah.set(ayat || 1);
       this.state.set('ready');
@@ -1389,16 +1790,31 @@ export class TafsirReader {
   }
 
   protected reload(): void {
-    void this.load(this.surahNum(), Number(this.ayat()) || 0, this.source());
+    void this.load(this.surahNum(), Number(this.ayat()) || 0, this.source(), this.compare());
   }
 
   /** Switch source and stay at the ayah being read. */
   protected setSource(src: TafsirSource): void {
-    if (src === this.source()) return;
+    if (src === this.source() && !this.compare()) return;
     const ayah = this.ayahInView();
     this.sourceSetting.set(src);
     void this.router.navigate(['/tafsir', this.surahNum()], {
-      queryParams: { ayat: ayah, sumber: src === 'ik' ? 'ik' : null },
+      queryParams: { ayat: ayah, sumber: src === 'ik' ? 'ik' : null, banding: null },
+      replaceUrl: true,
+    });
+  }
+
+  /** Side by side on / off (kept in the URL only), staying at the ayah being read. */
+  protected setCompare(on: boolean): void {
+    if (on === this.compare()) return;
+    const ayah = this.ayahInView();
+    if (on) this.compareFailed.set(null);
+    void this.router.navigate(['/tafsir', this.surahNum()], {
+      queryParams: {
+        ayat: ayah,
+        sumber: !on && this.source() === 'ik' ? 'ik' : null,
+        banding: on ? 1 : null,
+      },
       replaceUrl: true,
     });
   }
@@ -1431,7 +1847,10 @@ export class TafsirReader {
 
   /** Jump to an ayah's section: render far enough first, then scroll. */
   private goToAyah(ayah: number): void {
-    const i = sectionIndexFor(this.blocks(), ayah);
+    const i =
+      this.layout() === 'compare'
+        ? rowIndexFor(this.rows(), ayah)
+        : sectionIndexFor(this.blocks(), ayah);
     this.limit.update((n) => Math.max(n, i + STEP));
     this.scrollTo(i);
   }
@@ -1455,12 +1874,12 @@ export class TafsirReader {
   }
 
   /** Small label above the heading number: "AYAT", or the quoted surah. Empty without a ref. */
-  protected secCap(b: Extract<Block, { kind: 'section' }>): string {
+  protected secCap(b: SectionBlock): string {
     if (!b.s) return '';
     return b.s === this.surahNum() ? 'AYAT' : `QS. ${this.nameOf(b.s)}`;
   }
 
-  protected secNum(b: Extract<Block, { kind: 'section' }>): string {
+  protected secNum(b: SectionBlock): string {
     if (!b.s) return b.label;
     const r = rangeLabel(b.from, b.to);
     return b.s === this.surahNum() ? r : `${b.s}:${r}`;
@@ -1468,18 +1887,18 @@ export class TafsirReader {
 
   /** Ayat quoted under a heading; a long run shows its first two behind a "Tampilkan" button. */
   protected verseView(
-    b: Extract<Block, { kind: 'section' }>,
-    i: number,
+    b: SectionBlock,
+    key: string,
   ): { list: number[]; single: boolean; more: { from: number; to: number } | null } {
     const all = this.range(b.from, b.to);
-    if (all.length > VERSES_OPEN && !this.expanded().has(i)) {
+    if (all.length > VERSES_OPEN && !this.expanded().has(key)) {
       return { list: all.slice(0, 2), single: false, more: { from: all[2]!, to: all.at(-1)! } };
     }
     return { list: all, single: all.length === 1, more: null };
   }
 
-  protected expand(i: number): void {
-    this.expanded.update((set) => new Set(set).add(i));
+  protected expand(key: string): void {
+    this.expanded.update((set) => new Set(set).add(key));
   }
 
   protected range(from: number, to: number): number[] {
@@ -1565,7 +1984,7 @@ export class TafsirReader {
     if (this.state() !== 'ready') return;
     const a = live ? this.ayahInView() : this.currentAyah();
     const s = this.surahNum();
-    const src = this.source();
+    const src: TafsirSource = this.layout() === 'compare' ? 'kemenag' : this.source();
     const cur = this.lastSetting.value();
     if (cur && cur.s === s && cur.a === a && cur.src === src) return;
     this.lastSetting.set({ s, a, src });
@@ -1584,4 +2003,36 @@ export class TafsirReader {
 
 function rangeLabel(from: number, to: number): string {
   return to > from ? `${from}–${to}` : String(from);
+}
+
+/** Row covering `ayah` (or the last one before it), -1 when none. */
+function rowIndexFor(rows: readonly CompareRow[], ayah: number): number {
+  let best = -1;
+  for (let i = 0; i < rows.length; i++) {
+    const r = rows[i]!;
+    if (ayah >= r.from && ayah <= r.to) return i;
+    if (r.from <= ayah) best = i;
+  }
+  return best;
+}
+
+/** Ayat range a side really covers in a row ("" when it has none of its own). */
+function ownRange(surah: number, blocks: readonly Block[]): string {
+  let from = 0;
+  let to = 0;
+  for (const b of blocks) {
+    if (b.kind !== 'section' || b.s !== surah || !b.from) continue;
+    from = from ? Math.min(from, b.from) : b.from;
+    to = Math.max(to, b.to);
+  }
+  return from ? rangeLabel(from, to) : '';
+}
+
+function rowView(surah: number, r: CompareRow): RowView {
+  return {
+    ...r,
+    head: { kind: 'section', label: `${surah}:${r.from}`, s: surah, from: r.from, to: r.to },
+    leftRange: ownRange(surah, r.left),
+    rightRange: ownRange(surah, r.right),
+  };
 }

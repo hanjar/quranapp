@@ -86,7 +86,13 @@ export function parseTafsir(file: Pick<TafsirFile, 'chunks'>): Block[] {
         if (label === lastLabel) continue;
         lastLabel = label;
         const r = parseRef(label);
-        blocks.push({ kind: 'section', label, s: r?.s ?? null, from: r?.from ?? 0, to: r?.to ?? 0 });
+        blocks.push({
+          kind: 'section',
+          label,
+          s: r?.s ?? null,
+          from: r?.from ?? 0,
+          to: r?.to ?? 0,
+        });
         continue;
       }
       blocks.push({ kind: 'p', parts: parseInline(p.replace(/\s*\n\s*/g, ' ')) });
@@ -122,4 +128,65 @@ export function kemenagBlocks(surah: number, ayahs: Record<string, string>): Blo
     }
   }
   return blocks;
+}
+
+/** One aligned row of the side-by-side view: the ayat [from, to] and each source's blocks for them. */
+export interface CompareRow {
+  from: number;
+  to: number;
+  left: Block[];
+  right: Block[];
+}
+
+interface Group {
+  from: number;
+  to: number;
+  blocks: Block[];
+}
+
+/** A source's blocks cut at its own-surah sections; blocks before the first one go to `lead`. */
+function groupsOf(surah: number, blocks: readonly Block[]): { groups: Group[]; lead: Block[] } {
+  const groups: Group[] = [];
+  const lead: Block[] = [];
+  for (const b of blocks) {
+    if (b.kind === 'section' && b.s === surah && b.from) {
+      groups.push({ from: b.from, to: Math.max(b.from, b.to), blocks: [b] });
+    } else if (groups.length) groups[groups.length - 1]!.blocks.push(b);
+    else lead.push(b);
+  }
+  return { groups, lead };
+}
+
+/**
+ * Aligns two tafsir sources for reading side by side. Each source is cut into groups at its own
+ * sections (`s === surah`); overlapping ayah ranges of both sides are merged into rows, so a
+ * ranged Ibnu Katsir section lines up with the per-ayah Kemenag ones it covers. Blocks before a
+ * source's first own section join the first row.
+ */
+export function compareRows(surah: number, left: Block[], right: Block[]): CompareRow[] {
+  const l = groupsOf(surah, left);
+  const r = groupsOf(surah, right);
+  const spans = [...l.groups, ...r.groups]
+    .map((g) => ({ from: g.from, to: g.to }))
+    .sort((a, b) => a.from - b.from || a.to - b.to);
+  const merged: { from: number; to: number }[] = [];
+  for (const sp of spans) {
+    const last = merged[merged.length - 1];
+    if (last && sp.from <= last.to) last.to = Math.max(last.to, sp.to);
+    else merged.push({ ...sp });
+  }
+  const rows: CompareRow[] = merged.map((m) => ({ ...m, left: [], right: [] }));
+  const place = (groups: Group[], side: 'left' | 'right') => {
+    for (const g of groups) {
+      const row = rows.find((x) => g.from >= x.from && g.from <= x.to);
+      row?.[side].push(...g.blocks);
+    }
+  };
+  place(l.groups, 'left');
+  place(r.groups, 'right');
+  if (rows.length) {
+    rows[0]!.left.unshift(...l.lead);
+    rows[0]!.right.unshift(...r.lead);
+  }
+  return rows;
 }
