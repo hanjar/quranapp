@@ -210,4 +210,4 @@ Entity `readmark` (entityId `"marks"`, payload `{marks:{"<1-604>":[markedAt, unm
 user in `read_marks`. Writes merge per-component max (grow-only; a no-op merge writes nothing). Never conflicts,
 cannot be deleted. `readday/all` clears it (marks `{}`, `cleared_at` set) and entries last touched at/before the
 clear watermark are dropped on upload. Pull data: `{marks, updatedAt, clearedAt}`; also in `/export` (`readMarks`),
-the reset snapshot (when non-empty) and `DELETE /me/data`. Dwell rule note: the 30 s page-dwell is client-side only.
+the reset snapshot (when non-empty) and `DELETE /me/data`. Dwell rule note: the 3 min page-dwell is client-side only.

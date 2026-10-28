@@ -215,7 +215,7 @@ export class ProgressService {
 
   /**
    * Records that `page` was read: visible for `ms` of foreground time, ending at `at`.
-   * No-op when tracking is off, the page is invalid or `ms` < READ_DWELL_MS (30 s).
+   * No-op when tracking is off, the page is invalid or `ms` < READ_DWELL_MS (3 min).
    * Creates khatam round 1 on the very first read. Never rejects on storage errors.
    */
   recordView(page: number, ms: number, at: number = Date.now()): Promise<void> {
@@ -390,7 +390,15 @@ export class ProgressService {
           round = { ...round, startedAt: stamp, updatedAt: now };
           await this.db.rounds.put(round);
           if (account) {
-            await enqueueOutbox(this.db, account, 'khatam', round.id, 'upsert', roundPayload(round), round.rev);
+            await enqueueOutbox(
+              this.db,
+              account,
+              'khatam',
+              round.id,
+              'upsert',
+              roundPayload(round),
+              round.rev,
+            );
           }
         }
         if (!round) {
@@ -404,7 +412,15 @@ export class ProgressService {
           };
           await this.db.rounds.add(round);
           if (account) {
-            await enqueueOutbox(this.db, account, 'khatam', round.id, 'upsert', roundPayload(round), null);
+            await enqueueOutbox(
+              this.db,
+              account,
+              'khatam',
+              round.id,
+              'upsert',
+              roundPayload(round),
+              null,
+            );
           }
         }
         const done: number[] = [];
@@ -430,7 +446,15 @@ export class ProgressService {
             const row: ReadDay = { day, pages: mine, updatedAt: now, rev: cur?.rev ?? null };
             await this.db.readDays.put(row);
             if (account) {
-              await enqueueOutbox(this.db, account, 'readday', day, 'upsert', readDayPayload(row), row.rev);
+              await enqueueOutbox(
+                this.db,
+                account,
+                'readday',
+                day,
+                'upsert',
+                readDayPayload(row),
+                row.rev,
+              );
             }
           }
         } else {
@@ -485,13 +509,22 @@ export class ProgressService {
               const row: ReadDay = { ...cur, pages: pagesLeft };
               await this.db.readDays.put(row);
               if (account) {
-                await enqueueOutbox(this.db, account, 'readday', day, 'upsert', readDayPayload(row), row.rev);
+                await enqueueOutbox(
+                  this.db,
+                  account,
+                  'readday',
+                  day,
+                  'upsert',
+                  readDayPayload(row),
+                  row.rev,
+                );
               }
             }
             const rc = added.createdRound;
             if (rc) {
               const r = await this.db.rounds.get(rc.id);
-              const anyRead = Object.keys(pagesLeft).length > 0 || (await this.db.readDays.count()) > 0;
+              const anyRead =
+                Object.keys(pagesLeft).length > 0 || (await this.db.readDays.count()) > 0;
               if (r && r.rev == null && !anyRead) {
                 await this.db.rounds.delete(rc.id);
                 if (account) {
@@ -546,7 +579,15 @@ export class ProgressService {
           const row: ReadDay = { day, pages: mine, updatedAt: now, rev: cur.rev };
           await this.db.readDays.put(row);
           if (account) {
-            await enqueueOutbox(this.db, account, 'readday', day, 'upsert', readDayPayload(row), row.rev);
+            await enqueueOutbox(
+              this.db,
+              account,
+              'readday',
+              day,
+              'upsert',
+              readDayPayload(row),
+              row.rev,
+            );
           }
         }
         return out;
@@ -572,7 +613,15 @@ export class ProgressService {
             const row: ReadDay = { day, pages: mine, updatedAt: Date.now(), rev: cur.rev };
             await this.db.readDays.put(row);
             if (account) {
-              await enqueueOutbox(this.db, account, 'readday', day, 'upsert', readDayPayload(row), row.rev);
+              await enqueueOutbox(
+                this.db,
+                account,
+                'readday',
+                day,
+                'upsert',
+                readDayPayload(row),
+                row.rev,
+              );
             }
             return true;
           });
@@ -636,7 +685,11 @@ export class ProgressService {
     }).catch(() => 0);
   }
 
-  private readInRoundFrom(days: ReadDay[], marks: Record<string, [number, number]>, round: KhatamRound) {
+  private readInRoundFrom(
+    days: ReadDay[],
+    marks: Record<string, [number, number]>,
+    round: KhatamRound,
+  ) {
     const out = readInRound(days, round);
     for (const p of markedInRound(marks, round)) out.add(p);
     return out;
@@ -651,7 +704,15 @@ export class ProgressService {
     const row: ReadMarks = { key: 'marks', marks, updatedAt: now, rev: cur?.rev ?? null };
     await this.db.readMarks.put(row);
     if (account) {
-      await enqueueOutbox(this.db, account, 'readmark', 'marks', 'upsert', readMarksPayload(row), row.rev);
+      await enqueueOutbox(
+        this.db,
+        account,
+        'readmark',
+        'marks',
+        'upsert',
+        readMarksPayload(row),
+        row.rev,
+      );
     }
   }
 
@@ -722,7 +783,9 @@ export class ProgressService {
           const stale = await this.db.outbox
             .where('accountId')
             .equals(account)
-            .filter((o) => o.entity === 'readday' || o.entity === 'khatam' || o.entity === 'readmark')
+            .filter(
+              (o) => o.entity === 'readday' || o.entity === 'khatam' || o.entity === 'readmark',
+            )
             .primaryKeys();
           await this.db.outbox.bulkDelete(stale);
           await enqueueOutbox(this.db, account, 'readday', 'all', 'delete', null, null);
@@ -776,7 +839,15 @@ export class ProgressService {
               const row: ReadMarks = { ...snap.marks, marks: merged, updatedAt: Date.now() };
               await this.db.readMarks.put(row);
               if (account) {
-                await enqueueOutbox(this.db, account, 'readmark', 'marks', 'upsert', readMarksPayload(row), row.rev);
+                await enqueueOutbox(
+                  this.db,
+                  account,
+                  'readmark',
+                  'marks',
+                  'upsert',
+                  readMarksPayload(row),
+                  row.rev,
+                );
               }
             }
             for (const d of snap.days) {

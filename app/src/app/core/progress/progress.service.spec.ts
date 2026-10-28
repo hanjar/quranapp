@@ -5,7 +5,7 @@ import { MushafDb } from '../storage/db';
 import { MUSHAF_DB } from '../storage/db-token';
 import { installFakeIndexedDb } from '../storage/testing';
 import { UserDataService } from '../storage/user-data.service';
-import { addDays, dayNoon, localDay } from './progress-logic';
+import { addDays, dayNoon, localDay, READ_DWELL_MS } from './progress-logic';
 import { ProgressService } from './progress.service';
 
 installFakeIndexedDb();
@@ -77,12 +77,16 @@ describe('ProgressService', () => {
   });
 
   it('records a view: day row, span, round 1 starting at the first view, derived signals', async () => {
-    await svc.recordView(7, 40_000, AT);
+    await svc.recordView(7, READ_DWELL_MS, AT);
     await settle();
     const row = svc.days()[0]!;
     expect(row.day).toBe(localDay(AT));
-    expect(row.pages['7']).toEqual([AT - 40_000, AT]);
-    expect(svc.currentRound()).toMatchObject({ n: 1, startedAt: AT - 40_000, finishedAt: null });
+    expect(row.pages['7']).toEqual([AT - READ_DWELL_MS, AT]);
+    expect(svc.currentRound()).toMatchObject({
+      n: 1,
+      startedAt: AT - READ_DWELL_MS,
+      finishedAt: null,
+    });
     expect([...svc.readInRound()]).toEqual([7]);
     expect(svc.percent()).toBeCloseTo((1 / PAGE_COUNT) * 100, 0);
     expect(svc.firstUnread()).toBe(1);
@@ -92,12 +96,12 @@ describe('ProgressService', () => {
   });
 
   it('merging a repeat view of the same page widens its span and never duplicates the round', async () => {
-    await svc.recordView(7, 30_000, AT);
-    await svc.recordView(7, 30_000, AT + 60_000);
-    await svc.recordView(8, 30_000, AT + 90_000);
+    await svc.recordView(7, READ_DWELL_MS, AT);
+    await svc.recordView(7, READ_DWELL_MS, AT + 60_000);
+    await svc.recordView(8, READ_DWELL_MS, AT + 90_000);
     await settle();
     expect(svc.days()).toHaveLength(1);
-    expect(svc.days()[0]!.pages['7']).toEqual([AT - 30_000, AT + 60_000]);
+    expect(svc.days()[0]!.pages['7']).toEqual([AT - READ_DWELL_MS, AT + 60_000]);
     expect(svc.rounds()).toHaveLength(1);
     expect(svc.recent(5).map((r) => r.page)).toEqual([8, 7]);
   });
@@ -106,9 +110,9 @@ describe('ProgressService', () => {
     vi.useFakeTimers({ toFake: ['Date'] });
     vi.setSystemTime(AT);
     svc.refreshToday();
-    await svc.recordView(1, 30_000, AT);
-    await svc.recordView(2, 30_000, AT);
-    await svc.recordView(3, 30_000, AT - 86_400_000);
+    await svc.recordView(1, READ_DWELL_MS, AT);
+    await svc.recordView(2, READ_DWELL_MS, AT);
+    await svc.recordView(3, READ_DWELL_MS, AT - 86_400_000);
     await settle();
     expect(svc.todayCount()).toBe(2);
     const l7 = svc.last7();
@@ -120,15 +124,15 @@ describe('ProgressService', () => {
   });
 
   it('ignores short views, invalid pages, and everything when tracking is off', async () => {
-    await svc.recordView(7, 29_999, AT);
-    await svc.recordView(0, 30_000, AT);
-    await svc.recordView(605, 30_000, AT);
-    await svc.recordView(1.5, 30_000, AT);
+    await svc.recordView(7, READ_DWELL_MS - 1, AT);
+    await svc.recordView(0, READ_DWELL_MS, AT);
+    await svc.recordView(605, READ_DWELL_MS, AT);
+    await svc.recordView(1.5, READ_DWELL_MS, AT);
     await settle();
     expect(svc.days()).toEqual([]);
     await svc.setEnabled(false);
     expect(svc.enabled()).toBe(false);
-    await svc.recordView(7, 40_000, AT);
+    await svc.recordView(7, READ_DWELL_MS, AT);
     await settle();
     expect(svc.days()).toEqual([]);
     expect(svc.rounds()).toEqual([]);
@@ -148,12 +152,12 @@ describe('ProgressService', () => {
   });
 
   it('queues coalesced readday + khatam ops only when sync is enabled', async () => {
-    await svc.recordView(7, 30_000, AT);
+    await svc.recordView(7, READ_DWELL_MS, AT);
     await svc.idle();
     expect(await db.outbox.count()).toBe(0);
     await enableSync();
-    await svc.recordView(8, 30_000, AT + 1000);
-    await svc.recordView(9, 30_000, AT + 2000);
+    await svc.recordView(8, READ_DWELL_MS, AT + 1000);
+    await svc.recordView(9, READ_DWELL_MS, AT + 2000);
     await svc.idle();
     const ops = await db.outbox.toArray();
     expect(ops.filter((o) => o.entity === 'readday')).toHaveLength(1); // coalesced per day
@@ -167,7 +171,7 @@ describe('ProgressService', () => {
 
   it('first synced read enqueues round 1 too', async () => {
     await enableSync();
-    await svc.recordView(7, 30_000, AT);
+    await svc.recordView(7, READ_DWELL_MS, AT);
     await svc.idle();
     const ops = await db.outbox.toArray();
     expect(ops.map((o) => o.entity).sort()).toEqual(['khatam', 'readday']);
@@ -179,7 +183,7 @@ describe('ProgressService', () => {
 
   it('startNextRound finishes the open round and a new one counts from zero', async () => {
     expect(await svc.startNextRound()).toBeNull();
-    await svc.recordView(7, 30_000, AT);
+    await svc.recordView(7, READ_DWELL_MS, AT);
     await settle();
     const next = await svc.startNextRound();
     expect(next).toMatchObject({ n: 2, finishedAt: null });
@@ -191,7 +195,7 @@ describe('ProgressService', () => {
     expect(svc.currentRound()?.n).toBe(2);
     expect(svc.readInRound().size).toBe(0);
     expect(svc.recent(5).map((r) => r.page)).toEqual([7]); // history is kept
-    await svc.recordView(8, 30_000, Date.now() + 5000);
+    await svc.recordView(8, READ_DWELL_MS, Date.now() + 5000);
     await settle();
     expect([...svc.readInRound()]).toEqual([8]);
   });
@@ -218,7 +222,7 @@ describe('ProgressService', () => {
   describe('clearHistory', () => {
     it('wipes local data and (synced) replaces pending progress ops with one readday/all delete', async () => {
       await enableSync();
-      await svc.recordView(7, 30_000, AT);
+      await svc.recordView(7, READ_DWELL_MS, AT);
       await svc.clearHistory();
       await settle();
       expect(svc.days()).toEqual([]);
@@ -227,14 +231,14 @@ describe('ProgressService', () => {
       expect(ops).toHaveLength(1);
       expect(ops[0]).toMatchObject({ entity: 'readday', entityId: 'all', action: 'delete' });
       // a fresh read after clearing starts round 1 again
-      await svc.recordView(9, 30_000, Date.now());
+      await svc.recordView(9, READ_DWELL_MS, Date.now());
       await settle();
       expect(svc.currentRound()?.n).toBe(1);
     });
 
     it('undo restores everything and cancels the cloud clear while it is unsent', async () => {
       await enableSync();
-      await svc.recordView(7, 30_000, AT);
+      await svc.recordView(7, READ_DWELL_MS, AT);
       await svc.startNextRound();
       const undo = await svc.clearHistory();
       await settle();
@@ -250,7 +254,7 @@ describe('ProgressService', () => {
 
     it('undo is refused once the clear op was sent', async () => {
       await enableSync();
-      await svc.recordView(7, 30_000, AT);
+      await svc.recordView(7, READ_DWELL_MS, AT);
       const undo = await svc.clearHistory();
       await db.outbox.clear(); // the sync cycle sent it
       expect(await undo()).toBe(false);
@@ -259,14 +263,14 @@ describe('ProgressService', () => {
     });
 
     it('undo is refused after the window; guests can undo without any outbox', async () => {
-      await svc.recordView(7, 30_000, AT);
+      await svc.recordView(7, READ_DWELL_MS, AT);
       await settle();
       vi.useFakeTimers({ toFake: ['Date'] });
       const undo = await svc.clearHistory();
       vi.setSystemTime(Date.now() + 9000);
       expect(await undo()).toBe(false);
       vi.useRealTimers();
-      await svc.recordView(7, 30_000, AT);
+      await svc.recordView(7, READ_DWELL_MS, AT);
       const undo2 = await svc.clearHistory();
       expect(await undo2()).toBe(true);
       await settle();
@@ -275,9 +279,9 @@ describe('ProgressService', () => {
     });
 
     it('undo merges reads made after the clear into the restored history', async () => {
-      await svc.recordView(7, 30_000, AT);
+      await svc.recordView(7, READ_DWELL_MS, AT);
       const undo = await svc.clearHistory();
-      await svc.recordView(8, 30_000, AT + 5000);
+      await svc.recordView(8, READ_DWELL_MS, AT + 5000);
       expect(await undo()).toBe(true);
       await settle();
       expect(Object.keys(svc.days()[0]!.pages).sort()).toEqual(['7', '8']);
@@ -305,7 +309,7 @@ describe('ProgressService', () => {
     });
 
     it('default is before; skips pages already read or marked; invalid pages ignored', async () => {
-      await svc.recordView(534, 30_000, Date.now());
+      await svc.recordView(534, READ_DWELL_MS, Date.now());
       await settle();
       expect((await svc.markRead([533, 534, 535, 535, 0, 700])).pages).toEqual([533, 535]);
       expect((await svc.markRead([533, 535])).added).toBe(0);
@@ -363,7 +367,7 @@ describe('ProgressService', () => {
       const yesterday = () => addDays(today(), -1);
 
       it("'day' stamps the chosen day at 12:00 and counts for that bar, last7 and the round", async () => {
-        await svc.recordView(1, 30_000, Date.now() - 5 * 86_400_000); // round 1 started 5 days ago
+        await svc.recordView(1, READ_DWELL_MS, Date.now() - 5 * 86_400_000); // round 1 started 5 days ago
         const y = yesterday();
         const r = await svc.markRead({ from: 519, to: 521 }, { when: 'day', day: y });
         expect(r.error).toBeUndefined();
@@ -385,14 +389,22 @@ describe('ProgressService', () => {
       });
 
       it('rejects the future, more than 30 days back and malformed days without writing', async () => {
-        for (const day of [addDays(today(), 1), addDays(today(), -31), '2026-02-30', 'kemarin', undefined]) {
+        for (const day of [
+          addDays(today(), 1),
+          addDays(today(), -31),
+          '2026-02-30',
+          'kemarin',
+          undefined,
+        ]) {
           const r = await svc.markRead([5], { when: 'day', day: day as string });
           expect(r.added).toBe(0);
           expect(r.error).toBeTruthy();
         }
         expect(await db.readDays.count()).toBe(0);
         expect(await db.rounds.count()).toBe(0);
-        expect((await svc.markRead([5], { when: 'day', day: addDays(today(), -30) })).added).toBe(1);
+        expect((await svc.markRead([5], { when: 'day', day: addDays(today(), -30) })).added).toBe(
+          1,
+        );
       });
 
       it('moves round 1 start back for an earlier day, refuses it for a later round', async () => {
@@ -447,7 +459,7 @@ describe('ProgressService', () => {
         await settle();
         expect(svc.todayCount()).toBe(2);
         await svc.unmarkDay(today(), [10]);
-        await svc.recordView(10, 30_000, Date.now() + 1000);
+        await svc.recordView(10, READ_DWELL_MS, Date.now() + 1000);
         await settle();
         expect(svc.todayCount()).toBe(2);
         await svc.unmarkDay(today(), [11]);
@@ -576,7 +588,7 @@ describe('ProgressService', () => {
     vi.setSystemTime(AT);
     const tracker = svc.createTracker();
     tracker.visible([12]);
-    await vi.advanceTimersByTimeAsync(30_000);
+    await vi.advanceTimersByTimeAsync(READ_DWELL_MS);
     vi.useRealTimers();
     await settle();
     expect(svc.days()[0]?.pages['12']).toBeDefined();

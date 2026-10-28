@@ -1,7 +1,7 @@
 import { KhatamRound, PAGE_COUNT, PageReadSpan, ReadDay, spanActive } from '../models';
 
 /** A page counts as read after this much continuous foreground time on it (leaving earlier counts nothing). */
-export const READ_DWELL_MS = 30_000;
+export const READ_DWELL_MS = 180_000;
 
 /**
  * First page of each juz in the Madinah (KFQC, 604-page) mushaf; index 0 = juz 1.
@@ -84,7 +84,8 @@ export function markDayError(day: unknown, nowMs: number): string | null {
   if (!isDayString(day)) return 'Tanggal tidak valid.';
   const today = localDay(nowMs);
   if (day > today) return 'Tanggal tidak boleh di masa depan.';
-  if (day < addDays(today, -MARK_BACK_DAYS)) return `Tanggal maksimal ${MARK_BACK_DAYS} hari ke belakang.`;
+  if (day < addDays(today, -MARK_BACK_DAYS))
+    return `Tanggal maksimal ${MARK_BACK_DAYS} hari ke belakang.`;
   return null;
 }
 
@@ -167,7 +168,7 @@ export function dayCount(d: ReadDay): number {
 export function pageRangesText(pages: readonly number[]): string {
   const sorted = [...new Set(pages)].sort((a, b) => a - b);
   const parts: string[] = [];
-  for (let i = 0; i < sorted.length; ) {
+  for (let i = 0; i < sorted.length;) {
     let j = i;
     while (j + 1 < sorted.length && sorted[j + 1] === sorted[j]! + 1) j++;
     parts.push(j > i ? `${sorted[i]}–${sorted[j]}` : String(sorted[i]));

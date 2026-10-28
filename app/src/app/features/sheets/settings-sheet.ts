@@ -602,8 +602,10 @@ const SYNC_LABEL: Record<string, string> = {
         </button>
       }
       <p class="muted">
-        Halaman dihitung terbaca setelah beberapa detik tampil di layar. Progres tersimpan di
-        perangkat ini{{ sync.account() ? ' dan ikut tersinkron ke akunmu' : '' }}.
+        Halaman dihitung terbaca setelah 3 menit tampil di layar (tampilan dua halaman: 6 menit).
+        Progres tersimpan di perangkat ini{{
+          sync.account() ? ' dan ikut tersinkron ke akunmu' : ''
+        }}.
       </p>
     </section>
 

@@ -4,7 +4,7 @@ export interface PageDwellOptions {
   /** Called once per page per stay when it counts as read. `ms` = foreground dwell so far. */
   onRead: (page: number, ms: number) => void;
   now?: () => number;
-  /** Foreground time needed on one page (default READ_DWELL_MS = 30 s). */
+  /** Foreground time needed on one page (default READ_DWELL_MS = 3 min). */
   dwellMs?: number;
   setTimer?: (fn: () => void, ms: number) => unknown;
   clearTimer?: (handle: unknown) => void;
@@ -21,7 +21,7 @@ interface Stay {
  *  - `visible(pages)` whenever the set of on-screen pages changes (page turn, spread, mode switch);
  *  - `hidden()` when the app goes to the background, `resume()` when it returns;
  *  - `stop()` (or `dispose()`) when the reader closes.
- * A page counts only after `dwellMs` (30 s) of continuous foreground on it (a two-page spread: twice
+ * A page counts only after `dwellMs` (3 min) of continuous foreground on it (a two-page spread: twice
  * that, then both count); leaving earlier, going
  * to the background or closing the reader counts nothing. Each stay reports a page at most once.
  */
@@ -79,12 +79,15 @@ export class PageDwellTracker {
 
   private open(page: number): void {
     const stay: Stay = { since: this.now(), counted: false, timer: null };
-    stay.timer = this.setTimer(() => {
-      stay.timer = null;
-      if (this.stays.get(page) !== stay || stay.counted) return;
-      stay.counted = true;
-      this.opts.onRead(page, this.now() - stay.since);
-    }, this.wanted.length > 1 ? this.dwellMs * 2 : this.dwellMs);
+    stay.timer = this.setTimer(
+      () => {
+        stay.timer = null;
+        if (this.stays.get(page) !== stay || stay.counted) return;
+        stay.counted = true;
+        this.opts.onRead(page, this.now() - stay.since);
+      },
+      this.wanted.length > 1 ? this.dwellMs * 2 : this.dwellMs,
+    );
     this.stays.set(page, stay);
   }
 
