@@ -20,6 +20,7 @@ tracker), `progress.service.ts` (`ProgressService`). Juz start pages are static 
 ## Recording rules
 A page counts only after `READ_DWELL_MS` = 3 min of continuous foreground time on it, once per stay; leaving
 earlier, backgrounding or closing the reader counts nothing (pages flipped while searching are not counted).
+While the murottal plays, a page counts as soon as every ayah on it has been recited (`recordListened`, no minimum), provided listening began at its first ayah and the user did not skip within it.
 `recordView` ignores views < 3 min, invalid pages and everything when `trackProgress` is off. Writes
 go to Dexie immediately and to the outbox in the same transaction (coalesced per day, payload = whole day), so a
 sync cycle (8 s debounce) uploads at most one op per day.

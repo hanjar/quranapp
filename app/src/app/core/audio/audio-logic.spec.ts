@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import {
   DEFAULT_QARI,
   QARIS,
+  isFirstAyahOfPage,
+  isLastAyahOfPage,
   globalAyahNumber,
   needsBasmalah,
   nextAyah,
@@ -100,5 +102,22 @@ describe('qari urls', () => {
     expect(qariById('nope').id).toBe('alafasy');
     expect(qariById('ghamdi').offline).toBe(false);
     expect(DEFAULT_QARI.offline).toBe(true);
+  });
+});
+
+describe('isFirstAyahOfPage / isLastAyahOfPage', () => {
+  // Page 10 holds 2:1-5, page 11 holds 2:6 onwards.
+  const pageOf = (r: { surah: number; ayah: number }) => (r.surah === 2 && r.ayah <= 5 ? 10 : 11);
+  it('marks the first ayah of a page', () => {
+    expect(isFirstAyahOfPage({ surah: 2, ayah: 1 }, counts, pageOf)).toBe(true);
+    expect(isFirstAyahOfPage({ surah: 2, ayah: 2 }, counts, pageOf)).toBe(false);
+    expect(isFirstAyahOfPage({ surah: 2, ayah: 6 }, counts, pageOf)).toBe(true);
+    expect(isFirstAyahOfPage({ surah: 1, ayah: 1 }, counts, pageOf)).toBe(true);
+  });
+  it('marks the last ayah of a page, including the end of the mushaf', () => {
+    expect(isLastAyahOfPage({ surah: 2, ayah: 5 }, counts, pageOf)).toBe(true);
+    expect(isLastAyahOfPage({ surah: 2, ayah: 4 }, counts, pageOf)).toBe(false);
+    expect(isLastAyahOfPage({ surah: 114, ayah: 6 }, counts, () => 604)).toBe(true);
+    expect(isLastAyahOfPage({ surah: 114, ayah: 5 }, counts, () => 604)).toBe(false);
   });
 });

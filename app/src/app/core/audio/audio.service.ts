@@ -5,12 +5,15 @@ import { ContentApi, UserDataApi } from '../contracts';
 import { AyahRef } from '../models';
 import { ReaderUiService } from '../reader-ui.service';
 import { syncedSetting } from '../synced-setting';
+import { ProgressService } from '../progress/progress.service';
 import { AudioOfflineApi, audioFileUrl } from './audio-offline.api';
 import {
   AudioMode,
   DEFAULT_QARI,
   QariId,
   globalAyahNumber,
+  isFirstAyahOfPage,
+  isLastAyahOfPage,
   needsBasmalah,
   nextAyah,
   prevAyah,
@@ -32,6 +35,7 @@ export class AudioService {
   private readonly ui = inject(ReaderUiService);
   private readonly router = inject(Router);
   private readonly offline = inject(AudioOfflineApi);
+  private readonly progress = inject(ProgressService);
 
   private readonly qariSetting = syncedSetting<QariId>(
     'qari',
@@ -61,6 +65,12 @@ export class AudioService {
 
   private audio: HTMLAudioElement | null = null;
   private start: { ref: AyahRef; page: number } | null = null;
+  /**
+   * The page being heard, for the "read by listening" rule: it counts once every ayah on it
+   * was recited. `complete` is false when the listening did not begin at the page's first ayah
+   * or the user skipped within it.
+   */
+  private heard: { page: number; since: number; complete: boolean } | null = null;
   private triedFallback = false;
   /** First source that failed for the current file, for the error report. */
   private firstFailure: string | null = null;
@@ -80,6 +90,8 @@ export class AudioService {
   /** Start reciting at `ref`; continuous playback follows the current mode. */
   play(ref: AyahRef, page?: number): void {
     const p = page ?? this.content.pageOf(ref) ?? this.ui.currentPage();
+    // A user-chosen start re-tracks the page: it is complete only if this is its first ayah.
+    this.heard = null;
     this.start = { ref, page: p };
     this.error.set(null);
     this.freshRetried = false;
@@ -111,6 +123,7 @@ export class AudioService {
     this.current.set(null);
     this.basmalah.set(false);
     this.start = null;
+    this.heard = null;
     this.setMediaSession(null);
   }
 
@@ -166,6 +179,7 @@ export class AudioService {
     const target = basmalah ? { surah: 1, ayah: 1 } : ref;
     this.current.set(ref);
     this.basmalah.set(basmalah);
+    if (!basmalah) this.trackHeard(ref);
     this.triedFallback = false;
     this.freshRetried = false;
     this.firstFailure = null;
@@ -287,13 +301,37 @@ export class AudioService {
     });
   }
 
+  /** Start tracking the page of an ayah that begins to play; a page already tracked is kept. */
+  private trackHeard(ref: AyahRef): void {
+    const page = this.content.pageOf(ref);
+    if (!page) this.heard = null;
+    else if (this.heard?.page !== page)
+      this.heard = {
+        page,
+        since: Date.now(),
+        complete: isFirstAyahOfPage(ref, this.counts(), (r) => this.content.pageOf(r)),
+      };
+  }
+
   private advance(done: AyahRef): void {
+    this.recordHeardPage(done);
     const n = nextAyah(done, this.counts());
     if (this.start && shouldContinue(this.mode(), this.start, n, (r) => this.content.pageOf(r))) {
       this.begin(n!);
     } else {
       this.stop();
     }
+  }
+
+  /** A page heard completely, ending on its last ayah, counts as read. */
+  private recordHeardPage(done: AyahRef): void {
+    const h = this.heard;
+    const counts = this.counts();
+    const pageOf = (r: AyahRef) => this.content.pageOf(r);
+    if (!h || !h.complete || pageOf(done) !== h.page) return;
+    if (!isLastAyahOfPage(done, counts, pageOf)) return;
+    this.heard = null;
+    void this.progress.recordListened(h.page, Date.now() - h.since);
   }
 
   /** Keep the recited ayah on screen — only while the user is in the reader. */
@@ -308,6 +346,7 @@ export class AudioService {
   private fail(msg = 'Audio tidak dapat diputar. Periksa koneksi lalu coba lagi.'): void {
     this.state.set('error');
     this.error.set(msg);
+    this.heard = null;
   }
 
   /**

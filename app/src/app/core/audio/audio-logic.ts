@@ -106,3 +106,23 @@ export function shouldContinue(
 export function needsBasmalah(ref: AyahRef): boolean {
   return ref.ayah === 1 && ref.surah !== 1 && ref.surah !== 9;
 }
+
+/** True when the ayah before `ref` (in mushaf order) is on another page, or there is none. */
+export function isFirstAyahOfPage(
+  ref: AyahRef,
+  ayahCounts: readonly number[],
+  pageOf: (ref: AyahRef) => number | null,
+): boolean {
+  const prev = prevAyah(ref, ayahCounts);
+  return !prev || pageOf(prev) !== pageOf(ref);
+}
+
+/** True when the ayah after `ref` (in mushaf order) is on another page, or there is none (114:6). */
+export function isLastAyahOfPage(
+  ref: AyahRef,
+  ayahCounts: readonly number[],
+  pageOf: (ref: AyahRef) => number | null,
+): boolean {
+  const next = nextAyah(ref, ayahCounts);
+  return !next || pageOf(next) !== pageOf(ref);
+}

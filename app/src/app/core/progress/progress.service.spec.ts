@@ -138,6 +138,24 @@ describe('ProgressService', () => {
     expect(svc.rounds()).toEqual([]);
   });
 
+  it('recordListened records a listen shorter than the dwell minimum and bumps todayCount', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(AT);
+    svc.refreshToday();
+    const before = svc.todayCount();
+    await svc.recordListened(7, 40_000, AT);
+    await settle();
+    expect(svc.todayCount()).toBe(before + 1);
+    expect(svc.days()[0]!.pages['7']).toEqual([AT - 40_000, AT]);
+  });
+
+  it('recordListened is a no-op when tracking is off', async () => {
+    await svc.setEnabled(false);
+    await svc.recordListened(7, 40_000, AT);
+    await settle();
+    expect(svc.days()).toEqual([]);
+  });
+
   it('setDailyTarget clamps to 1-40 and persists in synced prefs', async () => {
     await svc.setDailyTarget(12);
     expect(svc.dailyTarget()).toBe(12);

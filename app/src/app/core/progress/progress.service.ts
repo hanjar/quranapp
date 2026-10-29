@@ -219,7 +219,20 @@ export class ProgressService {
    * Creates khatam round 1 on the very first read. Never rejects on storage errors.
    */
   recordView(page: number, ms: number, at: number = Date.now()): Promise<void> {
-    if (!this.enabled() || !isValidPage(page) || !(ms >= READ_DWELL_MS)) return Promise.resolve();
+    if (!(ms >= READ_DWELL_MS)) return Promise.resolve();
+    return this.recordSpan(page, ms, at);
+  }
+
+  /**
+   * Records a page heard in full from the murottal: same as recordView, but with no dwell minimum
+   * (the listen itself is the proof of reading). ms is clamped to at least 1.
+   */
+  recordListened(page: number, ms: number, at: number = Date.now()): Promise<void> {
+    return this.recordSpan(page, Math.max(1, ms || 0), at);
+  }
+
+  private recordSpan(page: number, ms: number, at: number): Promise<void> {
+    if (!this.enabled() || !isValidPage(page)) return Promise.resolve();
     return this.serial(async () => {
       if (!this.enabled()) return;
       const first = at - Math.min(ms, 6 * 3_600_000);
