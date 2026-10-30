@@ -164,6 +164,18 @@ export function dayCount(d: ReadDay): number {
   return n;
 }
 
+/** Consecutive runs of pages as inclusive `{from, to}`, e.g. [519, 520, 540] -> [{519, 520}, {540, 540}]. */
+export function pageRuns(pages: readonly number[]): { from: number; to: number }[] {
+  const sorted = [...new Set(pages)].sort((a, b) => a - b);
+  const out: { from: number; to: number }[] = [];
+  for (const p of sorted) {
+    const last = out[out.length - 1];
+    if (last && p === last.to + 1) last.to = p;
+    else out.push({ from: p, to: p });
+  }
+  return out;
+}
+
 /** Compact page ranges, e.g. [519..536, 540] -> "519–536, 540". */
 export function pageRangesText(pages: readonly number[]): string {
   const sorted = [...new Set(pages)].sort((a, b) => a - b);

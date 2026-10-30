@@ -8,6 +8,7 @@ import {
   isDayString,
   markDayError,
   pageRangesText,
+  pageRuns,
   firstUnreadPage,
   juzProgress,
   juzRange,
@@ -126,15 +127,36 @@ describe('removed pages and day helpers', () => {
       updatedAt: 1,
       rev: null,
     };
-    const round: KhatamRound = { id: 'r', n: 1, startedAt: 0, finishedAt: null, updatedAt: 0, rev: null };
+    const round: KhatamRound = {
+      id: 'r',
+      n: 1,
+      startedAt: 0,
+      finishedAt: null,
+      updatedAt: 0,
+      rev: null,
+    };
     expect([...readInRound([d], round)].sort()).toEqual([5, 7]);
-    expect(recentPages([d], 10).map((r) => r.page).sort()).toEqual([5, 7]);
+    expect(
+      recentPages([d], 10)
+        .map((r) => r.page)
+        .sort(),
+    ).toEqual([5, 7]);
     expect(lastDays([d], '2026-10-20', 1)[0]!.count).toBe(2);
   });
 
   it('pageRangesText compacts ranges', () => {
     expect(pageRangesText([540, 519, 520, 521, 536, 535])).toBe('519–521, 535–536, 540');
     expect(pageRangesText([])).toBe('');
+  });
+
+  it('pageRuns groups consecutive pages', () => {
+    expect(pageRuns([540, 519, 520, 521, 536, 535])).toEqual([
+      { from: 519, to: 521 },
+      { from: 535, to: 536 },
+      { from: 540, to: 540 },
+    ]);
+    expect(pageRuns([5, 5, 6])).toEqual([{ from: 5, to: 6 }]);
+    expect(pageRuns([])).toEqual([]);
   });
 
   it('markDayError allows today back to 30 days, nothing else', () => {

@@ -10,6 +10,7 @@ import {
   localDay,
   markDayError,
   pageRangesText,
+  pageRuns,
 } from '../../core/progress/progress-logic';
 import { ProgressService } from '../../core/progress/progress.service';
 import {
@@ -281,6 +282,38 @@ const MAX_TARGET = 40;
         border-color: var(--ui-accent);
         border-width: 2px;
       }
+      .cell.sel {
+        outline: 2px solid var(--ui-primary);
+        outline-offset: 2px;
+      }
+      .juz-detail {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        font-size: 14px;
+      }
+      .juz-detail .t {
+        font-weight: 500;
+        font-variant-numeric: tabular-nums;
+      }
+      .pills {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 8px;
+      }
+      .pill {
+        font: inherit;
+        font-size: 14px;
+        min-height: var(--mf-tap);
+        padding: 0 14px;
+        border-radius: var(--mf-radius-pill);
+        border: 1px solid var(--ui-hair);
+        background: transparent;
+        color: var(--ui-ink);
+        font-variant-numeric: tabular-nums;
+        cursor: pointer;
+      }
       .form {
         display: flex;
         flex-direction: column;
@@ -487,7 +520,9 @@ const MAX_TARGET = 40;
               Halaman dibaca: <span class="pages">{{ pd.text }}</span> ({{ pd.count }} halaman)
             </p>
           } @else {
-            <p class="eta">Belum ada halaman tercatat pada {{ pd.today ? 'hari ini' : 'tanggal ini' }}.</p>
+            <p class="eta">
+              Belum ada halaman tercatat pada {{ pd.today ? 'hari ini' : 'tanggal ini' }}.
+            </p>
           }
           <div class="actions">
             <button
@@ -648,7 +683,9 @@ const MAX_TARGET = 40;
                 (change)="pickWhen('date')"
               />
               <span
-                >Pilih tanggal<small>Sampai {{ backDays }} hari ke belakang, dihitung di grafik hari itu.</small></span
+                >Pilih tanggal<small
+                  >Sampai {{ backDays }} hari ke belakang, dihitung di grafik hari itu.</small
+                ></span
               >
             </label>
             @if (when() === 'date') {
@@ -715,8 +752,11 @@ const MAX_TARGET = 40;
             class="cell"
             [class.done]="j.done"
             [class.cur]="j.current"
+            [class.sel]="selectedJuz() === j.n"
             [attr.aria-label]="j.aria"
-            (click)="openJuz(j.n)"
+            [attr.aria-expanded]="selectedJuz() === j.n"
+            [attr.aria-controls]="selectedJuz() === j.n ? 'pg-juz-detail' : null"
+            (click)="toggleJuz(j.n)"
           >
             @if (!j.done) {
               <span class="fill" [style.height.%]="j.fill"></span>
@@ -725,9 +765,36 @@ const MAX_TARGET = 40;
           </button>
         }
       </div>
+      @if (juzDetail(); as d) {
+        <div class="juz-detail" id="pg-juz-detail" data-testid="juz-detail">
+          <p class="t">{{ d.title }}</p>
+          @if (d.ranges.length) {
+            <span class="muted">Belum dibaca:</span>
+            <div class="pills">
+              @for (r of d.ranges; track r.from) {
+                <button
+                  type="button"
+                  class="pill"
+                  [attr.aria-label]="r.aria"
+                  (click)="open(r.from)"
+                >
+                  {{ r.label }}
+                </button>
+              }
+            </div>
+          } @else {
+            <p class="muted">Semua halaman juz ini sudah dibaca.</p>
+            <div>
+              <button type="button" class="mf-btn mf-btn--ghost" (click)="open(d.first)">
+                Buka awal juz
+              </button>
+            </div>
+          }
+        </div>
+      }
       <p class="muted">
         Isian menunjukkan bagian juz yang sudah dibaca, termasuk halaman yang kamu tandai sendiri.
-        Ketuk juz untuk membuka halaman pertama yang belum dibaca.
+        Ketuk juz untuk melihat halaman yang belum dibaca.
       </p>
     </section>
 
@@ -885,6 +952,29 @@ export class ProgressSheet {
   });
   protected readonly juzDone = computed(() => this.juz().filter((j) => j.done).length);
 
+  /** Juz whose unread pages show below the grid (null = none). */
+  protected readonly selectedJuz = signal<number | null>(null);
+
+  /** Title and unread page runs of the selected juz in the open round; null when no juz is selected. */
+  protected readonly juzDetail = computed(() => {
+    const n = this.selectedJuz();
+    if (n === null) return null;
+    const [a, b] = juzRange(n);
+    const read = this.progress.readInRound();
+    const unread: number[] = [];
+    for (let p = a; p <= b; p++) if (!read.has(p)) unread.push(p);
+    const total = b - a + 1;
+    return {
+      title: `Juz ${n} · ${total - unread.length} dari ${total} halaman`,
+      first: a,
+      ranges: pageRuns(unread).map((r) => ({
+        label: r.from === r.to ? `${r.from}` : `${r.from}–${r.to}`,
+        aria: r.from === r.to ? `Buka halaman ${r.from}` : `Buka halaman ${r.from} sampai ${r.to}`,
+        from: r.from,
+      })),
+    };
+  });
+
   /** The juz of the most recently read page marks the "current" one; none before the first read. */
   private currentJuz(): number | null {
     const recent = this.progress.recent(1)[0];
@@ -946,8 +1036,13 @@ export class ProgressSheet {
       this.ui.showToast({ message: 'Semua halaman itu sudah tercatat dibaca.' });
       return;
     }
-    const where = w === 'before' ? '' : ' untuk ' + (day && day !== today ? formatDayLong(day) : 'hari ini');
-    this.toastUndo(res.added + ' halaman ditandai' + where, res.undo, 'Tanda ini tidak dapat diurungkan lagi.');
+    const where =
+      w === 'before' ? '' : ' untuk ' + (day && day !== today ? formatDayLong(day) : 'hari ini');
+    this.toastUndo(
+      res.added + ' halaman ditandai' + where,
+      res.undo,
+      'Tanda ini tidak dapat diurungkan lagi.',
+    );
   }
 
   private toastUndo(message: string, undo: () => Promise<boolean>, failMessage: string): void {
@@ -1025,7 +1120,9 @@ export class ProgressSheet {
     }
     this.act.set(null);
     this.toastUndo(
-      res.moved + ' halaman dipindahkan ke ' + (to === localDay(Date.now()) ? 'hari ini' : formatDayLong(to)),
+      res.moved +
+        ' halaman dipindahkan ke ' +
+        (to === localDay(Date.now()) ? 'hari ini' : formatDayLong(to)),
       res.undo,
       'Pemindahan ini tidak dapat diurungkan lagi.',
     );
@@ -1048,8 +1145,8 @@ export class ProgressSheet {
     this.history.navigateTo(page);
   }
 
-  protected openJuz(n: number): void {
-    this.history.navigateTo(this.progress.firstUnreadInJuz(n) ?? juzRange(n)[0]);
+  protected toggleJuz(n: number): void {
+    this.selectedJuz.update((cur) => (cur === n ? null : n));
   }
 
   /** Same dialog as the Khatam button on page 604: archive the round's bookmarks, then start the next round. */
@@ -1071,5 +1168,7 @@ function parseRange(rawFrom: string, rawTo: string): RangeResult {
   if (rawFrom === '') error = 'Isi nomor halaman awal.';
   else if (!valid(f) || !valid(t)) error = `Nomor halaman harus 1 sampai ${PAGE_COUNT}.`;
   else if (f > t) error = 'Halaman awal tidak boleh lebih besar dari halaman akhir.';
-  return error === null ? { ok: true, from: f, to: t, error } : { ok: false, from: f, to: t, error };
+  return error === null
+    ? { ok: true, from: f, to: t, error }
+    : { ok: false, from: f, to: t, error };
 }
