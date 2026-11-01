@@ -128,6 +128,26 @@ describe('PageDwellTracker', () => {
     expect(reads).toEqual([[5, READ_TURN_MS]]);
   });
 
+  it('check() counts by the clock when the timer is late (throttled page)', () => {
+    tracker.visible([5]);
+    vi.setSystemTime(Date.now() + READ_DWELL_MS); // clock moves, timer has not fired
+    tracker.check();
+    expect(reads).toEqual([[5, READ_DWELL_MS]]);
+    vi.advanceTimersByTime(READ_DWELL_MS);
+    tracker.check();
+    expect(reads).toHaveLength(1);
+  });
+
+  it('check() counts nothing before the dwell or while hidden', () => {
+    tracker.visible([5]);
+    vi.setSystemTime(Date.now() + READ_DWELL_MS - 1);
+    tracker.check();
+    tracker.hidden();
+    vi.setSystemTime(Date.now() + READ_DWELL_MS);
+    tracker.check();
+    expect(reads).toEqual([]);
+  });
+
   it('stop() drops stays, forgets pages and cancels timers', () => {
     tracker.visible([5, 6]);
     vi.advanceTimersByTime(20_000);

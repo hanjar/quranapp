@@ -99,6 +99,20 @@ export class PageDwellTracker {
     this.visible(this.wanted);
   }
 
+  /**
+   * Counts every stay whose foreground time is already enough, by the clock. Timers can fire late
+   * when the OS throttles the page (battery saver), so the app also calls this on user input.
+   */
+  check(): void {
+    for (const [page, stay] of this.stays) {
+      if (stay.counted || stay.since === null || this.elapsed(stay) < stay.need) continue;
+      stay.counted = true;
+      if (stay.timer !== null) this.clearTimer(stay.timer);
+      stay.timer = null;
+      this.opts.onRead(page, this.elapsed(stay));
+    }
+  }
+
   /** Reader closed: drop stays and forget the pages. */
   stop(): void {
     this.closeAll();

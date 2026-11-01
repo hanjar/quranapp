@@ -21,7 +21,8 @@ tracker), `progress.service.ts` (`ProgressService`). Juz start pages are static 
 A page counts after `READ_DWELL_MS` = 3 min of continuous foreground time on it, or when the reader turns forward
 to the very next page after `READ_TURN_MS` = 1 min on it (spread: 2 min, both pages), once per stay; going back,
 jumping, leaving earlier or closing the reader counts nothing (pages flipped while searching are not counted).
-Only foreground time counts, but hiding the app (screen off, app switch) pauses the stay instead of resetting it.
+Only foreground time counts, but hiding the app (screen off, app switch) pauses the stay instead of resetting it. Timers can fire late under battery saver, so
+any touch or key press also re-checks the dwell by the clock (`PageDwellTracker.check()`).
 While the murottal plays, a page counts as soon as every ayah on it has been recited (`recordListened`, no minimum), provided listening began at its first ayah and the user did not skip within it.
 `recordView` ignores views < 1 min, invalid pages and everything when `trackProgress` is off. Writes
 go to Dexie immediately and to the outbox in the same transaction (coalesced per day, payload = whole day), so a

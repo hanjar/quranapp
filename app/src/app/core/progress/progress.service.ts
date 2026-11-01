@@ -303,6 +303,14 @@ export class ProgressService {
         () => (document.visibilityState === 'hidden' ? tracker.hidden() : tracker.resume()),
         { signal: this.listeners.signal },
       );
+      // Late timers (battery saver): any touch or key re-checks dwell time by the clock.
+      for (const type of ['pointerdown', 'keydown'] as const) {
+        document.addEventListener(type, () => tracker.check(), {
+          signal: this.listeners.signal,
+          passive: true,
+          capture: true,
+        });
+      }
     }
     return tracker;
   }
