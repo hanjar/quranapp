@@ -24,7 +24,7 @@ import { PageDwellTracker } from './page-dwell-tracker';
 import {
   DayCount,
   JuzProgress,
-  READ_DWELL_MS,
+  READ_TURN_MS,
   RecentPage,
   averagePerDay,
   dayCount,
@@ -215,11 +215,12 @@ export class ProgressService {
 
   /**
    * Records that `page` was read: visible for `ms` of foreground time, ending at `at`.
-   * No-op when tracking is off, the page is invalid or `ms` < READ_DWELL_MS (3 min).
+   * No-op when tracking is off, the page is invalid or `ms` < READ_TURN_MS (1 min; the tracker
+   * decides when a stay counts: 3 min on the page, or a forward turn after 1 min).
    * Creates khatam round 1 on the very first read. Never rejects on storage errors.
    */
   recordView(page: number, ms: number, at: number = Date.now()): Promise<void> {
-    if (!(ms >= READ_DWELL_MS)) return Promise.resolve();
+    if (!(ms >= READ_TURN_MS)) return Promise.resolve();
     return this.recordSpan(page, ms, at);
   }
 

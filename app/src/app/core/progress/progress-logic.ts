@@ -2,6 +2,8 @@ import { KhatamRound, PAGE_COUNT, PageReadSpan, ReadDay, spanActive } from '../m
 
 /** A page counts as read after this much continuous foreground time on it (leaving earlier counts nothing). */
 export const READ_DWELL_MS = 180_000;
+/** Turning forward to the next page after at least this long on a page also counts it (reading pace). */
+export const READ_TURN_MS = 60_000;
 
 /**
  * First page of each juz in the Madinah (KFQC, 604-page) mushaf; index 0 = juz 1.

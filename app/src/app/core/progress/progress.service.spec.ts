@@ -5,7 +5,7 @@ import { MushafDb } from '../storage/db';
 import { MUSHAF_DB } from '../storage/db-token';
 import { installFakeIndexedDb } from '../storage/testing';
 import { UserDataService } from '../storage/user-data.service';
-import { addDays, dayNoon, localDay, READ_DWELL_MS } from './progress-logic';
+import { addDays, dayNoon, localDay, READ_DWELL_MS, READ_TURN_MS } from './progress-logic';
 import { ProgressService } from './progress.service';
 
 installFakeIndexedDb();
@@ -124,7 +124,7 @@ describe('ProgressService', () => {
   });
 
   it('ignores short views, invalid pages, and everything when tracking is off', async () => {
-    await svc.recordView(7, READ_DWELL_MS - 1, AT);
+    await svc.recordView(7, READ_TURN_MS - 1, AT);
     await svc.recordView(0, READ_DWELL_MS, AT);
     await svc.recordView(605, READ_DWELL_MS, AT);
     await svc.recordView(1.5, READ_DWELL_MS, AT);
@@ -610,6 +610,20 @@ describe('ProgressService', () => {
     vi.useRealTimers();
     await settle();
     expect(svc.days()[0]?.pages['12']).toBeDefined();
+    tracker.dispose();
+  });
+
+  it('createTracker records a page left by a forward turn after 1 min', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] });
+    vi.setSystemTime(AT);
+    const tracker = svc.createTracker();
+    tracker.visible([12]);
+    await vi.advanceTimersByTimeAsync(READ_TURN_MS);
+    tracker.visible([13]);
+    vi.useRealTimers();
+    await settle();
+    expect(svc.days()[0]?.pages['12']).toBeDefined();
+    expect(svc.days()[0]?.pages['13']).toBeUndefined();
     tracker.dispose();
   });
 });

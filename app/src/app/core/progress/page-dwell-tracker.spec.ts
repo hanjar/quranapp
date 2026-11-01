@@ -1,5 +1,5 @@
 import { PageDwellTracker } from './page-dwell-tracker';
-import { READ_DWELL_MS } from './progress-logic';
+import { READ_DWELL_MS, READ_TURN_MS } from './progress-logic';
 
 describe('PageDwellTracker', () => {
   let reads: [number, number][];
@@ -31,14 +31,46 @@ describe('PageDwellTracker', () => {
     expect(reads).toHaveLength(1);
   });
 
-  it('leaving before 3 min counts nothing (flipping through pages while searching)', () => {
+  it('flipping through pages while searching counts nothing', () => {
     tracker.visible([5]);
-    vi.advanceTimersByTime(READ_DWELL_MS - 1_000);
+    vi.advanceTimersByTime(10_000);
     tracker.visible([6]);
-    vi.advanceTimersByTime(READ_DWELL_MS - 1_000);
+    vi.advanceTimersByTime(READ_TURN_MS - 1);
     tracker.visible([7]);
     vi.advanceTimersByTime(READ_DWELL_MS);
     expect(reads).toEqual([[7, READ_DWELL_MS]]);
+  });
+
+  it('turning forward to the next page after 1 min counts the page left', () => {
+    tracker.visible([5]);
+    vi.advanceTimersByTime(READ_TURN_MS);
+    tracker.visible([6]);
+    expect(reads).toEqual([[5, READ_TURN_MS]]);
+    vi.advanceTimersByTime(90_000);
+    tracker.visible([7]);
+    expect(reads).toEqual([
+      [5, READ_TURN_MS],
+      [6, 90_000],
+    ]);
+  });
+
+  it('going back, or jumping ahead, after 1 min counts nothing', () => {
+    tracker.visible([5]);
+    vi.advanceTimersByTime(2 * READ_TURN_MS);
+    tracker.visible([4]);
+    vi.advanceTimersByTime(2 * READ_TURN_MS);
+    tracker.visible([9]);
+    expect(reads).toEqual([]);
+  });
+
+  it('turning to the next spread after 2 min counts both pages', () => {
+    tracker.visible([4, 5]);
+    vi.advanceTimersByTime(2 * READ_TURN_MS);
+    tracker.visible([6, 7]);
+    expect(reads).toEqual([
+      [4, 2 * READ_TURN_MS],
+      [5, 2 * READ_TURN_MS],
+    ]);
   });
 
   it('a two-page spread needs 6 min (2 x READ_DWELL_MS), then both pages count', () => {
@@ -52,9 +84,9 @@ describe('PageDwellTracker', () => {
     ]);
   });
 
-  it('turning to the next spread before 6 min counts nothing', () => {
+  it('turning to the next spread before 2 min counts nothing', () => {
     tracker.visible([4, 5]);
-    vi.advanceTimersByTime(READ_DWELL_MS); // a single page would have counted by now
+    vi.advanceTimersByTime(READ_TURN_MS); // a single page would have counted by now
     tracker.visible([6, 7]);
     vi.advanceTimersByTime(READ_DWELL_MS);
     expect(reads).toEqual([]);
