@@ -92,18 +92,40 @@ describe('PageDwellTracker', () => {
     expect(reads).toEqual([]);
   });
 
-  it('hidden() drops stays and pauses; resume() restarts the wanted pages from zero', () => {
+  it('hidden() pauses the stay; resume() continues it with the foreground time kept', () => {
     tracker.visible([5]);
-    vi.advanceTimersByTime(READ_DWELL_MS - 1_000);
-    tracker.hidden();
+    vi.advanceTimersByTime(READ_DWELL_MS - 60_000);
+    tracker.hidden(); // e.g. the screen turned off
     vi.advanceTimersByTime(2 * READ_DWELL_MS); // background time never counts
     expect(reads).toEqual([]);
-    tracker.visible([6]); // page turn while hidden is remembered, not started
+    tracker.resume();
+    vi.advanceTimersByTime(60_000 - 1);
+    expect(reads).toEqual([]);
+    vi.advanceTimersByTime(1);
+    expect(reads).toEqual([[5, READ_DWELL_MS]]);
+  });
+
+  it('a page turn while hidden starts the new page on resume', () => {
+    tracker.visible([5]);
+    vi.advanceTimersByTime(30_000);
+    tracker.hidden();
+    tracker.visible([9]); // remembered, not started
     vi.advanceTimersByTime(READ_DWELL_MS);
     expect(reads).toEqual([]);
     tracker.resume();
     vi.advanceTimersByTime(READ_DWELL_MS);
-    expect(reads).toEqual([[6, READ_DWELL_MS]]);
+    expect(reads).toEqual([[9, READ_DWELL_MS]]);
+  });
+
+  it('foreground time on both sides of a pause counts toward a forward turn', () => {
+    tracker.visible([5]);
+    vi.advanceTimersByTime(40_000);
+    tracker.hidden();
+    vi.advanceTimersByTime(600_000);
+    tracker.resume();
+    vi.advanceTimersByTime(20_000);
+    tracker.visible([6]);
+    expect(reads).toEqual([[5, READ_TURN_MS]]);
   });
 
   it('stop() drops stays, forgets pages and cancels timers', () => {

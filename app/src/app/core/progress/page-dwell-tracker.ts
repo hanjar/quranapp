@@ -13,7 +13,12 @@ export interface PageDwellOptions {
 }
 
 interface Stay {
-  since: number;
+  /** Start of the current foreground stretch; null while paused. */
+  since: number | null;
+  /** Foreground time from earlier stretches (before the app was hidden). */
+  acc: number;
+  /** Foreground time needed: dwellMs, doubled for a spread. */
+  need: number;
   counted: boolean;
   timer: unknown;
 }
@@ -25,8 +30,9 @@ interface Stay {
  *  - `stop()` (or `dispose()`) when the reader closes.
  * A page counts after `dwellMs` (3 min) of continuous foreground on it (a two-page spread: twice
  * that, then both count), or when the reader turns forward to the very next page after `turnMs`
- * (1 min; spread: twice that). Leaving otherwise, going to the background or closing the reader
- * counts nothing. Each stay reports a page at most once.
+ * (1 min; spread: twice that). Only foreground time counts: hiding the app (or the screen turning
+ * off) pauses a stay and resume() continues it. Leaving otherwise or closing the reader counts
+ * nothing. Each stay reports a page at most once.
  */
 export class PageDwellTracker {
   private readonly now: () => number;
@@ -58,21 +64,33 @@ export class PageDwellTracker {
     for (const page of prev) {
       if (next.has(page)) continue;
       const stay = this.stays.get(page);
-      if (forward && stay && !stay.counted && this.now() - stay.since >= minMs) {
+      if (forward && stay && !stay.counted && this.elapsed(stay) >= minMs) {
         stay.counted = true;
-        this.opts.onRead(page, this.now() - stay.since);
+        this.opts.onRead(page, this.elapsed(stay));
       }
       this.close(page);
     }
     for (const page of next) {
-      if (!this.stays.has(page)) this.open(page);
+      const stay = this.stays.get(page);
+      if (!stay) this.open(page);
+      else if (stay.since === null) this.start(page, stay);
     }
   }
 
-  /** App/tab went to the background: drop current stays (uncounted) and pause. */
+  /**
+   * App/tab went to the background (or the screen turned off): pause the stays, keeping the
+   * foreground time so far. Background time never counts; the same pages continue on resume().
+   */
   hidden(): void {
-    this.closeAll();
+    if (this.paused) return;
     this.paused = true;
+    const now = this.now();
+    for (const stay of this.stays.values()) {
+      if (stay.since !== null) stay.acc += now - stay.since;
+      stay.since = null;
+      if (stay.timer !== null) this.clearTimer(stay.timer);
+      stay.timer = null;
+    }
   }
 
   resume(): void {
@@ -93,17 +111,28 @@ export class PageDwellTracker {
   }
 
   private open(page: number): void {
-    const stay: Stay = { since: this.now(), counted: false, timer: null };
+    const need = this.wanted.length > 1 ? this.dwellMs * 2 : this.dwellMs;
+    const stay: Stay = { since: null, acc: 0, need, counted: false, timer: null };
+    this.stays.set(page, stay);
+    this.start(page, stay);
+  }
+
+  private start(page: number, stay: Stay): void {
+    stay.since = this.now();
+    if (stay.counted) return;
     stay.timer = this.setTimer(
       () => {
         stay.timer = null;
         if (this.stays.get(page) !== stay || stay.counted) return;
         stay.counted = true;
-        this.opts.onRead(page, this.now() - stay.since);
+        this.opts.onRead(page, this.elapsed(stay));
       },
-      this.wanted.length > 1 ? this.dwellMs * 2 : this.dwellMs,
+      Math.max(0, stay.need - stay.acc),
     );
-    this.stays.set(page, stay);
+  }
+
+  private elapsed(stay: Stay): number {
+    return stay.acc + (stay.since === null ? 0 : this.now() - stay.since);
   }
 
   private close(page: number): void {
