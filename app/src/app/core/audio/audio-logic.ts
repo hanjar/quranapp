@@ -86,7 +86,8 @@ export function prevAyah(ref: AyahRef, ayahCounts: readonly number[]): AyahRef |
 
 /**
  * Should playback continue from `current` to `next`, given where it started?
- * - ayah: never; surah: while in the same surah; page: while `next` is on the start page.
+ * - ayah: never; surah: while in the same surah; page: while `next` is on the start page;
+ *   khatam: on to 114:6, across surahs and pages.
  */
 export function shouldContinue(
   mode: AudioMode,
@@ -95,6 +96,7 @@ export function shouldContinue(
   pageOf: (ref: AyahRef) => number | null,
 ): boolean {
   if (!next || mode === 'ayah') return false;
+  if (mode === 'khatam') return true;
   if (mode === 'surah') return next.surah === start.ref.surah;
   return pageOf(next) === start.page;
 }

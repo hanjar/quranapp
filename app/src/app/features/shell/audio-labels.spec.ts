@@ -6,11 +6,13 @@ describe('audio labels', () => {
     expect(modeLabel('ayah')).toBe('Satu ayat');
     expect(modeLabel('page')).toBe('Sampai akhir halaman');
     expect(modeLabel('surah')).toBe('Sampai akhir surah');
+    expect(modeLabel('khatam')).toBe('Sampai khatam');
   });
   it('cycles modes', () => {
     expect(nextMode('ayah')).toBe('page');
     expect(nextMode('page')).toBe('surah');
-    expect(nextMode('surah')).toBe('ayah');
+    expect(nextMode('surah')).toBe('khatam');
+    expect(nextMode('khatam')).toBe('ayah');
   });
   it('titles', () => {
     expect(nowPlayingTitle('Al-Baqarah', 5, false)).toBe('Al-Baqarah · Ayat 5');
@@ -23,5 +25,6 @@ describe('modeShortLabel', () => {
     expect(modeShortLabel('surah')).toBe('Surah');
     expect(modeShortLabel('page')).toBe('Halaman');
     expect(modeShortLabel('ayah')).toBe('1 ayat');
+    expect(modeShortLabel('khatam')).toBe('Khatam');
   });
 });

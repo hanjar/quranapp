@@ -51,8 +51,13 @@ describe('shouldContinue', () => {
     expect(shouldContinue('page', start, { surah: 2, ayah: 5 }, pageOf)).toBe(true);
     expect(shouldContinue('page', start, { surah: 2, ayah: 6 }, pageOf)).toBe(false);
   });
+  it('khatam mode continues across surahs and pages', () => {
+    expect(shouldContinue('khatam', start, { surah: 3, ayah: 1 }, pageOf)).toBe(true);
+    expect(shouldContinue('khatam', start, { surah: 2, ayah: 6 }, pageOf)).toBe(true);
+  });
   it('stops at the end of the mushaf', () => {
     expect(shouldContinue('surah', start, null, pageOf)).toBe(false);
+    expect(shouldContinue('khatam', start, null, pageOf)).toBe(false);
   });
 });
 

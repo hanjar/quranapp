@@ -53,8 +53,8 @@ export function isHHMM(v: unknown): v is string {
 }
 
 /** How far continuous recitation goes from the ayah the user started. */
-export type AudioMode = 'ayah' | 'page' | 'surah';
-export const AUDIO_MODE_IDS: readonly AudioMode[] = ['ayah', 'page', 'surah'];
+export type AudioMode = 'ayah' | 'page' | 'surah' | 'khatam';
+export const AUDIO_MODE_IDS: readonly AudioMode[] = ['ayah', 'page', 'surah', 'khatam'];
 /** Identifier of a mushaf page style (see MUSHAF_STYLES in page-renderer.service). */
 export type PageRendererId = 'classic' | 'qcf-tajweed';
 export const PAGE_RENDERER_IDS: readonly PageRendererId[] = ['classic', 'qcf-tajweed'];

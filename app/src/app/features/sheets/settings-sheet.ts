@@ -62,6 +62,11 @@ const SYNC_LABEL: Record<string, string> = {
   styles: [
     SHEET_STYLES,
     `
+      /* Four play modes: two per row, so the long labels fit on a phone. */
+      .mf-segmented.modes {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+      }
       .time-row {
         display: grid;
         grid-template-columns: 1fr 1fr;
@@ -398,7 +403,7 @@ const SYNC_LABEL: Record<string, string> = {
       @if (!audio.qari().offline) {
         <p class="muted">Audio offline hanya tersedia untuk Mishary Rasyid Alafasy.</p>
       }
-      <div class="mf-segmented" role="group" aria-label="Mode putar">
+      <div class="mf-segmented modes" role="group" aria-label="Mode putar">
         @for (m of audioModes; track m.id) {
           <button
             type="button"

@@ -4,6 +4,7 @@ export const AUDIO_MODES: { id: AudioMode; label: string; short: string }[] = [
   { id: 'ayah', label: 'Satu ayat', short: '1 ayat' },
   { id: 'page', label: 'Sampai akhir halaman', short: 'Halaman' },
   { id: 'surah', label: 'Sampai akhir surah', short: 'Surah' },
+  { id: 'khatam', label: 'Sampai khatam', short: 'Khatam' },
 ];
 
 /** Compact label for the mini player chip ("Surah", "Halaman", "1 ayat"). */
@@ -15,7 +16,7 @@ export function modeLabel(mode: AudioMode): string {
   return AUDIO_MODES.find((m) => m.id === mode)?.label ?? '';
 }
 
-/** Cycles Satu ayat -> halaman -> surah -> Satu ayat. */
+/** Cycles Satu ayat -> halaman -> surah -> khatam -> Satu ayat. */
 export function nextMode(mode: AudioMode): AudioMode {
   const i = AUDIO_MODES.findIndex((m) => m.id === mode);
   return AUDIO_MODES[(i + 1) % AUDIO_MODES.length].id;
