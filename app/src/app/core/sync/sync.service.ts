@@ -78,7 +78,7 @@ export class SyncService extends SyncApi {
   private inflight: Promise<void> | null = null;
   /** Step of the running cycle, reported when a cycle times out. */
   private phase = 'idle';
-  private rerun: { verify: boolean } | null = null;
+  private rerun: { verify: boolean; force: boolean } | null = null;
   /** True until the first successful cycle after init/login (position conflict detection window). */
   private coldStart = true;
   private pullFailures = 0;
@@ -151,8 +151,9 @@ export class SyncService extends SyncApi {
     await this.userData.reload();
   }
 
+  /** User-asked sync: also sends changes still waiting out a retry backoff (e.g. after a quota error). */
   syncNow(): Promise<void> {
-    return this.run(true);
+    return this.run(true, true);
   }
 
   async resolveConflict(choice: 'device' | 'cloud'): Promise<void> {
@@ -299,18 +300,26 @@ export class SyncService extends SyncApi {
 
   // -- sync cycle ------------------------------------------------------------
 
-  /** Single-flight; a request during a running cycle schedules exactly one follow-up. */
-  private run(verify: boolean): Promise<void> {
+  /**
+   * Single-flight; a request during a running cycle schedules exactly one follow-up.
+   * `force` pushes every pending op now, ignoring their backoff.
+   */
+  private run(verify: boolean, force = false): Promise<void> {
     if (this.inflight) {
-      this.rerun = { verify: verify || !!this.rerun?.verify };
+      this.rerun = { verify: verify || !!this.rerun?.verify, force: force || !!this.rerun?.force };
       return this.inflight;
     }
     const p = (async () => {
       try {
         // A cycle stuck on the database (e.g. a frozen tab elsewhere) must not block every later sync.
-        await withTimeout(this.cycle(verify), CYCLE_TIMEOUT_MS).catch((e: unknown) => {
+        await withTimeout(this.cycle(verify, force), CYCLE_TIMEOUT_MS).catch((e: unknown) => {
           if (!(e instanceof TimeoutError)) throw e;
-          reportError({ op: 'sync-timeout', name: 'TimeoutError', message: `phase ${this.phase}`, at: Date.now() });
+          reportError({
+            op: 'sync-timeout',
+            name: 'TimeoutError',
+            message: `phase ${this.phase}`,
+            at: Date.now(),
+          });
           this.setStatus('error');
         });
       } finally {
@@ -318,13 +327,13 @@ export class SyncService extends SyncApi {
       }
       const again = this.rerun;
       this.rerun = null;
-      if (again) await this.run(again.verify);
+      if (again) await this.run(again.verify, again.force);
     })();
     this.inflight = p;
     return p;
   }
 
-  private async cycle(verify: boolean): Promise<void> {
+  private async cycle(verify: boolean, force: boolean): Promise<void> {
     const st = await this.loadState();
     if (!st.enabled || !st.accountId) return;
     const accountId = st.accountId;
@@ -342,7 +351,7 @@ export class SyncService extends SyncApi {
       this.phase = 'pull-cold';
       if (cold) dirty = (await this.pull(accountId, true)) || dirty;
       this.phase = 'push';
-      dirty = (await this.push(accountId)) || dirty;
+      dirty = (await this.push(accountId, force)) || dirty;
       this.phase = 'pull';
       dirty = (await this.pull(accountId, false)) || dirty;
       this.phase = 'finish';
@@ -375,7 +384,7 @@ export class SyncService extends SyncApi {
     return true;
   }
 
-  private async push(accountId: string): Promise<boolean> {
+  private async push(accountId: string, force: boolean): Promise<boolean> {
     const attempted = new Set<string>();
     let changed = false;
     for (;;) {
@@ -386,7 +395,9 @@ export class SyncService extends SyncApi {
         .equals(accountId)
         .filter(
           (o) =>
-            o.nextAttemptAt <= now && !attempted.has(o.opId) && !(held && o.entity === 'position'),
+            (force || o.nextAttemptAt <= now) &&
+            !attempted.has(o.opId) &&
+            !(held && o.entity === 'position'),
         )
         .sortBy('createdAt');
       if (!due.length) return changed;
@@ -413,7 +424,15 @@ export class SyncService extends SyncApi {
       if (fatal.length) {
         const first = fatal[0];
         await this.patchState({ lastErrorCode: `rejected:${first?.error ?? 'unknown'}` });
-        reportError({ op: 'sync-push', name: 'Rejected', message: fatal.map((r) => r.error).join(', ').slice(0, 300), at: Date.now() });
+        reportError({
+          op: 'sync-push',
+          name: 'Rejected',
+          message: fatal
+            .map((r) => r.error)
+            .join(', ')
+            .slice(0, 300),
+          at: Date.now(),
+        });
       }
     }
   }
@@ -469,7 +488,8 @@ export class SyncService extends SyncApi {
     const err = e instanceof SyncHttpError ? e : new SyncHttpError('network');
     await this.patchState({ lastErrorCode: err.code ?? err.kind });
     // Offline is normal; anything else is worth knowing about.
-    if (err.kind !== 'network') reportError({ op: 'sync', name: err.kind, message: String(err.code ?? ''), at: Date.now() });
+    if (err.kind !== 'network')
+      reportError({ op: 'sync', name: err.kind, message: String(err.code ?? ''), at: Date.now() });
     switch (err.kind) {
       case 'unauthorized':
         this.setStatus('unauthorized');

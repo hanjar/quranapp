@@ -74,7 +74,7 @@ import { SheetHistory } from './sheet-history';
             <path d="M20 12a8 8 0 0 1-14 5.3M4 12a8 8 0 0 1 14-5.3" />
             <path d="M18 3v4h-4M6 21v-4h4" />
           </svg>
-          {{ syncing() ? 'Memuat…' : 'Muat dari server' }}
+          {{ syncing() ? 'Menyinkronkan…' : 'Sinkronkan' }}
         </button>
       }
     </div>
@@ -136,7 +136,9 @@ import { SheetHistory } from './sheet-history';
         <button
           type="button"
           class="mf-icon-btn del"
-          [attr.aria-label]="(r.bookmark.kind === 'favorite' ? 'Hapus favorit ' : 'Hapus penanda ') + r.title"
+          [attr.aria-label]="
+            (r.bookmark.kind === 'favorite' ? 'Hapus favorit ' : 'Hapus penanda ') + r.title
+          "
           (click)="remove(r.bookmark)"
         >
           <svg
@@ -365,7 +367,10 @@ export class BookmarksSheet {
   protected readonly sync = inject(SyncApi);
   protected readonly syncing = signal(false);
 
-  /** Pulls the latest bookmarks from the server now instead of waiting for the next poll. */
+  /**
+   * Sends pending bookmarks (even ones waiting to retry) and pulls the latest from the server,
+   * instead of waiting for the next poll.
+   */
   protected async syncNow(): Promise<void> {
     if (this.syncing()) return;
     this.syncing.set(true);
@@ -375,11 +380,15 @@ export class BookmarksSheet {
       this.ui.showToast({
         message:
           st === 'error' || st === 'offline' || st === 'unauthorized'
-            ? 'Belum bisa memuat dari server. Coba lagi nanti.'
-            : 'Penanda diperbarui dari server',
+            ? 'Belum bisa tersambung ke server. Penanda tetap tersimpan di perangkat ini dan dikirim nanti.'
+            : st === 'pending'
+              ? 'Sebagian perubahan belum terkirim. Dicoba lagi otomatis.'
+              : 'Penanda sudah sinkron dengan server',
       });
     } catch (e) {
-      this.ui.showToast({ message: e instanceof Error && e.message ? e.message : 'Gagal memuat dari server.' });
+      this.ui.showToast({
+        message: e instanceof Error && e.message ? e.message : 'Gagal memuat dari server.',
+      });
     } finally {
       this.syncing.set(false);
     }
@@ -407,7 +416,8 @@ export class BookmarksSheet {
     const t = this.tab();
     if (t === 'verse') return 'Ketuk sebuah ayat, lalu pilih Tandai.';
     if (t === 'page') return 'Tampilkan kontrol, lalu ketuk ikon penanda di bilah bawah.';
-    if (t === 'favorite') return 'Ketuk sebuah ayat, lalu pilih Favorit. Favorit tidak ikut diarsipkan saat khatam.';
+    if (t === 'favorite')
+      return 'Ketuk sebuah ayat, lalu pilih Favorit. Favorit tidak ikut diarsipkan saat khatam.';
     return 'Ketuk sebuah ayat lalu pilih Tandai, atau tandai halaman dari bilah bawah.';
   }
 
@@ -448,7 +458,8 @@ export class BookmarksSheet {
         const date = formatDate(b.createdAt);
         if (b.kind !== 'page' && b.surah && b.ayah) {
           const name = index.surahs[b.surah - 1]?.nameLatin ?? `Surah ${b.surah}`;
-          const pageEnd = b.kind === 'verse' && isPageEndVerse(b, (p) => this.content.pageMeta(p).last);
+          const pageEnd =
+            b.kind === 'verse' && isPageEndVerse(b, (p) => this.content.pageMeta(p).last);
           return {
             id: b.id,
             bookmark: b,
@@ -480,7 +491,8 @@ export class BookmarksSheet {
   }
 
   protected open(b: Bookmark): void {
-    const highlight = b.kind !== 'page' && b.surah && b.ayah ? { surah: b.surah, ayah: b.ayah } : null;
+    const highlight =
+      b.kind !== 'page' && b.surah && b.ayah ? { surah: b.surah, ayah: b.ayah } : null;
     this.history.navigateTo(b.page, { highlight });
   }
 

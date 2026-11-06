@@ -21,7 +21,7 @@ written by `UserDataService` and applies server changes back into Dexie; the app
    - `duplicate` -> delete the local bookmark id, adopt the server row (a queued local delete is re-targeted to the server id).
    - `conflict` -> apply `current` (server wins; a tombstone beats a stale edit).
    - `rejected` -> op dropped, `lastErrorCode = rejected:<error>`.
-   - batch failure -> every op gets `retryCount+1` and `nextAttemptAt = now + backoff` (429 honours `Retry-After`; 401 leaves the outbox untouched).
+   - batch failure -> every op gets `retryCount+1` and `nextAttemptAt = now + backoff` (429 honours `Retry-After`; 401 leaves the outbox untouched). Automatic cycles skip ops whose `nextAttemptAt` is in the future; `syncNow()` (the "Sinkronkan" button in Penanda, Menu and Akun) sends them anyway.
 3. pull `GET /sync` until `!hasMore`, persisting `cursor`. `reset:true` -> refetch from cursor 0 and reconcile: synced local rows absent remotely are deleted, unsynced rows are kept and re-enqueued.
 4. `userData.reload()` when anything local changed; status `synced` / `pending` / `conflict`.
 

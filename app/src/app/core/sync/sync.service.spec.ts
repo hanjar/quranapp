@@ -328,6 +328,22 @@ describe('SyncService', () => {
     expect(svc.status()).toBe('pending');
   });
 
+  it('syncNow sends ops still waiting out their backoff', async () => {
+    await db.sync.put(enabledState('A'));
+    const op = {
+      ...makeOp('A', 'prefs', 'prefs', 'upsert', {}, null),
+      nextAttemptAt: Date.now() + 60 * 60_000,
+      retryCount: 6,
+    };
+    await db.outbox.add(op);
+    await svc.init();
+    expect(client.pushBatch).not.toHaveBeenCalled();
+    await svc.syncNow();
+    expect(client.pushBatch).toHaveBeenCalledTimes(1);
+    expect(await db.outbox.get(op.opId)).toBeUndefined();
+    expect(svc.status()).toBe('synced');
+  });
+
   it('reset:true triggers full reconciliation from cursor 0', async () => {
     await db.sync.put(enabledState('A', { cursor: 50 }));
     await db.bookmarks.put(bm('gone', { rev: 2 }));
