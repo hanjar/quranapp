@@ -7,6 +7,7 @@ import { ReaderUiService } from '../reader-ui.service';
 import { syncedSetting } from '../synced-setting';
 import { ProgressService } from '../progress/progress.service';
 import { AudioOfflineApi, audioFileUrl } from './audio-offline.api';
+import { audioProblemMessage, checkInternet } from './connection-check';
 import {
   AudioMode,
   DEFAULT_QARI,
@@ -82,6 +83,8 @@ export class AudioService {
    */
   private preferOwn = readPreferOwn();
   private token = 0;
+  /** Fires when loading/buffering takes too long (data package ran out mid-stream). */
+  private stallTimer: ReturnType<typeof setTimeout> | null = null;
 
   constructor() {
     inject(DestroyRef).onDestroy(() => this.stop());
@@ -101,7 +104,9 @@ export class AudioService {
   toggle(): void {
     const a = this.audio;
     if (!a) return;
-    if (this.state() === 'playing') {
+    if (this.state() === 'playing' || this.state() === 'loading') {
+      // Also while loading/buffering, so a stuck stream can still be paused.
+      this.clearStall();
       a.pause();
       this.state.set('paused');
     } else if (this.state() === 'paused') {
@@ -116,6 +121,7 @@ export class AudioService {
 
   stop(): void {
     this.token++;
+    this.clearStall();
     this.audio?.pause();
     this.audio?.removeAttribute('src');
     this.audio?.load();
@@ -184,6 +190,7 @@ export class AudioService {
     this.freshRetried = false;
     this.firstFailure = null;
     this.state.set('loading');
+    this.armStall(token);
     this.setMediaSession(ref);
     const qari = this.qari();
     // Stored recitation first (offline packages, Alafasy only), otherwise stream.
@@ -266,12 +273,19 @@ export class AudioService {
         message: `${ref.surah}:${ref.ayah}${basmalah ? ' basmalah' : ''} · ${this.firstFailure ?? '-'} → ${failed} · online=${navigator.onLine}`,
         at: Date.now(),
       });
-      this.fail();
+      this.diagnose(token, 'error');
+    };
+    // Buffering mid-ayah: show the spinner and start the stall watchdog.
+    a.onwaiting = () => {
+      if (token !== this.token || this.state() !== 'playing') return;
+      this.state.set('loading');
+      this.armStall(token);
     };
     // "playing" comes from the element itself: a source that only works after a fallback
     // never resolves the first play() call, which left the player on "loading".
     a.onplaying = () => {
       if (token !== this.token) return;
+      this.clearStall();
       this.state.set('playing');
       if (this.freshRetried && !this.preferOwn) {
         // Our copy rescued a file the CDNs failed on: use it first from now on.
@@ -343,7 +357,37 @@ export class AudioService {
     }
   }
 
+  private armStall(token: number): void {
+    this.clearStall();
+    this.stallTimer = setTimeout(() => {
+      this.stallTimer = null;
+      if (token === this.token && this.state() === 'loading') {
+        this.audio?.pause();
+        this.diagnose(token, 'slow');
+      }
+    }, STALL_MS);
+  }
+
+  private clearStall(): void {
+    if (this.stallTimer) clearTimeout(this.stallTimer);
+    this.stallTimer = null;
+  }
+
+  /**
+   * Streaming failed or got stuck: ask our own server whether the internet works, so the
+   * message says whose problem it is (connection vs. audio host). "Coba lagi" resumes here.
+   */
+  private diagnose(token: number, kind: 'error' | 'slow'): void {
+    this.clearStall();
+    this.state.set('loading');
+    void checkInternet().then((verdict) => {
+      if (token !== this.token || this.state() !== 'loading') return;
+      this.fail(audioProblemMessage(verdict, kind));
+    });
+  }
+
   private fail(msg = 'Audio tidak dapat diputar. Periksa koneksi lalu coba lagi.'): void {
+    this.clearStall();
     this.state.set('error');
     this.error.set(msg);
     this.heard = null;
@@ -390,6 +434,9 @@ export class AudioService {
     ms.setActionHandler('previoustrack', () => this.prev());
   }
 }
+
+/** Loading or buffering longer than this is treated as stuck. */
+const STALL_MS = 12_000;
 
 function isOffline(): boolean {
   return typeof navigator !== 'undefined' && navigator.onLine === false;
