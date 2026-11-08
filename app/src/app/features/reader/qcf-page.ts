@@ -9,6 +9,8 @@ interface WordView {
   surah: number;
   ayah: number;
   key: string;
+  /** End-of-ayah number glyph. */
+  end: boolean;
 }
 interface LineView {
   n: number;
@@ -61,7 +63,7 @@ export class QcfPage {
       centered: isCenteredLine(l, metrics, cover),
       words: (l.words ?? []).map((w) => {
         const [surah, ayah] = w.verse.split(':').map(Number);
-        return { code: w.code, surah, ayah, key: w.verse };
+        return { code: w.code, surah, ayah, key: w.verse, end: w.type === 'end' };
       }),
     }));
   });

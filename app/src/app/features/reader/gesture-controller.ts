@@ -9,7 +9,7 @@ import { AyahRef } from '../../core/models';
  */
 
 export type GestureIntent =
-  | { type: 'tap-verse'; ref: AyahRef; page: number }
+  | { type: 'tap-verse'; ref: AyahRef; page: number; marker?: true }
   | { type: 'tap-blank' }
   | { type: 'double-tap'; x: number; y: number }
   | { type: 'long-press-verse'; ref: AyahRef; page: number; x: number; y: number }
@@ -32,6 +32,8 @@ export const realClock: GestureClock = {
 export interface VerseHit {
   ref: AyahRef;
   page: number;
+  /** The pointer is on the ayah's end-of-verse number (its marker), not on its words. */
+  marker?: boolean;
 }
 
 export interface GesturePointer {
@@ -220,7 +222,13 @@ export class GestureController {
       this.pendingTap = null;
       this.lastTap = null;
       if (this.host.isBlocked()) return;
-      if (verse) this.host.emit({ type: 'tap-verse', ref: verse.ref, page: verse.page });
+      if (verse)
+        this.host.emit({
+          type: 'tap-verse',
+          ref: verse.ref,
+          page: verse.page,
+          ...(verse.marker ? { marker: true as const } : {}),
+        });
       else this.host.emit({ type: 'tap-blank' });
     };
     this.pendingTap = fire;

@@ -72,6 +72,18 @@ describe('GestureController', () => {
     expect(intents).toEqual([{ type: 'tap-verse', ref: VERSE.ref, page: 3 }]);
   });
 
+  it('a tap on the ayah number carries marker so the shell bookmarks instead', () => {
+    tap(100, 100, { ...VERSE, marker: true });
+    clock.advance(300);
+    expect(intents).toEqual([{ type: 'tap-verse', ref: VERSE.ref, page: 3, marker: true }]);
+  });
+
+  it('a long press on the ayah number still opens the verse menu', () => {
+    down(1, 100, 100, { ...VERSE, marker: true });
+    clock.advance(800);
+    expect(types()).toEqual(['long-press-verse']);
+  });
+
   it('single tap on blank fires tap-blank', () => {
     tap(100, 100);
     clock.advance(300);

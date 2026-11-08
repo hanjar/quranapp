@@ -8,6 +8,7 @@
               class="qw"
               [attr.data-surah]="w.surah"
               [attr.data-ayah]="w.ayah"
+              [attr.data-end]="w.end ? '' : null"
               [class.is-selected]="w.key === selectedKey()"
               [class.is-playing]="w.key === playingKey()"
               [class.is-focus]="w.key === focusKey()"

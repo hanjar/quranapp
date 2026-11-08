@@ -17,6 +17,8 @@ import { ResumeFollowService } from '../../core/sync/resume-follow.service';
 import { KhatamService } from '../../core/khatam.service';
 import { APP_CONFIG } from '../../core/config';
 import { ContentApi, UserDataApi } from '../../core/contracts';
+import { BookmarkToggleService } from '../../core/bookmark-toggle.service';
+import { parseRects } from './verse-ribbon';
 import { AyahRef } from '../../core/models';
 import { ProgressService } from '../../core/progress/progress.service';
 import { ReaderUiService } from '../../core/reader-ui.service';
@@ -71,6 +73,7 @@ export class ReaderShell {
   private readonly resume = inject(ResumeFollowService);
   protected readonly rv = inject(ReadingViewService);
   private readonly userData = inject(UserDataApi);
+  private readonly bookmarkToggle = inject(BookmarkToggleService);
   private readonly tracker = inject(ProgressService).createTracker();
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
   private readonly destroyRef = inject(DestroyRef);
@@ -91,16 +94,12 @@ export class ReaderShell {
   /** Wide screens in translation mode: mushaf page on one side, its translation on the other. */
   protected readonly textWide = computed(() => {
     const v = this.viewport();
-    return (
-      this.textMode() && decideSpread(this.userData.prefs().layoutMode, v.width, v.height)
-    );
+    return this.textMode() && decideSpread(this.userData.prefs().layoutMode, v.width, v.height);
   });
   /** Two mushaf pages side by side (never in translation mode: that is one page + its text). */
   protected readonly spread = computed(() => {
     const v = this.viewport();
-    return (
-      !this.textMode() && decideSpread(this.userData.prefs().layoutMode, v.width, v.height)
-    );
+    return !this.textMode() && decideSpread(this.userData.prefs().layoutMode, v.width, v.height);
   });
   /** Phone landscape: page fills the width and scrolls vertically; zoom is off. */
   protected readonly fitWidth = computed(() => {
@@ -141,7 +140,9 @@ export class ReaderShell {
     let best: number | null = null;
     for (const b of this.userData.bookmarks()) {
       if (b.kind !== 'verse' || b.surah === null || b.ayah === null) continue;
-      const p = this.content.index() ? this.content.pageOf({ surah: b.surah, ayah: b.ayah }) : b.page;
+      const p = this.content.index()
+        ? this.content.pageOf({ surah: b.surah, ayah: b.ayah })
+        : b.page;
       for (const v of pages) if ((p === v || b.page === v) && (best === null || v > best)) best = v;
     }
     return best;
@@ -168,7 +169,9 @@ export class ReaderShell {
     const p = this.pan();
     return `translate(${p.x}px, ${p.y}px) scale(${z})`;
   });
-  protected readonly canZoomIn = computed(() => !this.fitWidth() && !this.textMode() && this.ui.zoom() < MAX_ZOOM);
+  protected readonly canZoomIn = computed(
+    () => !this.fitWidth() && !this.textMode() && this.ui.zoom() < MAX_ZOOM,
+  );
   protected readonly canZoomOut = computed(() => !this.textMode() && this.ui.zoom() > MIN_ZOOM);
 
   private pinchBase: { zoom: number; pan: Pan } | null = null;
@@ -432,7 +435,7 @@ export class ReaderShell {
       x: e.clientX,
       y: e.clientY,
       button: e.pointerType === 'mouse' ? e.button : 0,
-      verse: this.verseAt(target),
+      verse: this.verseAt(target, e.clientX, e.clientY),
     });
   }
 
@@ -448,14 +451,16 @@ export class ReaderShell {
     this.gestures.pointerCancel({ id: e.pointerId });
   }
 
-  private verseAt(target: Element | null): VerseHit | null {
+  private verseAt(target: Element | null, x: number, y: number): VerseHit | null {
     const textAyah = target?.closest?.('.ayah[data-surah]');
     if (textAyah) {
       const surah = Number(textAyah.getAttribute('data-surah'));
       const ayah = Number(textAyah.getAttribute('data-ayah'));
       const page = Number(textAyah.closest('mf-translation-pane')?.getAttribute('data-page'));
-      if (!Number.isInteger(surah) || !Number.isInteger(ayah) || !Number.isInteger(page)) return null;
-      return { ref: { surah, ayah }, page };
+      if (!Number.isInteger(surah) || !Number.isInteger(ayah) || !Number.isInteger(page))
+        return null;
+      // The number badge beside the translation is the ayah marker.
+      return { ref: { surah, ayah }, page, marker: !!target?.closest?.('.badge') };
     }
     // QCF (tajweed) renderer: every word span carries its verse.
     const poly = target?.closest?.('.ayahPolygon, .qw[data-surah]');
@@ -465,19 +470,33 @@ export class ReaderShell {
     const pageEl = poly.closest('mf-page-view');
     const page = Number(pageEl?.getAttribute('data-page'));
     if (!Number.isInteger(surah) || !Number.isInteger(ayah) || !Number.isInteger(page)) return null;
-    return { ref: { surah, ayah }, page };
+    if (poly.classList.contains('qw')) {
+      return { ref: { surah, ayah }, page, marker: poly.hasAttribute('data-end') };
+    }
+    // Classic SVG: the number medallions (.ayah-mark) sit under the transparent polygons.
+    const svg = poly.closest('svg');
+    const mark = svg ? markerAt(svg, x, y) : null;
+    return mark ? { ref: mark, page, marker: true } : { ref: { surah, ayah }, page };
+  }
+
+  private openVerse(ref: AyahRef, page: number): void {
+    // A verse on the other page of the pair makes that page active.
+    if (page !== this.pageNum() && this.visible().includes(page)) {
+      this.ui.goToPage(page, { replaceUrl: true, highlight: ref });
+    }
+    this.ui.selectVerse({ surah: ref.surah, ayah: ref.ayah, page });
   }
 
   private onIntent(i: GestureIntent): void {
     this.bumpActivity();
     switch (i.type) {
       case 'tap-verse':
+        // Tapping the ayah number bookmarks the ayah (toast with undo); words open the menu.
+        if (i.marker) void this.bookmarkToggle.toggleVerse(i.ref, i.page);
+        else this.openVerse(i.ref, i.page);
+        break;
       case 'long-press-verse':
-        // A verse on the other page of the pair makes that page active.
-        if (i.page !== this.pageNum() && this.visible().includes(i.page)) {
-          this.ui.goToPage(i.page, { replaceUrl: true, highlight: i.ref });
-        }
-        this.ui.selectVerse({ surah: i.ref.surah, ayah: i.ref.ayah, page: i.page });
+        this.openVerse(i.ref, i.page);
         break;
       case 'tap-blank':
         if (this.ui.sheet() !== null) this.ui.closeSheet();
@@ -585,4 +604,34 @@ export class ReaderShell {
     e.preventDefault();
     this.bumpActivity();
   }
+}
+
+/**
+ * Ayah whose number medallion (`.ayah-mark`) is under screen point (x, y) on a classic SVG
+ * page, else null. A medallion belongs to the first ayah polygon (reading order) containing
+ * its centre: checked on all 604 pages, every medallion maps to a distinct ayah of its page.
+ */
+function markerAt(svg: SVGSVGElement, x: number, y: number): AyahRef | null {
+  const SLOP = 4; // px around the medallion that still counts
+  let centre: DOMPoint | null = null;
+  for (const m of Array.from(svg.querySelectorAll('.ayah-mark'))) {
+    const r = m.getBoundingClientRect();
+    if (x >= r.left - SLOP && x <= r.right + SLOP && y >= r.top - SLOP && y <= r.bottom + SLOP) {
+      centre = new DOMPoint(r.left + r.width / 2, r.top + r.height / 2);
+      break;
+    }
+  }
+  const ctm = centre ? svg.getScreenCTM() : null;
+  if (!centre || !ctm) return null;
+  const c = centre.matrixTransform(ctm.inverse());
+  for (const el of Array.from(svg.querySelectorAll('.ayahPolygon'))) {
+    const hit = parseRects(el.getAttribute('d') ?? '').some(
+      (r) => c.x >= r.x1 && c.x <= r.x2 && c.y >= r.y1 && c.y <= r.y2,
+    );
+    if (!hit) continue;
+    const surah = Number(el.getAttribute('surah'));
+    const ayah = Number(el.getAttribute('ayah'));
+    return Number.isInteger(surah) && Number.isInteger(ayah) ? { surah, ayah } : null;
+  }
+  return null;
 }
