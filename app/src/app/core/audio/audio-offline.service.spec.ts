@@ -3,7 +3,7 @@ import { TestBed } from '@angular/core/testing';
 import { ContentApi } from '../contracts';
 import { ContentIndex } from '../models';
 import { buildFixture, FakeCacheStorage, Fixture } from '../content/testing';
-import { AUDIO_MANIFEST_URL, AudioManifest, audioFileUrl } from './audio-offline.api';
+import { AUDIO_MANIFEST_URL, AudioManifest, audioFileUrl, audioManifestUrl } from './audio-offline.api';
 import { AudioOfflineService, audioCacheName } from './audio-offline.service';
 
 describe('AudioOfflineService', () => {
@@ -89,9 +89,19 @@ describe('AudioOfflineService', () => {
         if (manifestFails) throw new TypeError('offline');
         return new Response(JSON.stringify(manifest));
       }
+      if (url === audioManifestUrl('ghamdi')) {
+        const { opus32 } = manifest.variants;
+        return new Response(
+          JSON.stringify({
+            ...manifest,
+            qari: { ...manifest.qari, id: 'ghamdi' },
+            variants: { opus32 },
+          }),
+        );
+      }
       const m = /\/(opus24|opus32|mp364)\/(\d{3})(\d{3})\./.exec(url)!;
       const gi = g(Number(m[2]), Number(m[3]));
-      const size = sizeOverride.get(gi) ?? manifest.variants[m[1] as 'opus24'].bytes[gi - 1];
+      const size = sizeOverride.get(gi) ?? manifest.variants[m[1] as 'opus24']!.bytes[gi - 1];
       return new Response(new Uint8Array(size));
     }) as typeof fetch;
     create();
@@ -134,7 +144,7 @@ describe('AudioOfflineService', () => {
     );
     expect(sum.reduce((a, b) => a + b, 0)).toBe(total());
     expect(svc.sizeOf({ kind: 'surah', id: 1 }, 'mp364')).toBe(
-      manifest.variants.mp364.bytes.slice(0, 12).reduce((a, b) => a + b, 0),
+      manifest.variants.mp364!.bytes.slice(0, 12).reduce((a, b) => a + b, 0),
     );
   });
 
@@ -156,7 +166,9 @@ describe('AudioOfflineService', () => {
     expect(svc.progressOf({ kind: 'surah', id: 1 }).done).toBe(0);
     await svc.download({ kind: 'surah', id: 3 });
     expect(svc.status()).toMatchObject({ state: 'done', done: 13, total: 13, failed: 0 });
-    expect(svc.status().bytesTotal).toBe(svc.sizeOf({ kind: 'surah', id: 3 }) + manifest.variants.opus24.bytes[0]);
+    expect(svc.status().bytesTotal).toBe(
+      svc.sizeOf({ kind: 'surah', id: 3 }) + manifest.variants.opus24!.bytes[0],
+    );
     expect(await svc.localUrl({ surah: 1, ayah: 1 })).toMatch(/^blob:/);
     expect(svc.perSurah()[0]).toBe(1);
     await svc.remove({ kind: 'surah', id: 3 });
@@ -177,7 +189,9 @@ describe('AudioOfflineService', () => {
     expect(svc.status()).toMatchObject({ state: 'done', done: 13, total: 13, failed: 0 }); // + basmalah 1:1
     expect(svc.perSurah()[2]).toBe(12);
     expect(svc.perSurah().reduce((a, b) => a + b, 0)).toBe(13);
-    expect(svc.usedBytes()).toBe(svc.sizeOf({ kind: 'surah', id: 3 }) + manifest.variants.opus24.bytes[0]);
+    expect(svc.usedBytes()).toBe(
+      svc.sizeOf({ kind: 'surah', id: 3 }) + manifest.variants.opus24!.bytes[0],
+    );
     expect(svc.status().bytesDone).toBe(svc.status().bytesTotal);
     const cache = await store.open(audioCacheName('opus24'));
     expect((await cache.keys()).map((r) => r.url)).toContain(
@@ -202,9 +216,9 @@ describe('AudioOfflineService', () => {
     expect(svc.perSurah()[0]).toBe(2);
     expect(svc.perSurah()[6]).toBe(1);
     expect(svc.usedBytes()).toBe(
-      manifest.variants.opus24.bytes[g(1, 1) - 1] +
-        manifest.variants.opus24.bytes[g(1, 2) - 1] +
-        manifest.variants.opus24.bytes[g(7, 3) - 1],
+      manifest.variants.opus24!.bytes[g(1, 1) - 1] +
+        manifest.variants.opus24!.bytes[g(1, 2) - 1] +
+        manifest.variants.opus24!.bytes[g(7, 3) - 1],
     );
   });
 
@@ -229,7 +243,7 @@ describe('AudioOfflineService', () => {
       const url = String(input);
       if (url === AUDIO_MANIFEST_URL) return new Response(JSON.stringify(manifest));
       const m = /(\d{3})(\d{3})\./.exec(url)!;
-      const size = manifest.variants.opus24.bytes[g(Number(m[1]), Number(m[2])) - 1];
+      const size = manifest.variants.opus24!.bytes[g(Number(m[1]), Number(m[2])) - 1];
       return new Response(new Uint8Array(size), {
         headers: { 'Content-Length': String(size + 1) },
       });
@@ -333,5 +347,54 @@ describe('AudioOfflineService', () => {
     await svc.load();
     expect(svc.manifest()).toBeNull();
     expect(svc.loadError()).toMatch(/tidak valid/);
+  });
+
+  describe('Al-Ghamdi packages (D57)', () => {
+    it('has only the opus32 variant, whatever quality was chosen for Alafasy', async () => {
+      localStorage.setItem('mf-audio-variant', 'opus24');
+      create();
+      await svc.setQari('ghamdi');
+      expect(svc.qari()).toBe('ghamdi');
+      expect(svc.supported()).toEqual(['opus32']);
+      expect(svc.variant()).toBe('opus32');
+      expect(svc.manifest()?.qari.id).toBe('ghamdi');
+    });
+
+    it('offers nothing on a device without Opus', async () => {
+      opus = false;
+      create();
+      await svc.setQari('ghamdi');
+      expect(svc.supported()).toEqual([]);
+    });
+
+    it('stores its files under its own path and cache, apart from Alafasy', async () => {
+      await svc.load();
+      await svc.download({ kind: 'surah', id: 2 });
+      const alafasyStored = svc.progressOf({ kind: 'surah', id: 2 }).done;
+      expect(alafasyStored).toBe(12);
+
+      await svc.setQari('ghamdi');
+      expect(svc.progressOf({ kind: 'surah', id: 2 }).done).toBe(0);
+      requests = [];
+      await svc.download({ kind: 'surah', id: 2 });
+      expect(requests.length).toBeGreaterThan(0);
+      expect(requests.every((u) => u.includes('/ghamdi/opus32/'))).toBe(true);
+      expect(svc.progressOf({ kind: 'surah', id: 2 }).done).toBe(12);
+      expect(store.stores.has(audioCacheName('opus32', 'ghamdi'))).toBe(true);
+
+      const ref = { surah: 2, ayah: 3 };
+      expect(await svc.localUrl(ref, 'ghamdi')).toMatch(/^blob:/);
+      expect(await svc.localUrl(ref, 'alafasy')).toBeNull();
+
+      // Back to Alafasy: its stored files are still there.
+      await svc.setQari('alafasy');
+      expect(svc.progressOf({ kind: 'surah', id: 2 }).done).toBe(alafasyStored);
+    });
+
+    it('ignores a qari without packages', async () => {
+      await svc.load();
+      await svc.setQari('nope' as never);
+      expect(svc.qari()).toBe('alafasy');
+    });
   });
 });

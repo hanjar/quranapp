@@ -1,6 +1,8 @@
 import { NgTemplateOutlet } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { AudioOfflineApi, AudioScope, AudioVariant } from '../../core/audio/audio-offline.api';
+import { QARIS, qariById } from '../../core/audio/audio-logic';
+import { AudioService } from '../../core/audio/audio.service';
 import { TafsirService, TafsirSizeInfo } from '../../core/content/tafsir.service';
 import { ContentApi, OfflineApi } from '../../core/contracts';
 import {
@@ -230,9 +232,42 @@ import { SHEET_STYLES } from './sheet-styles';
       }
     </section>
 
+    @if (audio.supported().length === 0) {
+      <section aria-labelledby="au-h0">
+        <h3 id="au-h0">Audio offline</h3>
+        <div class="mf-segmented" role="group" aria-label="Qari audio offline">
+          @for (q of qaris; track q.id) {
+            <button
+              type="button"
+              [attr.aria-pressed]="audio.qari() === q.id"
+              (click)="player.setQari(q.id)"
+            >
+              {{ q.name }}
+            </button>
+          }
+        </div>
+        <p class="muted">Mengganti qari di sini juga mengganti suara murottal.</p>
+        <div class="mf-note">
+          Perangkat ini belum bisa menyimpan bacaan {{ qariName() }} untuk offline (butuh format
+          Opus). Pilih Mishary Rasyid Alafasy untuk mendengar tanpa internet.
+        </div>
+      </section>
+    }
     @if (audio.supported().length > 0 && audio.manifest()) {
       <section aria-labelledby="au-h" data-search-id="offline-audio">
-        <h3 id="au-h">Audio offline (Mishary Rasyid Alafasy)</h3>
+        <h3 id="au-h">Audio offline ({{ qariName() }})</h3>
+        <div class="mf-segmented" role="group" aria-label="Qari audio offline">
+          @for (q of qaris; track q.id) {
+            <button
+              type="button"
+              [attr.aria-pressed]="audio.qari() === q.id"
+              (click)="player.setQari(q.id)"
+            >
+              {{ q.name }}
+            </button>
+          }
+        </div>
+        <p class="muted">Mengganti qari di sini juga mengganti suara murottal.</p>
         <p class="muted">
           Dengarkan bacaan tanpa internet. Ukuran perkiraan; mengunduh butuh koneksi internet.
         </p>
@@ -243,24 +278,26 @@ import { SHEET_STYLES } from './sheet-styles';
           </div>
         }
 
-        <div class="radios" role="radiogroup" aria-label="Kualitas audio offline">
-          @for (v of audio.supported(); track v) {
-            <button
-              type="button"
-              class="radio"
-              role="radio"
-              [attr.aria-checked]="audio.variant() === v"
-              (click)="pickVariant(v)"
-            >
-              <span class="n"
-                >{{ info[v].label }}<small>{{ info[v].format }}</small></span
+        @if (audio.supported().length > 1) {
+          <div class="radios" role="radiogroup" aria-label="Kualitas audio offline">
+            @for (v of audio.supported(); track v) {
+              <button
+                type="button"
+                class="radio"
+                role="radio"
+                [attr.aria-checked]="audio.variant() === v"
+                (click)="pickVariant(v)"
               >
-              <span class="sz"
-                >≈ {{ mb(audio.sizeOf({ kind: 'all' }, v)) }}<br />seluruh mushaf</span
-              >
-            </button>
-          }
-        </div>
+                <span class="n"
+                  >{{ info[v].label }}<small>{{ info[v].format }}</small></span
+                >
+                <span class="sz"
+                  >≈ {{ mb(audio.sizeOf({ kind: 'all' }, v)) }}<br />seluruh mushaf</span
+                >
+              </button>
+            }
+          </div>
+        }
 
         @if (pendingVariant(); as pv) {
           <div class="panel warn" role="alertdialog" aria-label="Ganti kualitas audio">
@@ -450,11 +487,11 @@ import { SHEET_STYLES } from './sheet-styles';
     <section aria-labelledby="tf-h" data-search-id="offline-tafsir">
       <h3 id="tf-h">Tafsir offline (Kemenag RI)</h3>
       <p class="muted">
-        Tafsir per ayat tidak ikut diunduh otomatis. Simpan semuanya agar bisa dibaca tanpa
-        internet
+        Tafsir per ayat tidak ikut diunduh otomatis. Simpan semuanya agar bisa dibaca tanpa internet
         @if (tafsirInfo()?.totalBytes) {
           (≈ {{ mb(tafsirInfo()?.totalBytes ?? 0) }})
-        }.
+        }
+        .
       </p>
       @if (tafsirBusy(); as p) {
         <div class="panel">
@@ -471,7 +508,11 @@ import { SHEET_STYLES } from './sheet-styles';
           <p role="status">Mengunduh tafsir: {{ p.done }} dari 114 surah</p>
         </div>
       } @else if (tafsirDone()) {
-        <p role="status"><strong>Tafsir tersimpan di perangkat ✓</strong> ({{ mb(tafsirInfo()?.cachedBytes ?? 0) }})</p>
+        <p role="status">
+          <strong>Tafsir tersimpan di perangkat ✓</strong> ({{
+            mb(tafsirInfo()?.cachedBytes ?? 0)
+          }})
+        </p>
       } @else if (tafsirInfo(); as ti) {
         @if (ti.cachedSurahs > 0) {
           <p class="muted">{{ ti.cachedSurahs }} dari {{ ti.totalSurahs }} surah tersimpan.</p>
@@ -485,7 +526,11 @@ import { SHEET_STYLES } from './sheet-styles';
           <strong>Hapus tafsir offline?</strong>
           <p>Tafsir tetap bisa dibaca saat tersambung internet. Penanda tidak terpengaruh.</p>
           <div class="actions">
-            <button type="button" class="mf-btn mf-btn--outline" (click)="confirmTafsirClear.set(false)">
+            <button
+              type="button"
+              class="mf-btn mf-btn--outline"
+              (click)="confirmTafsirClear.set(false)"
+            >
               Batal
             </button>
             <button type="button" class="mf-btn mf-btn--danger" (click)="clearTafsir()">
@@ -511,7 +556,11 @@ import { SHEET_STYLES } from './sheet-styles';
               </button>
             }
             @if ((tafsirInfo()?.cachedSurahs ?? 0) > 0) {
-              <button type="button" class="mf-btn mf-btn--ghost" (click)="confirmTafsirClear.set(true)">
+              <button
+                type="button"
+                class="mf-btn mf-btn--ghost"
+                (click)="confirmTafsirClear.set(true)"
+              >
                 Hapus tafsir offline
               </button>
             }
@@ -550,6 +599,9 @@ export class OfflineSheet {
 
   // --- audio offline ---
   protected readonly audio = inject(AudioOfflineApi);
+  protected readonly player = inject(AudioService);
+  protected readonly qaris = QARIS;
+  protected readonly qariName = computed(() => qariById(this.audio.qari()).name);
   private readonly content = inject(ContentApi);
   protected readonly info = VARIANT_INFO;
   protected readonly totalAyahs = 6236;
@@ -657,7 +709,9 @@ export class OfflineSheet {
         this.tafsirError.set(`${r.failed} surah gagal diunduh. Periksa koneksi lalu coba lagi.`);
       }
     } catch {
-      this.tafsirError.set('Tafsir gagal diunduh. Periksa koneksi atau ruang penyimpanan, lalu coba lagi.');
+      this.tafsirError.set(
+        'Tafsir gagal diunduh. Periksa koneksi atau ruang penyimpanan, lalu coba lagi.',
+      );
     } finally {
       this.tafsirAbort = null;
       this.tafsirBusy.set(null);

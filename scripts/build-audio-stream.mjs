@@ -2,16 +2,26 @@
 // Builds our own Opus 32 kbps copy of a streaming-only qari (no offline packages) into
 // .content-cache/audio/<qari>/opus32/, for devices that cannot decode the source MP3s (D45).
 // Usage: node scripts/build-audio-stream.mjs ghamdi [--limit N] [--jobs 8]
-// Requires ffmpeg (libopus). Writes upload-<qari>.json (key/file pairs for `wrangler r2 bulk put`).
+// Requires ffmpeg (libopus). Writes upload-<qari>.json (key/file pairs for `wrangler r2 bulk put`)
+// and audio-manifest.json (offline packages of this qari: the opus32 variant only, D57;
+// upload it to `<qari>/audio-manifest.json`).
 import { spawn } from 'node:child_process';
 import { mkdir, readFile, rename, stat, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { allAyahs, ayahBase } from './lib/audio.mjs';
+import { AYAH_TOTAL, VARIANTS, allAyahs, ayahBase } from './lib/audio.mjs';
 
 const SOURCES = {
   ghamdi: (base) => `https://everyayah.com/data/Ghamadi_40kbps/${base}.mp3`,
+};
+const META = {
+  ghamdi: {
+    id: 'ghamdi',
+    name: 'Saad Al-Ghamdi',
+    source: 'EveryAyah (Ghamadi_40kbps), re-encoded to Opus 32 kbps',
+    license: 'Non-commercial; recordings © reciter/rights holders',
+  },
 };
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -101,4 +111,19 @@ const pairs = list.map((r) => {
   return { key: `${qari}/opus32/${base}.webm`, file: path.join(OUT, `${base}.webm`) };
 });
 await writeFile(path.join(DIR, `upload-${qari}.json`), JSON.stringify(pairs));
+if (list.length === AYAH_TOTAL) {
+  const bytes = await Promise.all(
+    list.map((r) => stat(path.join(OUT, `${ayahBase(r.surah, r.ayah)}.webm`)).then((x) => x.size)),
+  );
+  const manifest = {
+    format: 'mushaf-audio',
+    version: 1,
+    qari: { ...META[qari], builtAt: new Date().toISOString() },
+    variants: {
+      opus32: { ...VARIANTS.opus32, totalBytes: bytes.reduce((a, b) => a + b, 0), bytes },
+    },
+    ayahCount: AYAH_TOTAL,
+  };
+  await writeFile(path.join(DIR, 'audio-manifest.json'), JSON.stringify(manifest) + '\n');
+}
 console.log(`done: ${list.length} files in ${OUT}`);

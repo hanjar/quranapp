@@ -357,12 +357,12 @@ export class AudioPlayer {
     return nowPlayingTitle(name, cur.ayah, this.audio.basmalah());
   });
 
-  /** Offline-save control state for the current surah (null when unsupported or not Alafasy). */
+  /** Offline-save control state for the current surah (null when unsupported for this qari). */
   protected readonly dl = computed(() => {
     const cur = this.audio.current();
     if (
       !cur ||
-      !this.audio.qari().offline ||
+      this.offlineAudio.qari() !== this.audio.qari().id ||
       this.offlineAudio.supported().length === 0 ||
       !this.offlineAudio.manifest()
     )

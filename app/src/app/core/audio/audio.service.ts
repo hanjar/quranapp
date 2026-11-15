@@ -1,4 +1,4 @@
-import { DestroyRef, Injectable, computed, inject, signal } from '@angular/core';
+import { DestroyRef, Injectable, computed, effect, inject, signal, untracked } from '@angular/core';
 import { reportError } from '../storage/error-reporter';
 import { Router } from '@angular/router';
 import { ContentApi, UserDataApi } from '../contracts';
@@ -6,7 +6,7 @@ import { AyahRef } from '../models';
 import { ReaderUiService } from '../reader-ui.service';
 import { syncedSetting } from '../synced-setting';
 import { ProgressService } from '../progress/progress.service';
-import { AudioOfflineApi, audioFileUrl } from './audio-offline.api';
+import { AudioOfflineApi, audioFileUrl, hasOfflinePackages } from './audio-offline.api';
 import { audioProblemMessage, checkInternet } from './connection-check';
 import {
   AudioMode,
@@ -88,6 +88,11 @@ export class AudioService {
 
   constructor() {
     inject(DestroyRef).onDestroy(() => this.stop());
+    // Offline packages follow the voice being listened to (D57).
+    effect(() => {
+      const id = this.qari().id;
+      untracked(() => void this.offline.setQari(id));
+    });
   }
 
   /** Start reciting at `ref`; continuous playback follows the current mode. */
@@ -194,14 +199,14 @@ export class AudioService {
     this.setMediaSession(ref);
     const qari = this.qari();
     // Stored recitation first (offline packages, Alafasy only), otherwise stream.
-    const local: Promise<string | null> = qari.offline
-      ? this.offline.localUrl(target).catch(() => null)
+    const local: Promise<string | null> = hasOfflinePackages(qari.id)
+      ? this.offline.localUrl(target, qari.id).catch(() => null)
       : Promise.resolve(null);
     void local.then((file) => {
       if (token !== this.token) return;
       const stream = qari.primary(globalAyahNumber(target, this.counts()), target);
       if (!file && isOffline()) {
-        if (!qari.offline) this.fail('Qari ini hanya bisa diputar dengan internet.');
+        if (!hasOfflinePackages(qari.id)) this.fail('Qari ini hanya bisa diputar dengan internet.');
         // Surah packages don't carry the Al-Fatihah file used for the basmalah.
         else if (basmalah) this.playFile(ref, false);
         else

@@ -400,9 +400,6 @@ const SYNC_LABEL: Record<string, string> = {
           </button>
         }
       </div>
-      @if (!audio.qari().offline) {
-        <p class="muted">Audio offline hanya tersedia untuk Mishary Rasyid Alafasy.</p>
-      }
       <div class="mf-segmented modes" role="group" aria-label="Mode putar">
         @for (m of audioModes; track m.id) {
           <button

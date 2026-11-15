@@ -1,25 +1,30 @@
 import { DestroyRef, Injectable, computed, inject, signal } from '@angular/core';
 import { ContentApi } from '../contracts';
 import { AyahRef } from '../models';
-import { globalAyahNumber } from './audio-logic';
+import { QariId, globalAyahNumber } from './audio-logic';
 import {
-  AUDIO_MANIFEST_URL,
   AudioDownloadStatus,
   AudioManifest,
   AudioOfflineApi,
   AudioScope,
   AudioVariant,
+  OFFLINE_QARIS,
   audioFileUrl,
+  audioManifestUrl,
+  hasOfflinePackages,
 } from './audio-offline.api';
 
 const CONCURRENCY = 4;
 const OBJECT_URL_LRU = 8;
 const META_CACHE = 'mushaf-audio-meta';
-const CACHE_PREFIX = 'mushaf-audio-alafasy-';
-const VARIANTS: AudioVariant[] = ['opus24', 'opus32', 'mp364'];
 const STORAGE_KEY = 'mf-audio-variant';
+/** Mirror of the synced qari setting (AudioService), read for the first scan. */
+const QARI_KEY = 'mf-qari';
 
-export const audioCacheName = (v: AudioVariant) => `${CACHE_PREFIX}${v}`;
+const variantsOf = (q: QariId): readonly AudioVariant[] => OFFLINE_QARIS[q] ?? [];
+
+export const audioCacheName = (v: AudioVariant, qari: QariId = 'alafasy') =>
+  `mushaf-audio-${qari}-${v}`;
 
 const isQuota = (e: unknown) => {
   const x = e as { name?: string; code?: number } | null;
@@ -44,15 +49,24 @@ function canPlayOpus(): boolean {
   }
 }
 
-function readStoredVariant(): string | null {
+function readStored(key: string): string | null {
   try {
-    return localStorage.getItem(STORAGE_KEY);
+    return localStorage.getItem(key);
   } catch {
     return null;
   }
 }
 
-export function validateAudioManifest(m: unknown, ayahTotal: number): AudioManifest {
+function initialQari(): QariId {
+  const q = readStored(QARI_KEY) as QariId | null;
+  return q && hasOfflinePackages(q) ? q : 'alafasy';
+}
+
+export function validateAudioManifest(
+  m: unknown,
+  ayahTotal: number,
+  variants: readonly AudioVariant[] = variantsOf('alafasy'),
+): AudioManifest {
   const bad = (): never => {
     throw new Error('Data audio tidak valid. Coba lagi nanti.');
   };
@@ -61,7 +75,7 @@ export function validateAudioManifest(m: unknown, ayahTotal: number): AudioManif
   if (x.ayahCount !== ayahTotal) {
     throw new Error('Data audio tidak cocok dengan data mushaf.');
   }
-  for (const v of VARIANTS) {
+  for (const v of variants) {
     const e = x.variants[v];
     if (
       !e ||
@@ -81,17 +95,29 @@ export function validateAudioManifest(m: unknown, ayahTotal: number): AudioManif
 export class AudioOfflineService extends AudioOfflineApi {
   private readonly content = inject(ContentApi);
 
+  private readonly _qari = signal<QariId>(initialQari());
+  readonly qari = this._qari.asReadonly();
+
   private readonly _manifest = signal<AudioManifest | null>(null);
   readonly manifest = this._manifest.asReadonly();
   /** Indonesian message when the manifest could not be loaded/validated (extra to the contract). */
   readonly loadError = signal<string | null>(null);
 
-  readonly supported = signal<AudioVariant[]>(
-    canPlayOpus() ? ['opus24', 'opus32', 'mp364'] : ['mp364'],
-  ).asReadonly();
+  private readonly opus = canPlayOpus();
+  readonly supported = computed<AudioVariant[]>(() =>
+    variantsOf(this._qari()).filter((v) => this.opus || !v.startsWith('opus')),
+  );
 
-  private readonly _variant = signal<AudioVariant>(this.initialVariant());
-  readonly variant = this._variant.asReadonly();
+  /** Quality chosen on this device; a qari without it uses its nearest variant. */
+  private readonly preferred = signal<string | null>(readStored(STORAGE_KEY));
+  private readonly _variant = computed<AudioVariant>(() => {
+    const sup = this.supported();
+    const p = this.preferred();
+    if (p && (sup as string[]).includes(p)) return p as AudioVariant;
+    if (sup.includes('opus24')) return 'opus24';
+    return sup.find((v) => v.startsWith('opus')) ?? sup[0] ?? variantsOf(this._qari())[0];
+  });
+  readonly variant = this._variant;
 
   private readonly _status = signal<AudioDownloadStatus>({ ...IDLE });
   readonly status = this._status.asReadonly();
@@ -127,11 +153,8 @@ export class AudioOfflineService extends AudioOfflineApi {
     });
   }
 
-  private initialVariant(): AudioVariant {
-    const sup = this.supported();
-    const stored = readStoredVariant();
-    if (stored && (sup as string[]).includes(stored)) return stored as AudioVariant;
-    return sup[0] === 'opus24' ? 'opus24' : 'mp364';
+  private bytesOf(v: AudioVariant = this._variant()): number[] | undefined {
+    return this._manifest()?.variants[v]?.bytes;
   }
 
   // ---- geometry ------------------------------------------------------------
@@ -169,7 +192,7 @@ export class AudioOfflineService extends AudioOfflineApi {
   }
 
   private bytesOfRange(from: number, to: number, v: AudioVariant): number {
-    const bytes = this._manifest()?.variants[v].bytes;
+    const bytes = this.bytesOf(v);
     if (!bytes) return 0;
     let sum = 0;
     for (let g = from; g <= to; g++) sum += bytes[g - 1] ?? 0;
@@ -199,25 +222,28 @@ export class AudioOfflineService extends AudioOfflineApi {
 
   private async doLoad(): Promise<void> {
     await this.content.load();
+    const qari = this._qari();
+    const variants = variantsOf(qari);
+    const url = audioManifestUrl(qari);
     const total = this.ayahCounts().reduce((a, b) => a + b, 0);
     let manifest: AudioManifest | null = null;
     let error: string | null = null;
     try {
-      const res = await fetch(AUDIO_MANIFEST_URL);
+      const res = await fetch(url);
       if (!res.ok) throw new Error('http');
       const json: unknown = await res.json();
-      manifest = validateAudioManifest(json, total);
+      manifest = validateAudioManifest(json, total, variants);
       try {
         const meta = await caches.open(META_CACHE);
-        await meta.put(AUDIO_MANIFEST_URL, new Response(JSON.stringify(json)));
+        await meta.put(url, new Response(JSON.stringify(json)));
       } catch {
         /* cache unavailable */
       }
     } catch (e) {
       if (e instanceof Error && e.message.startsWith('Data audio')) error = e.message;
       try {
-        const hit = await (await caches.open(META_CACHE)).match(AUDIO_MANIFEST_URL);
-        if (hit) manifest = validateAudioManifest(await hit.json(), total);
+        const hit = await (await caches.open(META_CACHE)).match(url);
+        if (hit) manifest = validateAudioManifest(await hit.json(), total, variants);
       } catch {
         manifest = null;
       }
@@ -225,6 +251,7 @@ export class AudioOfflineService extends AudioOfflineApi {
         error = 'Data audio tidak dapat dimuat. Periksa koneksi internet.';
       }
     }
+    if (qari !== this._qari()) return; // switched qari meanwhile: its own load follows
     this._manifest.set(manifest);
     this.loadError.set(manifest ? null : error);
     await this.scan();
@@ -234,7 +261,7 @@ export class AudioOfflineService extends AudioOfflineApi {
   private async scan(): Promise<void> {
     this.have = new Set();
     try {
-      const cache = await caches.open(audioCacheName(this._variant()));
+      const cache = await caches.open(audioCacheName(this._variant(), this._qari()));
       const counts = this.ayahCounts();
       for (const req of await cache.keys()) {
         const m = /(\d{3})(\d{3})\.\w+$/.exec(req.url);
@@ -253,7 +280,7 @@ export class AudioOfflineService extends AudioOfflineApi {
   private rebuildCounts(): void {
     this.counts = new Array(114).fill(0);
     let bytes = 0;
-    const sizes = this._manifest()?.variants[this._variant()].bytes;
+    const sizes = this.bytesOf();
     for (const g of this.have) {
       this.counts[this.refOf(g).surah - 1]++;
       bytes += sizes?.[g - 1] ?? 0;
@@ -267,31 +294,43 @@ export class AudioOfflineService extends AudioOfflineApi {
     this.have.add(g);
     this.counts[this.refOf(g).surah - 1]++;
     this._perSurah.set([...this.counts]);
-    this._usedBytes.update(
-      (b) => b + (this._manifest()?.variants[this._variant()].bytes[g - 1] ?? 0),
-    );
+    this._usedBytes.update((b) => b + (this.bytesOf()?.[g - 1] ?? 0));
   }
 
   private markRemoved(g: number): void {
     if (!this.have.delete(g)) return;
     this.counts[this.refOf(g).surah - 1]--;
     this._perSurah.set([...this.counts]);
-    this._usedBytes.update((b) =>
-      Math.max(0, b - (this._manifest()?.variants[this._variant()].bytes[g - 1] ?? 0)),
-    );
+    this._usedBytes.update((b) => Math.max(0, b - (this.bytesOf()?.[g - 1] ?? 0)));
   }
 
-  // ---- variant ---------------------------------------------------------------
+  // ---- qari / variant ---------------------------------------------------------
+
+  async setQari(qari: QariId): Promise<void> {
+    if (!hasOfflinePackages(qari) || qari === this._qari()) return;
+    await this.stopRun();
+    this.revokeAll();
+    this.lastScope = null;
+    this._qari.set(qari);
+    this._manifest.set(null);
+    this.have = new Set();
+    this.rebuildCounts();
+    this._status.set({ ...IDLE });
+    this.loading = null;
+    await this.load();
+  }
 
   async setVariant(v: AudioVariant): Promise<void> {
     if (!(this.supported() as string[]).includes(v) || v === this._variant()) return;
     await this.stopRun();
+    const qari = this._qari();
     try {
-      for (const other of VARIANTS) if (other !== v) await caches.delete(audioCacheName(other));
+      for (const other of variantsOf(qari))
+        if (other !== v) await caches.delete(audioCacheName(other, qari));
     } catch {
       /* ignore */
     }
-    this._variant.set(v);
+    this.preferred.set(v);
     try {
       localStorage.setItem(STORAGE_KEY, v);
     } catch {
@@ -351,22 +390,31 @@ export class AudioOfflineService extends AudioOfflineApi {
       return;
     }
     const variant = this._variant();
+    const qari = this._qari();
     const entry = manifest.variants[variant];
+    if (!entry) {
+      if (live()) this._status.set({ ...IDLE, scope, state: 'error' });
+      return;
+    }
     const [from, to] = this.range(scope);
     // Playback uses 1:1 as the basmalah before ayah 1 of every surah except 1 and 9.
     const lastSurah = this.refOf(to).surah;
     let needsBasmalah = false;
-    for (let s = this.refOf(from).surah; s <= lastSurah; s++) if (s !== 1 && s !== 9) needsBasmalah = true;
+    for (let s = this.refOf(from).surah; s <= lastSurah; s++)
+      if (s !== 1 && s !== 9) needsBasmalah = true;
     const extra = needsBasmalah && from > 1; // 1:1 is global ayah 1, so it is in scope iff from === 1
     const total = to - from + 1 + (extra ? 1 : 0);
-    const bytesTotal = this.bytesOfRange(from, to, variant) + (extra ? this.bytesOfRange(1, 1, variant) : 0);
+    const bytesTotal =
+      this.bytesOfRange(from, to, variant) + (extra ? this.bytesOfRange(1, 1, variant) : 0);
     const queue: number[] = [];
     if (extra && !this.have.has(1)) queue.push(1);
     for (let g = from; g <= to; g++) if (!this.have.has(g)) queue.push(g);
     let failed = 0;
     const publish = (state: AudioDownloadStatus['state']) => {
       const p = this.progressOf(scope);
-      const missing = this.missingBytes(from, to, variant) + (extra && !this.have.has(1) ? this.bytesOfRange(1, 1, variant) : 0);
+      const missing =
+        this.missingBytes(from, to, variant) +
+        (extra && !this.have.has(1) ? this.bytesOfRange(1, 1, variant) : 0);
       this._status.set({
         state,
         scope,
@@ -383,7 +431,7 @@ export class AudioOfflineService extends AudioOfflineApi {
 
     let cache: Cache;
     try {
-      cache = await caches.open(audioCacheName(variant));
+      cache = await caches.open(audioCacheName(variant, qari));
     } catch {
       publish('error');
       return;
@@ -399,7 +447,7 @@ export class AudioOfflineService extends AudioOfflineApi {
         const g = queue.shift();
         if (g === undefined) return;
         const ref = this.refOf(g);
-        const url = audioFileUrl(variant, entry.ext, ref);
+        const url = audioFileUrl(variant, entry.ext, ref, qari);
         try {
           if (typeof navigator !== 'undefined' && navigator.onLine === false) {
             queue.unshift(g);
@@ -449,7 +497,7 @@ export class AudioOfflineService extends AudioOfflineApi {
   }
 
   private missingBytes(from: number, to: number, v: AudioVariant): number {
-    const bytes = this._manifest()?.variants[v].bytes;
+    const bytes = this.bytesOf(v);
     if (!bytes) return 0;
     let sum = 0;
     for (let g = from; g <= to; g++) if (!this.have.has(g)) sum += bytes[g - 1];
@@ -461,19 +509,20 @@ export class AudioOfflineService extends AudioOfflineApi {
   async remove(scope: AudioScope): Promise<void> {
     await this.stopRun();
     this.revokeAll();
+    const qari = this._qari();
     try {
       if (scope.kind === 'all') {
-        for (const v of VARIANTS) await caches.delete(audioCacheName(v));
+        for (const v of variantsOf(qari)) await caches.delete(audioCacheName(v, qari));
         this.have = new Set();
         this.rebuildCounts();
       } else {
         const [from, to] = this.range(scope);
         const variant = this._variant();
-        const ext = this._manifest()?.variants[variant].ext ?? this.extFallback(variant);
-        const cache = await caches.open(audioCacheName(variant));
+        const ext = this._manifest()?.variants[variant]?.ext ?? this.extFallback(variant);
+        const cache = await caches.open(audioCacheName(variant, qari));
         for (let g = from; g <= to; g++) {
           if (!this.have.has(g)) continue;
-          await cache.delete(audioFileUrl(variant, ext, this.refOf(g)));
+          await cache.delete(audioFileUrl(variant, ext, this.refOf(g), qari));
           this.markRemoved(g);
         }
       }
@@ -489,7 +538,8 @@ export class AudioOfflineService extends AudioOfflineApi {
 
   // ---- playback -----------------------------------------------------------------
 
-  async localUrl(ref: AyahRef): Promise<string | null> {
+  async localUrl(ref: AyahRef, qari: QariId = this._qari()): Promise<string | null> {
+    if (qari !== this._qari()) return null;
     const idx = this.content.index();
     if (!idx) return null;
     const g = globalAyahNumber(
@@ -498,8 +548,8 @@ export class AudioOfflineService extends AudioOfflineApi {
     );
     if (!this.have.has(g)) return null;
     const variant = this._variant();
-    const ext = this._manifest()?.variants[variant].ext ?? this.extFallback(variant);
-    const url = audioFileUrl(variant, ext, ref);
+    const ext = this._manifest()?.variants[variant]?.ext ?? this.extFallback(variant);
+    const url = audioFileUrl(variant, ext, ref, qari);
     const known = this.urls.get(url);
     if (known) {
       this.urls.delete(url);
@@ -507,7 +557,7 @@ export class AudioOfflineService extends AudioOfflineApi {
       return known;
     }
     try {
-      const hit = await (await caches.open(audioCacheName(variant))).match(url);
+      const hit = await (await caches.open(audioCacheName(variant, qari))).match(url);
       if (!hit) return null;
       const obj = URL.createObjectURL(await hit.blob());
       this.urls.set(url, obj);

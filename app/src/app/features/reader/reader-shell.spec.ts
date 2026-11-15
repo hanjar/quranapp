@@ -210,7 +210,10 @@ describe('ReaderShell', () => {
         { provide: ContentApi, useValue: content },
         { provide: UserDataApi, useValue: userData },
         { provide: OfflineApi, useValue: offline },
-        { provide: AudioOfflineApi, useValue: { localUrl: async () => null } },
+        {
+          provide: AudioOfflineApi,
+          useValue: { localUrl: async () => null, setQari: async () => undefined },
+        },
         { provide: SyncApi, useValue: sync },
         { provide: UpdateService, useValue: { available: updateAvailable } },
         {
