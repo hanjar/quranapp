@@ -31,6 +31,48 @@ const isQuota = (e: unknown) => {
   return !!x && (x.name === 'QuotaExceededError' || x.code === 22);
 };
 
+/** Waits before the 2nd and 3rd attempt at one file (D58); tests shorten them. */
+export const downloadRetry = { delays: [1500, 4000] };
+
+const isOffline = () => typeof navigator !== 'undefined' && navigator.onLine === false;
+
+/**
+ * One audio file, checked against its manifest size, with retries for flaky mobile
+ * connections: a dropped or truncated transfer, 5xx or 429 is tried again (D58).
+ * `no-store` keeps it out of the HTTP cache: no second copy next to Cache Storage, and
+ * no clash with a partial entry the streaming player left for the same URL.
+ * Returns the bytes, `'offline'` (network gone: pause), or null (give up on this file).
+ */
+async function fetchVerified(
+  url: string,
+  expected: number,
+  keepGoing: () => boolean,
+): Promise<ArrayBuffer | 'offline' | null> {
+  for (let attempt = 0; ; attempt++) {
+    if (isOffline()) return 'offline';
+    let retry = false;
+    try {
+      const res = await fetch(url, { cache: 'no-store' });
+      if (res.ok) {
+        const header = res.headers.get('Content-Length');
+        if (header === null || Number(header) === expected) {
+          const buf = await res.arrayBuffer();
+          if (buf.byteLength === expected) return buf;
+        }
+        retry = true; // short body: a transfer cut off midway
+      } else retry = res.status >= 500 || res.status === 429;
+    } catch (e) {
+      if (isQuota(e)) throw e;
+      if (isOffline()) return 'offline';
+      retry = true;
+    }
+    const wait = downloadRetry.delays[attempt];
+    if (!retry || wait === undefined || !keepGoing()) return null;
+    await new Promise((r) => setTimeout(r, wait));
+    if (!keepGoing()) return null;
+  }
+}
+
 const IDLE: AudioDownloadStatus = {
   state: 'idle',
   scope: null,
@@ -454,30 +496,19 @@ export class AudioOfflineService extends AudioOfflineApi {
             wentOffline = true;
             continue;
           }
-          let res: Response;
-          try {
-            res = await fetch(url);
-          } catch {
-            if (typeof navigator !== 'undefined' && navigator.onLine === false) {
-              queue.unshift(g);
-              wentOffline = true;
-              continue;
-            }
+          const got = await fetchVerified(url, entry.bytes[g - 1], () =>
+            live() && !this.paused,
+          );
+          if (got === 'offline') {
+            queue.unshift(g);
+            wentOffline = true;
+            continue;
+          }
+          if (got === null) {
             failed++;
             continue;
           }
-          const expected = entry.bytes[g - 1];
-          const header = res.headers.get('Content-Length');
-          if (!res.ok || (header !== null && Number(header) !== expected)) {
-            failed++;
-            continue;
-          }
-          const buf = await res.arrayBuffer();
-          if (buf.byteLength !== expected) {
-            failed++;
-            continue;
-          }
-          await cache.put(url, new Response(buf, { headers: { 'Content-Type': entry.mime } }));
+          await cache.put(url, new Response(got, { headers: { 'Content-Type': entry.mime } }));
           if (live()) this.markStored(g);
         } catch (e) {
           if (isQuota(e)) endState = 'quota';

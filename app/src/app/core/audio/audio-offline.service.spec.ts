@@ -4,7 +4,7 @@ import { ContentApi } from '../contracts';
 import { ContentIndex } from '../models';
 import { buildFixture, FakeCacheStorage, Fixture } from '../content/testing';
 import { AUDIO_MANIFEST_URL, AudioManifest, audioFileUrl, audioManifestUrl } from './audio-offline.api';
-import { AudioOfflineService, audioCacheName } from './audio-offline.service';
+import { AudioOfflineService, audioCacheName, downloadRetry } from './audio-offline.service';
 
 describe('AudioOfflineService', () => {
   let fx: Fixture;
@@ -66,6 +66,7 @@ describe('AudioOfflineService', () => {
 
   beforeEach(() => {
     localStorage.clear();
+    downloadRetry.delays = [0, 0];
     opus = true;
     blobSeq = 0;
     revoked.length = 0;
@@ -250,6 +251,52 @@ describe('AudioOfflineService', () => {
     }) as typeof fetch;
     await svc.download({ kind: 'surah', id: 1 });
     expect(svc.status()).toMatchObject({ state: 'error', failed: 12, done: 0 });
+  });
+
+  describe('retries per file (D58)', () => {
+    const flaky = (fail: (url: string, n: number) => Response | 'throw' | null) => {
+      const base = globalThis.fetch;
+      const seen = new Map<string, number>();
+      const inits: (RequestInit | undefined)[] = [];
+      globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+        const url = String(input);
+        inits.push(init);
+        const n = (seen.get(url) ?? 0) + 1;
+        seen.set(url, n);
+        const f = fail(url, n);
+        if (f === 'throw') throw new TypeError('Failed to fetch');
+        return f ?? base(input, init);
+      }) as typeof fetch;
+      return { seen, inits };
+    };
+    const a3 = audioFileUrl('opus24', 'webm', { surah: 1, ayah: 3 });
+
+    it('retries a dropped connection and a truncated body, then stores the file', async () => {
+      await svc.load();
+      const { seen, inits } = flaky((url, n) =>
+        url !== a3 ? null : n === 1 ? 'throw' : n === 2 ? new Response(new Uint8Array(2)) : null,
+      );
+      await svc.download({ kind: 'surah', id: 1 });
+      expect(svc.status()).toMatchObject({ state: 'done', failed: 0, done: 12 });
+      expect(seen.get(a3)).toBe(3);
+      expect(inits.every((i) => i?.cache === 'no-store')).toBe(true);
+    });
+
+    it('retries 5xx but gives up after three attempts; a 404 is not retried', async () => {
+      await svc.load();
+      const a4 = audioFileUrl('opus24', 'webm', { surah: 1, ayah: 4 });
+      const { seen } = flaky((url) =>
+        url === a3
+          ? new Response('', { status: 503 })
+          : url === a4
+            ? new Response('', { status: 404 })
+            : null,
+      );
+      await svc.download({ kind: 'surah', id: 1 });
+      expect(svc.status()).toMatchObject({ state: 'error', failed: 2, done: 10 });
+      expect(seen.get(a3)).toBe(3);
+      expect(seen.get(a4)).toBe(1);
+    });
   });
 
   it('pauses and resumes without refetching stored files', async () => {
